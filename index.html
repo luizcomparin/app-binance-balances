@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Binance Dashboard Local</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <!-- ACCORDION 1 (SALDOS) -->
+    <button class="accordion">Carteira Binance</button>
+    <div class="panel">
+        <button onclick="loadBalances()">Recarregar Carteira</button>
+
+        <div id="total-balance"></div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Moeda</th>
+                    <th>Total (USDT)</th>
+                    <th>%</th>
+                    <th>Livre (USDT)</th>
+                    <th>Travado (USDT)</th>
+                </tr>
+            </thead>
+            <tbody id="table-body-balances"></tbody>
+        </table>
+    </div>
+
+
+    <!-- ACCORDION 2 (ORDENS) -->
+    <button class="accordion">Ordens Abertas</button>
+    <div class="panel">
+
+        <!-- FILTROS -->
+        <div class="orders-filters">
+            <label>Par:</label>
+            <select id="filterPair"></select>
+
+            <label>Lado:</label>
+            <select id="filterSide">
+                <option value="ALL">Todos</option>
+                <option value="BUY">BUY</option>
+                <option value="SELL">SELL</option>
+            </select>
+
+            <button onclick="applyOrderFilters()">Filtrar</button>
+        </div>
+
+        <button onclick="loadOrders()">Recarregar Ordens</button>
+
+        <div id="total-orders"></div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th onclick="sortOrders('pair')">Pair ⇅</th>
+                    <th onclick="sortOrders('side')">Side ⇅</th>
+                    <th onclick="sortOrders('type')">Type ⇅</th>
+                    <th onclick="sortOrders('price')">Price ⇅</th>
+                    <th onclick="sortOrders('amount')">Amount ⇅</th>
+                    <th onclick="sortOrders('total')">Total (USDT) ⇅</th>
+                    <th onclick="sortOrders('time')">Time ⇅</th>
+                </tr>
+            </thead>
+            <tbody id="table-body-orders"></tbody>
+        </table>
+
+    </div>
+
+    <script src="script.js"></script>
+
+</body>
+
+</html>

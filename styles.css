@@ -1,0 +1,122 @@
+body {
+    font-family: Arial, sans-serif;
+    background: #f2f2f7;
+    padding: 20px;
+    color: #333;
+  }
+  
+  /* TABLES */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    margin-bottom: 30px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+    border-radius: 6px;
+  }
+  
+  th, td {
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+    text-align: left;
+  }
+  
+  th {
+    background: #eee;
+    cursor: pointer;
+    user-select: none;
+  }
+  
+  tr:hover {
+    background: #f8f8f8;
+  }
+  
+  /* COLORS */
+  .buy {
+    color: #0b8d24;
+    font-weight: bold;
+  }
+  
+  .sell {
+    color: #c91616;
+    font-weight: bold;
+  }
+  
+  /* GROUP HEADER */
+  .group-header {
+    background: #dfe9ff;
+    font-weight: bold;
+  }
+  
+  /* BUTTONS */
+  button {
+    padding: 8px 14px;
+    margin-bottom: 15px;
+    cursor: pointer;
+    border: none;
+    background-color: #007aff;
+    color: white;
+    border-radius: 4px;
+  }
+  
+  /* TOTALS */
+  #total-balance, #total-orders {
+    font-size: 18px;
+    font-weight: bold;
+    margin-top: 10px;
+  }
+  
+  /* ACCORDION */
+  .accordion {
+    background: #007aff;
+    color: white;
+    cursor: pointer;
+    padding: 14px;
+    width: 100%;
+    border: none;
+    text-align: left;
+    outline: none;
+    font-size: 18px;
+    margin-top: 15px;
+    border-radius: 6px;
+  }
+  
+  .panel {
+    display: none;
+    margin-top: 10px;
+  }
+  
+  /* FILTERS FOR ORDERS */
+  .orders-filters {
+    background: #eee;
+    padding: 10px;
+    border: 1px solid #ccc;
+    margin-bottom: 15px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  
+  .orders-filters input,
+  .orders-filters select {
+    padding: 5px;
+  }
+  
+  /* Esconde linhas colapsadas */
+.group-collapsed {
+    opacity: 0.7;
+  }
+  
+  .hidden-row {
+    display: none !important;
+  }
+  
+  /* Estilo visual ao clicar */
+  .group-header {
+    cursor: pointer;
+  }
+  
+  .group-header.group-collapsed {
+    background: #c9d7ff !important;
+  }
+  
