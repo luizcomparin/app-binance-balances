@@ -8,14 +8,14 @@
 </head>
 
 <body>
+    <div>
+        <button onclick="loadBalances()">Recarregar Carteira</button>
+        <div id="total-balance"></div>
+    </div>
 
     <!-- ACCORDION 1 (SALDOS) -->
     <button class="accordion">Carteira Binance</button>
     <div class="panel">
-        <button onclick="loadBalances()">Recarregar Carteira</button>
-
-        <div id="total-balance"></div>
-
         <table>
             <thead>
                 <tr>
@@ -27,6 +27,23 @@
                 </tr>
             </thead>
             <tbody id="table-body-balances"></tbody>
+        </table>
+    </div>
+
+    <button class="accordion">Resumo dos Ativos</button>
+    <div class="panel">
+        <table>
+            <thead>
+                <tr>
+                    <th>Moeda</th>
+                    <th>Preço médio (compras)</th>
+                    <th>Qtd do ativo</th>
+                    <th>Custo de compra (USDT)</th>
+                    <th>Preço atual (USDT)</th>
+                    <th>Valorização (USDT)</th>
+                </tr>
+            </thead>
+            <tbody id="table-body-asset-stats"></tbody>
         </table>
     </div>
 

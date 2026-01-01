@@ -17,13 +17,23 @@ document.querySelectorAll(".accordion").forEach((acc) => {
 async function loadBalances() {
 	const tbody = document.querySelector("#table-body-balances");
 	const totalBalanceDivs = document.querySelectorAll("#total-balance");
+	const summaryTbody = document.querySelector("#table-body-asset-stats");
 
 	tbody.innerHTML = "<tr><td colspan='5'>Carregando...</td></tr>";
+	if (summaryTbody) {
+		summaryTbody.innerHTML = "<tr><td colspan='6'>Carregando...</td></tr>";
+	}
 
 	try {
-		const data = await fetch("http://localhost:3000/balances").then((x) =>
-			x.json()
-		);
+		const [data, raw, avgPrices] = await Promise.all([
+			fetch("http://localhost:3000/balances").then((x) => x.json()),
+			fetch("http://localhost:3000/raw")
+				.then((x) => x.json())
+				.catch(() => null),
+			fetch("http://localhost:3000/avg-buy-prices")
+				.then((x) => x.json())
+				.catch(() => ({})),
+		]);
 
 		tbody.innerHTML = "";
 		data.assets.forEach((asset) => {
@@ -44,14 +54,108 @@ async function loadBalances() {
 				"Total da carteira: " + data.total_usdt.toFixed(2) + " USDT";
 		});
 
-		// const totalBalanceDivs = document.querySelectorAll("#total-usdt");
-		// .forEach((totalBalanceDiv) => {
-		// 	totalBalanceDiv.innerText =
-		// 		"Total da carteira: " + data.total_usdt.toFixed(2) + " USDT";
-		// });
+		const quantityMap = raw ? mapQuantities(raw.balances) : {};
+		if (summaryTbody) {
+			await renderAssetSummary(data.assets, quantityMap, avgPrices);
+		}
 	} catch (e) {
 		tbody.innerHTML = `<tr><td colspan="5" style="color:red;">Erro: ${e}</td></tr>`;
+		if (summaryTbody) {
+			summaryTbody.innerHTML = `<tr><td colspan="6" style="color:red;">Erro: ${e}</td></tr>`;
+		}
 	}
+}
+
+function mapQuantities(rawBalances = []) {
+	return rawBalances.reduce((acc, item) => {
+		const qty = Number(item.free) + Number(item.locked);
+		if (qty > 0) acc[item.asset] = qty;
+		return acc;
+	}, {});
+}
+
+const AVG_PRICE_CACHE = {};
+
+function getAveragePurchasePrice(asset, avgPriceMap = {}) {
+	if (asset === "USDT" || asset === "BUSD") return 1;
+	const cached = AVG_PRICE_CACHE[asset];
+	if (cached !== undefined) return cached;
+
+	const fromApi = avgPriceMap[asset];
+	if (fromApi === null || fromApi === undefined || Number.isNaN(fromApi)) {
+		AVG_PRICE_CACHE[asset] = null;
+		return null;
+	}
+
+	AVG_PRICE_CACHE[asset] = Number(fromApi);
+	return AVG_PRICE_CACHE[asset];
+}
+
+function formatMaybeNumber(value, digits = 2, unit = "", nullLabel = "NULL") {
+	if (value === null || value === undefined || Number.isNaN(value)) {
+		return nullLabel;
+	}
+	const formatted = Number(value).toFixed(digits);
+	return unit ? `${formatted} ${unit}` : formatted;
+}
+
+async function renderAssetSummary(assets, quantityMap, avgPriceMap = {}) {
+	const tbody = document.querySelector("#table-body-asset-stats");
+	if (!tbody) return;
+
+	tbody.innerHTML = "<tr><td colspan='6'>Carregando...</td></tr>";
+
+	const rows = await Promise.all(
+		assets.map(async (asset) => {
+			const qty = quantityMap[asset.asset] || 0;
+			const hasQty = qty > 0;
+
+			const avgPrice = getAveragePurchasePrice(asset.asset, avgPriceMap);
+
+			const cost = hasQty && avgPrice !== null ? avgPrice * qty : null;
+			const currentValue = hasQty ? asset.totalUSDT : null;
+			const valorizacao =
+				cost !== null && currentValue !== null
+					? cost - currentValue
+					: null;
+
+			return {
+				asset: asset.asset,
+				avgPrice,
+				qty,
+				cost,
+				currentValue,
+				valorizacao: valorizacao * -1,
+			};
+		})
+	);
+
+	if (!rows.length) {
+		tbody.innerHTML =
+			"<tr><td colspan='6'>Nenhum ativo com dados suficientes.</td></tr>";
+		return;
+	}
+
+	tbody.innerHTML = rows
+		.map(
+			(row) => `
+        <tr>
+          <td>${row.asset}</td>
+          <td>${formatMaybeNumber(row.avgPrice, 5, "USDT")}</td>
+          <td>${formatMaybeNumber(row.qty, 6, row.asset)}</td>
+          <td>${formatMaybeNumber(row.cost, 2, "USDT")}</td>
+          <td>${formatMaybeNumber(row.currentValue, 2, "USDT")}</td>
+          <td class="${
+				row.valorizacao > 0
+					? "positive"
+					: row.valorizacao < 0
+					? "negative"
+					: ""
+			}">${formatMaybeNumber(row.valorizacao, 2, "USDT")}</td>
+        </tr>
+      `
+		)
+		.join("");
 }
 
 /* ---------------------------------------- */
