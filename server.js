@@ -51,21 +51,17 @@ app.listen(PORT, onStartup());
 
 function onStartup() {
 	console.log(`🚀 API rodando em:
-   • http://localhost:${PORT}/balances   (carteira filtrada)
-   • http://localhost:${PORT}/raw        (dados crus da Binance)
-   • http://localhost:${PORT}/orders     (ordens abertas agrupadas por ativo)
+   • http://localhost:${PORT}/balances          (carteira filtrada)
+   • http://localhost:${PORT}/raw               (dados crus da Binance)
+   • http://localhost:${PORT}/orders            (ordens abertas agrupadas por ativo)
    • http://localhost:${PORT}/orders/:asset     (ordens abertas para ativo específico)
+   • http://localhost:${PORT}/site              (dashboard com HTML/CSS/JS)
   `);
 }
 
 // -----------------------------------------------------------------------------
 // ROTAS
 // -----------------------------------------------------------------------------
-
-// Rota específica para /site
-// app.get("/site", (req, res) => {
-// 	res.sendFile(path.join(__dirname, "index.html"));
-// });
 
 // 🔥 NOVO: retorna o JSON cru da Binance
 app.get("/raw", async (req, res) => {

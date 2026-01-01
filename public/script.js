@@ -16,7 +16,6 @@ document.querySelectorAll(".accordion").forEach((acc) => {
 
 async function loadBalances() {
 	const tbody = document.querySelector("#table-body-balances");
-	const totalBalanceDivs = document.querySelectorAll("#total-balance");
 	const summaryTbody = document.querySelector("#table-body-asset-stats");
 
 	tbody.innerHTML = "<tr><td colspan='5'>Carregando...</td></tr>";
@@ -35,6 +34,8 @@ async function loadBalances() {
 				.catch(() => ({})),
 		]);
 
+		const totalUsdt = data.total_usdt.toFixed(2);
+
 		tbody.innerHTML = "";
 		data.assets.forEach((asset) => {
 			tbody.innerHTML += `
@@ -48,11 +49,37 @@ async function loadBalances() {
         `;
 		});
 
+		const totalBalanceDivs = document.querySelectorAll("#total-balance");
 		// totalDiv.innerText = "Total da carteira: " + data.total_usdt.toFixed(2) + " USDT";
 		totalBalanceDivs.forEach((totalBalanceDiv) => {
 			totalBalanceDiv.innerText =
-				"Total da carteira: " + data.total_usdt.toFixed(2) + " USDT";
+				"Total da carteira: " + totalUsdt + " USDT";
 		});
+
+		const usdtPercentDiv = document.getElementById("usdt-percent");
+		const btcPercentDiv = document.getElementById("btc-percent");
+		const xrpPercentDiv = document.getElementById("xrp-percent");
+		const othersPercentDiv = document.getElementById("others-percent");
+		usdtPercentDiv.innerText = `USDT: ${
+			data.assets.find((a) => a.asset === "USDT")?.pct.toFixed(2) || 0
+		}%`;
+		btcPercentDiv.innerText = `BTC: ${
+			data.assets.find((a) => a.asset === "BTC")?.pct.toFixed(2) || 0
+		}%`;
+		xrpPercentDiv.innerText = `XRP: ${
+			data.assets.find((a) => a.asset === "XRP")?.pct.toFixed(2) || 0
+		}%`;
+		othersPercentDiv.innerText = `Outros: ${data.assets
+			.filter(
+				(a) =>
+					a.asset !== "USDT" && a.asset !== "BTC" && a.asset !== "XRP"
+			)
+			.reduce((acc, a) => acc + a.pct, 0)
+			.toFixed(2)}%`;
+		// usdt-percent
+		// btc-percent
+		// xrp-percent
+		// others-percent
 
 		const quantityMap = raw ? mapQuantities(raw.balances) : {};
 		if (summaryTbody) {
