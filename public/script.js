@@ -14,6 +14,7 @@ document.querySelectorAll(".accordion").forEach((acc) => {
 /* ---------------------------------------- */
 
 let walletChart = null;
+let walletBarChart = null;
 
 function renderWalletChart(assets) {
   const ctx = document.getElementById("walletChart");
@@ -77,7 +78,7 @@ function renderWalletChart(assets) {
     },
     options: {
       responsive: true,
-      maintainAspectRatio: true,
+      maintainAspectRatio: false,
       plugins: {
         legend: {
           position: "bottom",
@@ -103,6 +104,100 @@ function renderWalletChart(assets) {
               const label = context.label || "";
               const value = context.parsed || 0;
               return ` ${label}: ${value.toFixed(2)}%`;
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+function renderWalletBarChart(assets) {
+  const ctx = document.getElementById("walletBarChart");
+  if (!ctx) return;
+
+  // Pegar os 8 maiores ativos
+  const sortedAssets = [...assets]
+    .sort((a, b) => b.totalUSDT - a.totalUSDT)
+    .slice(0, 8);
+
+  const labels = sortedAssets.map((a) => a.asset);
+  const data = sortedAssets.map((a) => a.totalUSDT);
+  const colors = sortedAssets.map((a) => {
+    if (a.asset === "USDT") return "rgba(77, 212, 255, 0.8)";
+    if (a.asset === "BTC") return "rgba(247, 147, 26, 0.8)";
+    if (a.asset === "XRP") return "rgba(107, 242, 197, 0.8)";
+    return "rgba(155, 176, 214, 0.8)";
+  });
+
+  // Destruir gráfico anterior se existir
+  if (walletBarChart) {
+    walletBarChart.destroy();
+  }
+
+  // Criar novo gráfico
+  walletBarChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: "Valor em USDT",
+          data: data,
+          backgroundColor: colors,
+          borderColor: "#11172e",
+          borderWidth: 2,
+          borderRadius: 6,
+        },
+      ],
+    },
+    options: {
+      indexAxis: "y",
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false,
+        },
+        tooltip: {
+          backgroundColor: "#11172e",
+          titleColor: "#4dd4ff",
+          bodyColor: "#e5ecff",
+          borderColor: "rgba(255, 255, 255, 0.08)",
+          borderWidth: 1,
+          padding: 12,
+          displayColors: true,
+          callbacks: {
+            label: function (context) {
+              const value = context.parsed.x || 0;
+              return ` Valor: ${value.toFixed(2)} USDT`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid: {
+            color: "rgba(255, 255, 255, 0.05)",
+          },
+          ticks: {
+            color: "#9bb0d6",
+            font: {
+              size: 11,
+              family: "Manrope",
+            },
+          },
+        },
+        y: {
+          grid: {
+            display: false,
+          },
+          ticks: {
+            color: "#e5ecff",
+            font: {
+              size: 12,
+              family: "Manrope",
+              weight: "600",
             },
           },
         },
@@ -185,8 +280,9 @@ async function loadBalances() {
       await renderAssetSummary(data.assets, quantityMap, avgPrices);
     }
 
-    // Renderizar gráfico de pizza
+    // Renderizar gráficos
     renderWalletChart(data.assets);
+    renderWalletBarChart(data.assets);
   } catch (e) {
     tbody.innerHTML = `<tr><td colspan="5" style="color:red;">Erro: ${e}</td></tr>`;
     if (summaryTbody) {
