@@ -117,8 +117,7 @@ function renderWalletBarChart(assets) {
   if (!ctx) return;
 
   // Pegar todos os ativos ordenados por valor
-  const sortedAssets = [...assets]
-    .sort((a, b) => b.totalUSDT - a.totalUSDT);
+  const sortedAssets = [...assets].sort((a, b) => b.totalUSDT - a.totalUSDT);
 
   const labels = sortedAssets.map((a) => a.asset);
   const data = sortedAssets.map((a) => a.totalUSDT);
