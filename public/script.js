@@ -2,43 +2,144 @@
 /* ACCORDION                                */
 /* ---------------------------------------- */
 document.querySelectorAll(".accordion").forEach((acc) => {
-	acc.addEventListener("click", () => {
-		acc.classList.toggle("active");
-		const panel = acc.nextElementSibling;
-		panel.style.display =
-			panel.style.display === "block" ? "none" : "block";
-	});
+  acc.addEventListener("click", () => {
+    acc.classList.toggle("active");
+    const panel = acc.nextElementSibling;
+    panel.style.display = panel.style.display === "block" ? "none" : "block";
+  });
 });
+
+/* ---------------------------------------- */
+/* CHART                                    */
+/* ---------------------------------------- */
+
+let walletChart = null;
+
+function renderWalletChart(assets) {
+  const ctx = document.getElementById("walletChart");
+  if (!ctx) return;
+
+  // Agrupar ativos
+  const usdt = assets.find((a) => a.asset === "USDT");
+  const btc = assets.find((a) => a.asset === "BTC");
+  const xrp = assets.find((a) => a.asset === "XRP");
+  const others = assets.filter(
+    (a) => a.asset !== "USDT" && a.asset !== "BTC" && a.asset !== "XRP"
+  );
+
+  const labels = [];
+  const data = [];
+  const colors = [];
+
+  if (usdt && usdt.pct > 0) {
+    labels.push("USDT");
+    data.push(usdt.pct);
+    colors.push("rgba(77, 212, 255, 0.8)");
+  }
+
+  if (btc && btc.pct > 0) {
+    labels.push("BTC");
+    data.push(btc.pct);
+    colors.push("rgba(247, 147, 26, 0.8)");
+  }
+
+  if (xrp && xrp.pct > 0) {
+    labels.push("XRP");
+    data.push(xrp.pct);
+    colors.push("rgba(107, 242, 197, 0.8)");
+  }
+
+  const othersTotal = others.reduce((acc, a) => acc + a.pct, 0);
+  if (othersTotal > 0) {
+    labels.push("Outros");
+    data.push(othersTotal);
+    colors.push("rgba(155, 176, 214, 0.8)");
+  }
+
+  // Destruir gráfico anterior se existir
+  if (walletChart) {
+    walletChart.destroy();
+  }
+
+  // Criar novo gráfico
+  walletChart = new Chart(ctx, {
+    type: "pie",
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          data: data,
+          backgroundColor: colors,
+          borderColor: "#11172e",
+          borderWidth: 3,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: {
+          position: "bottom",
+          labels: {
+            color: "#e5ecff",
+            padding: 15,
+            font: {
+              size: 13,
+              family: "Manrope",
+            },
+          },
+        },
+        tooltip: {
+          backgroundColor: "#11172e",
+          titleColor: "#4dd4ff",
+          bodyColor: "#e5ecff",
+          borderColor: "rgba(255, 255, 255, 0.08)",
+          borderWidth: 1,
+          padding: 12,
+          displayColors: true,
+          callbacks: {
+            label: function (context) {
+              const label = context.label || "";
+              const value = context.parsed || 0;
+              return ` ${label}: ${value.toFixed(2)}%`;
+            },
+          },
+        },
+      },
+    },
+  });
+}
 
 /* ---------------------------------------- */
 /* BALANCES                                 */
 /* ---------------------------------------- */
 
 async function loadBalances() {
-	const tbody = document.querySelector("#table-body-balances");
-	const summaryTbody = document.querySelector("#table-body-asset-stats");
+  const tbody = document.querySelector("#table-body-balances");
+  const summaryTbody = document.querySelector("#table-body-asset-stats");
 
-	tbody.innerHTML = "<tr><td colspan='5'>Carregando...</td></tr>";
-	if (summaryTbody) {
-		summaryTbody.innerHTML = "<tr><td colspan='6'>Carregando...</td></tr>";
-	}
+  tbody.innerHTML = "<tr><td colspan='5'>Carregando...</td></tr>";
+  if (summaryTbody) {
+    summaryTbody.innerHTML = "<tr><td colspan='6'>Carregando...</td></tr>";
+  }
 
-	try {
-		const [data, raw, avgPrices] = await Promise.all([
-			fetch("http://localhost:3000/balances").then((x) => x.json()),
-			fetch("http://localhost:3000/raw")
-				.then((x) => x.json())
-				.catch(() => null),
-			fetch("http://localhost:3000/avg-buy-prices")
-				.then((x) => x.json())
-				.catch(() => ({})),
-		]);
+  try {
+    const [data, raw, avgPrices] = await Promise.all([
+      fetch("http://localhost:3000/balances").then((x) => x.json()),
+      fetch("http://localhost:3000/raw")
+        .then((x) => x.json())
+        .catch(() => null),
+      fetch("http://localhost:3000/avg-buy-prices")
+        .then((x) => x.json())
+        .catch(() => ({})),
+    ]);
 
-		const totalUsdt = data.total_usdt.toFixed(2);
+    const totalUsdt = data.total_usdt.toFixed(2);
 
-		tbody.innerHTML = "";
-		data.assets.forEach((asset) => {
-			tbody.innerHTML += `
+    tbody.innerHTML = "";
+    data.assets.forEach((asset) => {
+      tbody.innerHTML += `
           <tr>
             <td>${asset.asset}</td>
             <td>${asset.totalUSDT.toFixed(2)}</td>
@@ -47,124 +148,124 @@ async function loadBalances() {
             <td>${asset.lockedUSDT.toFixed(2)}</td>
           </tr>
         `;
-		});
+    });
 
-		const totalBalanceDivs = document.querySelectorAll("#total-balance");
-		// totalDiv.innerText = "Total da carteira: " + data.total_usdt.toFixed(2) + " USDT";
-		totalBalanceDivs.forEach((totalBalanceDiv) => {
-			totalBalanceDiv.innerText = `${totalUsdt} USDT`;
-		});
+    const totalBalanceDivs = document.querySelectorAll("#total-balance");
+    // totalDiv.innerText = "Total da carteira: " + data.total_usdt.toFixed(2) + " USDT";
+    totalBalanceDivs.forEach((totalBalanceDiv) => {
+      totalBalanceDiv.innerText = `${totalUsdt} USDT`;
+    });
 
-		const usdtPercentDiv = document.getElementById("usdt-percent");
-		const btcPercentDiv = document.getElementById("btc-percent");
-		const xrpPercentDiv = document.getElementById("xrp-percent");
-		const othersPercentDiv = document.getElementById("others-percent");
-		usdtPercentDiv.innerText = `${
-			data.assets.find((a) => a.asset === "USDT")?.pct.toFixed(2) || 0
-		}%`;
-		btcPercentDiv.innerText = `${
-			data.assets.find((a) => a.asset === "BTC")?.pct.toFixed(2) || 0
-		}%`;
-		xrpPercentDiv.innerText = `${
-			data.assets.find((a) => a.asset === "XRP")?.pct.toFixed(2) || 0
-		}%`;
-		othersPercentDiv.innerText = `${data.assets
-			.filter(
-				(a) =>
-					a.asset !== "USDT" && a.asset !== "BTC" && a.asset !== "XRP"
-			)
-			.reduce((acc, a) => acc + a.pct, 0)
-			.toFixed(2)}%`;
-		// usdt-percent
-		// btc-percent
-		// xrp-percent
-		// others-percent
+    const usdtPercentDiv = document.getElementById("usdt-percent");
+    const btcPercentDiv = document.getElementById("btc-percent");
+    const xrpPercentDiv = document.getElementById("xrp-percent");
+    const othersPercentDiv = document.getElementById("others-percent");
+    usdtPercentDiv.innerText = `${
+      data.assets.find((a) => a.asset === "USDT")?.pct.toFixed(2) || 0
+    }%`;
+    btcPercentDiv.innerText = `${
+      data.assets.find((a) => a.asset === "BTC")?.pct.toFixed(2) || 0
+    }%`;
+    xrpPercentDiv.innerText = `${
+      data.assets.find((a) => a.asset === "XRP")?.pct.toFixed(2) || 0
+    }%`;
+    othersPercentDiv.innerText = `${data.assets
+      .filter(
+        (a) => a.asset !== "USDT" && a.asset !== "BTC" && a.asset !== "XRP"
+      )
+      .reduce((acc, a) => acc + a.pct, 0)
+      .toFixed(2)}%`;
+    // usdt-percent
+    // btc-percent
+    // xrp-percent
+    // others-percent
 
-		const quantityMap = raw ? mapQuantities(raw.balances) : {};
-		if (summaryTbody) {
-			await renderAssetSummary(data.assets, quantityMap, avgPrices);
-		}
-	} catch (e) {
-		tbody.innerHTML = `<tr><td colspan="5" style="color:red;">Erro: ${e}</td></tr>`;
-		if (summaryTbody) {
-			summaryTbody.innerHTML = `<tr><td colspan="6" style="color:red;">Erro: ${e}</td></tr>`;
-		}
-	}
+    const quantityMap = raw ? mapQuantities(raw.balances) : {};
+    if (summaryTbody) {
+      await renderAssetSummary(data.assets, quantityMap, avgPrices);
+    }
+
+    // Renderizar gráfico de pizza
+    renderWalletChart(data.assets);
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="5" style="color:red;">Erro: ${e}</td></tr>`;
+    if (summaryTbody) {
+      summaryTbody.innerHTML = `<tr><td colspan="6" style="color:red;">Erro: ${e}</td></tr>`;
+    }
+  }
 }
 
 function mapQuantities(rawBalances = []) {
-	return rawBalances.reduce((acc, item) => {
-		const qty = Number(item.free) + Number(item.locked);
-		if (qty > 0) acc[item.asset] = qty;
-		return acc;
-	}, {});
+  return rawBalances.reduce((acc, item) => {
+    const qty = Number(item.free) + Number(item.locked);
+    if (qty > 0) acc[item.asset] = qty;
+    return acc;
+  }, {});
 }
 
 const AVG_PRICE_CACHE = {};
 
 function getAveragePurchasePrice(asset, avgPriceMap = {}) {
-	if (asset === "USDT" || asset === "BUSD") return 1;
-	const cached = AVG_PRICE_CACHE[asset];
-	if (cached !== undefined) return cached;
+  if (asset === "USDT" || asset === "BUSD") return 1;
+  const cached = AVG_PRICE_CACHE[asset];
+  if (cached !== undefined) return cached;
 
-	const fromApi = avgPriceMap[asset];
-	if (fromApi === null || fromApi === undefined || Number.isNaN(fromApi)) {
-		AVG_PRICE_CACHE[asset] = null;
-		return null;
-	}
+  const fromApi = avgPriceMap[asset];
+  if (fromApi === null || fromApi === undefined || Number.isNaN(fromApi)) {
+    AVG_PRICE_CACHE[asset] = null;
+    return null;
+  }
 
-	AVG_PRICE_CACHE[asset] = Number(fromApi);
-	return AVG_PRICE_CACHE[asset];
+  AVG_PRICE_CACHE[asset] = Number(fromApi);
+  return AVG_PRICE_CACHE[asset];
 }
 
 function formatMaybeNumber(value, digits = 2, unit = "", nullLabel = "NULL") {
-	if (value === null || value === undefined || Number.isNaN(value)) {
-		return nullLabel;
-	}
-	const formatted = Number(value).toFixed(digits);
-	return unit ? `${formatted} ${unit}` : formatted;
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return nullLabel;
+  }
+  const formatted = Number(value).toFixed(digits);
+  return unit ? `${formatted} ${unit}` : formatted;
 }
 
 async function renderAssetSummary(assets, quantityMap, avgPriceMap = {}) {
-	const tbody = document.querySelector("#table-body-asset-stats");
-	if (!tbody) return;
+  const tbody = document.querySelector("#table-body-asset-stats");
+  if (!tbody) return;
 
-	tbody.innerHTML = "<tr><td colspan='6'>Carregando...</td></tr>";
+  tbody.innerHTML = "<tr><td colspan='6'>Carregando...</td></tr>";
 
-	const rows = await Promise.all(
-		assets.map(async (asset) => {
-			const qty = quantityMap[asset.asset] || 0;
-			const hasQty = qty > 0;
+  const rows = await Promise.all(
+    assets.map(async (asset) => {
+      const qty = quantityMap[asset.asset] || 0;
+      const hasQty = qty > 0;
 
-			const avgPrice = getAveragePurchasePrice(asset.asset, avgPriceMap);
+      const avgPrice = getAveragePurchasePrice(asset.asset, avgPriceMap);
 
-			const cost = hasQty && avgPrice !== null ? avgPrice * qty : null;
-			const currentValue = hasQty ? asset.totalUSDT : null;
-			const valorizacao =
-				cost !== null && currentValue !== null
-					? cost - currentValue
-					: null;
+      const cost = hasQty && avgPrice !== null ? avgPrice * qty : null;
+      const currentValue = hasQty ? asset.totalUSDT : null;
+      const valorizacao =
+        cost !== null && currentValue !== null ? cost - currentValue : null;
 
-			return {
-				asset: asset.asset,
-				avgPrice,
-				qty,
-				cost,
-				currentValue,
-				valorizacao: valorizacao * -1,
-			};
-		})
-	);
+      return {
+        asset: asset.asset,
+        avgPrice,
+        qty,
+        cost,
+        currentValue,
+        valorizacao: valorizacao * -1,
+      };
+    })
+  );
 
-	if (!rows.length) {
-		tbody.innerHTML =
-			"<tr><td colspan='6'>Nenhum ativo com dados suficientes.</td></tr>";
-		return;
-	}
+  if (!rows.length) {
+    tbody.innerHTML =
+      "<tr><td colspan='6'>Nenhum ativo com dados suficientes.</td></tr>";
+    return;
+  }
 
-	tbody.innerHTML = rows
-		.map(
-			(row) => `
+  tbody.innerHTML = rows
+    .map(
+      (row) => `
         <tr>
           <td>${row.asset}</td>
           <td>${formatMaybeNumber(row.avgPrice, 5, "USDT")}</td>
@@ -172,16 +273,16 @@ async function renderAssetSummary(assets, quantityMap, avgPriceMap = {}) {
           <td>${formatMaybeNumber(row.cost, 2, "USDT")}</td>
           <td>${formatMaybeNumber(row.currentValue, 2, "USDT")}</td>
           <td class="${
-				row.valorizacao > 0
-					? "positive"
-					: row.valorizacao < 0
-					? "negative"
-					: ""
-			}">${formatMaybeNumber(row.valorizacao, 2, "USDT")}</td>
+            row.valorizacao > 0
+              ? "positive"
+              : row.valorizacao < 0
+              ? "negative"
+              : ""
+          }">${formatMaybeNumber(row.valorizacao, 2, "USDT")}</td>
         </tr>
       `
-		)
-		.join("");
+    )
+    .join("");
 }
 
 /* ---------------------------------------- */
@@ -195,135 +296,132 @@ let pairs = [];
 let totalsByPair = {};
 
 async function loadOrders() {
-	const tbody = document.querySelector("#table-body-orders");
-	tbody.innerHTML = "<tr><td colspan='7'>Carregando...</td></tr>";
+  const tbody = document.querySelector("#table-body-orders");
+  tbody.innerHTML = "<tr><td colspan='7'>Carregando...</td></tr>";
 
-	try {
-		const json = await fetch("http://localhost:3000/orders").then((x) =>
-			x.json()
-		);
+  try {
+    const json = await fetch("http://localhost:3000/orders").then((x) =>
+      x.json()
+    );
 
-		ORDERS = [];
+    ORDERS = [];
 
-		// Flatten the object into an array
-		for (const base in json) {
-			json[base].forEach((order) => {
-				if (pairs.find((item) => item === order.symbol) === undefined) {
-					pairs.push(order.symbol);
-				}
+    // Flatten the object into an array
+    for (const base in json) {
+      json[base].forEach((order) => {
+        if (pairs.find((item) => item === order.symbol) === undefined) {
+          pairs.push(order.symbol);
+        }
 
-				ORDERS.push({
-					pair: order.symbol,
-					side: order.side,
-					type: order.type,
-					price: Number(order.price),
-					amount: Number(order.origQty),
-					total: Number(order.price) * Number(order.origQty),
-					time: order.time,
-				});
-			});
-		}
-		createOrderFilters();
-		applyOrderFilters();
-	} catch (e) {
-		tbody.innerHTML = `<tr><td colspan="7" style="color:red;">Erro: ${e}</td></tr>`;
-	}
+        ORDERS.push({
+          pair: order.symbol,
+          side: order.side,
+          type: order.type,
+          price: Number(order.price),
+          amount: Number(order.origQty),
+          total: Number(order.price) * Number(order.origQty),
+          time: order.time,
+        });
+      });
+    }
+    createOrderFilters();
+    applyOrderFilters();
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="7" style="color:red;">Erro: ${e}</td></tr>`;
+  }
 }
 
 function createOrderFilters() {
-	const pairSelect = document.getElementById("filterPair");
-	pairSelect.innerHTML = pairs
-		.map((item) => `<option value="${item}">${item}</option> `)
-		.toString(); // aqui o forloop
-	pairSelect.innerHTML =
-		'<option value="">Todos</option>' + pairSelect.innerHTML;
+  const pairSelect = document.getElementById("filterPair");
+  pairSelect.innerHTML = pairs
+    .map((item) => `<option value="${item}">${item}</option> `)
+    .toString(); // aqui o forloop
+  pairSelect.innerHTML =
+    '<option value="">Todos</option>' + pairSelect.innerHTML;
 }
 
 function applyOrderFilters() {
-	const pair = document
-		.getElementById("filterPair")
-		.value.trim()
-		.toUpperCase();
+  const pair = document.getElementById("filterPair").value.trim().toUpperCase();
 
-	const side = document.getElementById("filterSide").value;
+  const side = document.getElementById("filterSide").value;
 
-	FILTERED = ORDERS.filter(
-		(o) =>
-			(pair === "" || o.pair.includes(pair)) &&
-			(side === "ALL" || o.side === side)
-	);
+  FILTERED = ORDERS.filter(
+    (o) =>
+      (pair === "" || o.pair.includes(pair)) &&
+      (side === "ALL" || o.side === side)
+  );
 
-	totalsByPair = calculateTotalsByPair(FILTERED);
-	renderOrders();
+  totalsByPair = calculateTotalsByPair(FILTERED);
+  renderOrders();
 }
 
 function sortOrders(key) {
-	if (currentSort.key === key) currentSort.asc = !currentSort.asc;
-	else {
-		currentSort.key = key;
-		currentSort.asc = true;
-	}
+  if (currentSort.key === key) currentSort.asc = !currentSort.asc;
+  else {
+    currentSort.key = key;
+    currentSort.asc = true;
+  }
 
-	totalsByPair = calculateTotalsByPair(FILTERED);
-	FILTERED.sort((a, b) => {
-		if (key === "total") {
-			const totalA = totalsByPair[a.pair] || 0;
-			const totalB = totalsByPair[b.pair] || 0;
-			if (totalA < totalB) return currentSort.asc ? -1 : 1;
-			if (totalA > totalB) return currentSort.asc ? 1 : -1;
-			// fallback keeps rows with the same pair grouped deterministically
-			return a.time < b.time ? -1 : a.time > b.time ? 1 : 0;
-		}
+  totalsByPair = calculateTotalsByPair(FILTERED);
+  FILTERED.sort((a, b) => {
+    if (key === "total") {
+      const totalA = totalsByPair[a.pair] || 0;
+      const totalB = totalsByPair[b.pair] || 0;
+      if (totalA < totalB) return currentSort.asc ? -1 : 1;
+      if (totalA > totalB) return currentSort.asc ? 1 : -1;
+      // fallback keeps rows with the same pair grouped deterministically
+      return a.time < b.time ? -1 : a.time > b.time ? 1 : 0;
+    }
 
-		const A = a[key],
-			B = b[key];
-		if (A < B) return currentSort.asc ? -1 : 1;
-		if (A > B) return currentSort.asc ? 1 : -1;
-		return 0;
-	});
+    const A = a[key],
+      B = b[key];
+    if (A < B) return currentSort.asc ? -1 : 1;
+    if (A > B) return currentSort.asc ? 1 : -1;
+    return 0;
+  });
 
-	renderOrders();
+  renderOrders();
 }
 
 function calculateTotalsByPair(orders) {
-	return orders.reduce((totals, order) => {
-		totals[order.pair] = (totals[order.pair] || 0) + order.total;
-		return totals;
-	}, {});
+  return orders.reduce((totals, order) => {
+    totals[order.pair] = (totals[order.pair] || 0) + order.total;
+    return totals;
+  }, {});
 }
 
 function renderOrders() {
-	const tbody = document.querySelector("#table-body-orders");
-	const totalOrdersDiv = document.querySelector("#total-orders");
+  const tbody = document.querySelector("#table-body-orders");
+  const totalOrdersDiv = document.querySelector("#total-orders");
 
-	tbody.innerHTML = "";
+  tbody.innerHTML = "";
 
-	let lastPair = null;
-	let total = 0;
+  let lastPair = null;
+  let total = 0;
 
-	// Novo: somatorio por par
-	totalsByPair = calculateTotalsByPair(FILTERED);
+  // Novo: somatorio por par
+  totalsByPair = calculateTotalsByPair(FILTERED);
 
-	FILTERED.forEach((o) => {
-		total += o.total;
+  FILTERED.forEach((o) => {
+    total += o.total;
 
-		// Group header by pair
-		if (o.pair !== lastPair) {
-			// tbody.innerHTML += `<tr class="group-header" data-group="${o.pair}"><td colspan="7">${o.pair}</td></tr>`;
-			const pairTotal = totalsByPair[o.pair].toFixed(2);
-			tbody.innerHTML += `
+    // Group header by pair
+    if (o.pair !== lastPair) {
+      // tbody.innerHTML += `<tr class="group-header" data-group="${o.pair}"><td colspan="7">${o.pair}</td></tr>`;
+      const pairTotal = totalsByPair[o.pair].toFixed(2);
+      tbody.innerHTML += `
             <tr class="group-header" data-group="${o.pair}">
                 <td colspan="5">${o.pair}</td>
                 <td colspan="1">${pairTotal}</td>
                 <td colspan="1"></td>
             </tr>`;
 
-			lastPair = o.pair;
-		}
+      lastPair = o.pair;
+    }
 
-		const formattedDate = new Date(o.time).toLocaleString("pt-BR");
+    const formattedDate = new Date(o.time).toLocaleString("pt-BR");
 
-		tbody.innerHTML += `
+    tbody.innerHTML += `
         <tr data-group="${o.pair}">
           <td>${o.pair}</td>
           <td class="${o.side === "BUY" ? "buy" : "sell"}">${o.side}</td>
@@ -334,19 +432,17 @@ function renderOrders() {
           <td>${formattedDate}</td>
         </tr>
       `;
-	});
+  });
 
-	totalOrdersDiv.innerHTML =
-		"Total das ordens abertas filtradas: <b>" +
-		total.toFixed(2) +
-		" USDT</b>";
+  totalOrdersDiv.innerHTML =
+    "Total das ordens abertas filtradas: <b>" + total.toFixed(2) + " USDT</b>";
 
-	if (!FILTERED.length) {
-		tbody.innerHTML =
-			"<tr><td colspan='7'>Nenhuma ordem encontrada para os filtros.</td></tr>";
-	}
+  if (!FILTERED.length) {
+    tbody.innerHTML =
+      "<tr><td colspan='7'>Nenhuma ordem encontrada para os filtros.</td></tr>";
+  }
 
-	activateGroupAccordions();
+  activateGroupAccordions();
 }
 
 /* ---------------------------------------------
@@ -354,39 +450,37 @@ function renderOrders() {
 --------------------------------------------- */
 
 function activateGroupAccordions() {
-	const rows = document.querySelectorAll(
-		"#table-body-orders tr.group-header"
-	);
+  const rows = document.querySelectorAll("#table-body-orders tr.group-header");
 
-	rows.forEach((header) => {
-		header.style.cursor = "pointer";
+  rows.forEach((header) => {
+    header.style.cursor = "pointer";
 
-		const group = header.dataset.group;
-		let current = header.nextElementSibling;
+    const group = header.dataset.group;
+    let current = header.nextElementSibling;
 
-		// --- INICIAR FECHADO ---
-		header.classList.add("group-collapsed");
+    // --- INICIAR FECHADO ---
+    header.classList.add("group-collapsed");
 
-		while (current && !current.classList.contains("group-header")) {
-			if (current.dataset.group === group) {
-				current.style.display = "none"; // fecha na inicialização
-			}
-			current = current.nextElementSibling;
-		}
+    while (current && !current.classList.contains("group-header")) {
+      if (current.dataset.group === group) {
+        current.style.display = "none"; // fecha na inicialização
+      }
+      current = current.nextElementSibling;
+    }
 
-		// --- CLICK TOGGLE ---
-		header.addEventListener("click", () => {
-			const isHidden = header.classList.toggle("group-collapsed");
-			let c = header.nextElementSibling;
+    // --- CLICK TOGGLE ---
+    header.addEventListener("click", () => {
+      const isHidden = header.classList.toggle("group-collapsed");
+      let c = header.nextElementSibling;
 
-			while (c && !c.classList.contains("group-header")) {
-				if (c.dataset.group === group) {
-					c.style.display = isHidden ? "none" : "table-row";
-				}
-				c = c.nextElementSibling;
-			}
-		});
-	});
+      while (c && !c.classList.contains("group-header")) {
+        if (c.dataset.group === group) {
+          c.style.display = isHidden ? "none" : "table-row";
+        }
+        c = c.nextElementSibling;
+      }
+    });
+  });
 }
 
 /* INIT */

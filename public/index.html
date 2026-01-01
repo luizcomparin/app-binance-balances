@@ -1,154 +1,177 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-
-<head>
-    <meta charset="UTF-8">
+  <head>
+    <meta charset="UTF-8" />
     <title>Binance Dashboard Local</title>
-    <link rel="stylesheet" href="styles.css">
-</head>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  </head>
 
-<body>
+  <body>
     <div class="app">
-        <header class="topbar">
-            <div class="brand">
-                <p class="eyebrow">Painel Local</p>
-                <h1>Binance Dashboard</h1>
-                <p class="subtitle">Visão rápida da carteira, ativos e ordens abertas.</p>
-            </div>
-            <div class="actions">
-                <button class="ghost" onclick="loadOrders()">Recarregar Ordens</button>
-                <button class="primary" onclick="loadBalances()">Recarregar Carteira</button>
-            </div>
-        </header>
+      <header class="topbar">
+        <div class="brand">
+          <p class="eyebrow">Painel Local</p>
+          <h1>Binance Dashboard</h1>
+          <p class="subtitle">
+            Visão rápida da carteira, ativos e ordens abertas.
+          </p>
+        </div>
+        <div class="actions">
+          <button class="ghost" onclick="loadOrders()">
+            Recarregar Ordens
+          </button>
+          <button class="primary" onclick="loadBalances()">
+            Recarregar Carteira
+          </button>
+        </div>
+      </header>
 
-        <section class="stat-grid">
-            <div class="stat-card accent">
-                <p class="label">Total da carteira</p>
-                <p class="value" id="total-balance">--</p>
-            </div>
-            <div class="stat-card">
-                <p class="label">USDT</p>
-                <p class="value" id="usdt-percent">--</p>
-            </div>
-            <div class="stat-card">
-                <p class="label">BTC</p>
-                <p class="value" id="btc-percent">--</p>
-            </div>
-            <div class="stat-card">
-                <p class="label">XRP</p>
-                <p class="value" id="xrp-percent">--</p>
-            </div>
-            <div class="stat-card">
-                <p class="label">Outros</p>
-                <p class="value" id="others-percent">--</p>
-            </div>
-        </section>
+      <section class="stat-grid">
+        <div class="stat-card accent">
+          <p class="label">Total da carteira</p>
+          <p class="value" id="total-balance">--</p>
+        </div>
+        <div class="stat-card">
+          <p class="label">USDT</p>
+          <p class="value" id="usdt-percent">--</p>
+        </div>
+        <div class="stat-card">
+          <p class="label">BTC</p>
+          <p class="value" id="btc-percent">--</p>
+        </div>
+        <div class="stat-card">
+          <p class="label">XRP</p>
+          <p class="value" id="xrp-percent">--</p>
+        </div>
+        <div class="stat-card">
+          <p class="label">Outros</p>
+          <p class="value" id="others-percent">--</p>
+        </div>
+      </section>
 
-        <section class="card">
-            <button class="accordion">Carteira Binance</button>
-            <div class="panel">
-                <div class="panel-header">
-                    <div>
-                        <h3>Saldos por moeda</h3>
-                        <p>Totais em USDT, livres e travados.</p>
-                    </div>
-                </div>
-                <div class="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Moeda</th>
-                                <th>Total (USDT)</th>
-                                <th>%</th>
-                                <th>Livre (USDT)</th>
-                                <th>Travado (USDT)</th>
-                            </tr>
-                        </thead>
-                        <tbody id="table-body-balances"></tbody>
-                    </table>
-                </div>
+      <section class="card">
+        <button class="accordion active">Distribuição da Carteira</button>
+        <div class="panel" style="display: block">
+          <div class="panel-header">
+            <div>
+              <h3>Gráfico de Pizza</h3>
+              <p>Visualização da distribuição percentual dos ativos.</p>
             </div>
-        </section>
+          </div>
+          <div class="chart-container">
+            <canvas id="walletChart"></canvas>
+          </div>
+        </div>
+      </section>
 
-        <section class="card">
-            <button class="accordion">Resumo dos Ativos</button>
-            <div class="panel">
-                <div class="panel-header">
-                    <div>
-                        <h3>Média de compra e valorização</h3>
-                        <p>Preços médios, custo e valor atual por ativo.</p>
-                    </div>
-                </div>
-                <div class="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Moeda</th>
-                                <th>Preço médio (compras)</th>
-                                <th>Qtd do ativo</th>
-                                <th>Custo de compra (USDT)</th>
-                                <th>Preço atual (USDT)</th>
-                                <th>Valorização (USDT)</th>
-                            </tr>
-                        </thead>
-                        <tbody id="table-body-asset-stats"></tbody>
-                    </table>
-                </div>
+      <section class="card">
+        <button class="accordion">Carteira Binance</button>
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>Saldos por moeda</h3>
+              <p>Totais em USDT, livres e travados.</p>
             </div>
-        </section>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Moeda</th>
+                  <th>Total (USDT)</th>
+                  <th>%</th>
+                  <th>Livre (USDT)</th>
+                  <th>Travado (USDT)</th>
+                </tr>
+              </thead>
+              <tbody id="table-body-balances"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
 
-        <section class="card">
-            <button class="accordion">Ordens Abertas</button>
-            <div class="panel">
-                <div class="panel-header">
-                    <div>
-                        <h3>Ordens em aberto</h3>
-                        <p>Filtre por par e lado para ver o somatório.</p>
-                    </div>
-                    <div class="panel-actions">
-                        <button class="ghost" onclick="loadOrders()">Recarregar ordens</button>
-                        <div id="total-orders"></div>
-                    </div>
-                </div>
-
-                <div class="orders-filters">
-                    <div class="field">
-                        <label>Par</label>
-                        <select id="filterPair"></select>
-                    </div>
-                    <div class="field">
-                        <label>Lado</label>
-                        <select id="filterSide">
-                            <option value="ALL">Todos</option>
-                            <option value="BUY">BUY</option>
-                            <option value="SELL">SELL</option>
-                        </select>
-                    </div>
-                    <button class="primary" onclick="applyOrderFilters()">Aplicar filtro</button>
-                </div>
-
-                <div class="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th onclick="sortOrders('pair')">Pair ƒÎ.</th>
-                                <th onclick="sortOrders('side')">Side ƒÎ.</th>
-                                <th onclick="sortOrders('type')">Type ƒÎ.</th>
-                                <th onclick="sortOrders('price')">Price ƒÎ.</th>
-                                <th onclick="sortOrders('amount')">Amount ƒÎ.</th>
-                                <th onclick="sortOrders('total')">Total (USDT) ƒÎ.</th>
-                                <th onclick="sortOrders('time')">Time ƒÎ.</th>
-                            </tr>
-                        </thead>
-                        <tbody id="table-body-orders"></tbody>
-                    </table>
-                </div>
+      <section class="card">
+        <button class="accordion">Resumo dos Ativos</button>
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>Média de compra e valorização</h3>
+              <p>Preços médios, custo e valor atual por ativo.</p>
             </div>
-        </section>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Moeda</th>
+                  <th>Preço médio (compras)</th>
+                  <th>Qtd do ativo</th>
+                  <th>Custo de compra (USDT)</th>
+                  <th>Preço atual (USDT)</th>
+                  <th>Valorização (USDT)</th>
+                </tr>
+              </thead>
+              <tbody id="table-body-asset-stats"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <button class="accordion">Ordens Abertas</button>
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>Ordens em aberto</h3>
+              <p>Filtre por par e lado para ver o somatório.</p>
+            </div>
+            <div class="panel-actions">
+              <button class="ghost" onclick="loadOrders()">
+                Recarregar ordens
+              </button>
+              <div id="total-orders"></div>
+            </div>
+          </div>
+
+          <div class="orders-filters">
+            <div class="field">
+              <label>Par</label>
+              <select id="filterPair"></select>
+            </div>
+            <div class="field">
+              <label>Lado</label>
+              <select id="filterSide">
+                <option value="ALL">Todos</option>
+                <option value="BUY">BUY</option>
+                <option value="SELL">SELL</option>
+              </select>
+            </div>
+            <button class="primary" onclick="applyOrderFilters()">
+              Aplicar filtro
+            </button>
+          </div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th onclick="sortOrders('pair')">Pair ƒÎ.</th>
+                  <th onclick="sortOrders('side')">Side ƒÎ.</th>
+                  <th onclick="sortOrders('type')">Type ƒÎ.</th>
+                  <th onclick="sortOrders('price')">Price ƒÎ.</th>
+                  <th onclick="sortOrders('amount')">Amount ƒÎ.</th>
+                  <th onclick="sortOrders('total')">Total (USDT) ƒÎ.</th>
+                  <th onclick="sortOrders('time')">Time ƒÎ.</th>
+                </tr>
+              </thead>
+              <tbody id="table-body-orders"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
     </div>
 
     <script src="script.js"></script>
-
-</body>
-
+  </body>
 </html>
