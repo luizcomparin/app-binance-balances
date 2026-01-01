@@ -52,24 +52,23 @@ async function loadBalances() {
 		const totalBalanceDivs = document.querySelectorAll("#total-balance");
 		// totalDiv.innerText = "Total da carteira: " + data.total_usdt.toFixed(2) + " USDT";
 		totalBalanceDivs.forEach((totalBalanceDiv) => {
-			totalBalanceDiv.innerText =
-				"Total da carteira: " + totalUsdt + " USDT";
+			totalBalanceDiv.innerText = `${totalUsdt} USDT`;
 		});
 
 		const usdtPercentDiv = document.getElementById("usdt-percent");
 		const btcPercentDiv = document.getElementById("btc-percent");
 		const xrpPercentDiv = document.getElementById("xrp-percent");
 		const othersPercentDiv = document.getElementById("others-percent");
-		usdtPercentDiv.innerText = `USDT: ${
+		usdtPercentDiv.innerText = `${
 			data.assets.find((a) => a.asset === "USDT")?.pct.toFixed(2) || 0
 		}%`;
-		btcPercentDiv.innerText = `BTC: ${
+		btcPercentDiv.innerText = `${
 			data.assets.find((a) => a.asset === "BTC")?.pct.toFixed(2) || 0
 		}%`;
-		xrpPercentDiv.innerText = `XRP: ${
+		xrpPercentDiv.innerText = `${
 			data.assets.find((a) => a.asset === "XRP")?.pct.toFixed(2) || 0
 		}%`;
-		othersPercentDiv.innerText = `Outros: ${data.assets
+		othersPercentDiv.innerText = `${data.assets
 			.filter(
 				(a) =>
 					a.asset !== "USDT" && a.asset !== "BTC" && a.asset !== "XRP"
