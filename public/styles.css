@@ -311,7 +311,7 @@ tbody tr:hover {
 
 .charts-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr;
   gap: 32px;
   padding: 0 16px 16px;
 }
@@ -324,10 +324,21 @@ tbody tr:hover {
   align-items: center;
 }
 
-.chart-container canvas {
+.chart-container:first-child {
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.chart-container:first-child canvas {
   max-height: 400px;
   width: 100% !important;
   height: 400px !important;
+}
+
+.chart-container:last-child canvas {
+  max-height: 1200px;
+  width: 100% !important;
+  height: 1200px !important;
 }
 
 .chart-title {
