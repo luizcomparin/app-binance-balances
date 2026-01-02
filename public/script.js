@@ -42,8 +42,13 @@ function renderWalletChart(assets) {
 	const usdt = assets.find((a) => a.asset === "USDT");
 	const btc = assets.find((a) => a.asset === "BTC");
 	const xrp = assets.find((a) => a.asset === "XRP");
+	const eth = assets.find((a) => a.asset === "ETH");
 	const others = assets.filter(
-		(a) => a.asset !== "USDT" && a.asset !== "BTC" && a.asset !== "XRP"
+		(a) =>
+			a.asset !== "USDT" &&
+			a.asset !== "BTC" &&
+			a.asset !== "XRP" &&
+			a.asset !== "ETH"
 	);
 
 	const labels = [];
@@ -66,6 +71,12 @@ function renderWalletChart(assets) {
 		labels.push("XRP");
 		data.push(xrp.pct);
 		colors.push("rgba(107, 242, 197, 0.8)");
+	}
+
+	if (eth && eth.pct > 0) {
+		labels.push("ETH");
+		data.push(eth.pct);
+		colors.push("rgba(138, 43, 226, 0.8)"); // Purple color for ETH
 	}
 
 	const othersTotal = others.reduce((acc, a) => acc + a.pct, 0);
@@ -274,6 +285,7 @@ async function loadBalances() {
 		const usdtPercentDiv = document.getElementById("usdt-percent");
 		const btcPercentDiv = document.getElementById("btc-percent");
 		const xrpPercentDiv = document.getElementById("xrp-percent");
+		const ethPercentDiv = document.getElementById("eth-percent");
 		const othersPercentDiv = document.getElementById("others-percent");
 		usdtPercentDiv.innerText = `${
 			data.assets.find((a) => a.asset === "USDT")?.pct.toFixed(2) || 0
@@ -284,16 +296,23 @@ async function loadBalances() {
 		xrpPercentDiv.innerText = `${
 			data.assets.find((a) => a.asset === "XRP")?.pct.toFixed(2) || 0
 		}%`;
+		ethPercentDiv.innerText = `${
+			data.assets.find((a) => a.asset === "ETH")?.pct.toFixed(2) || 0
+		}%`;
 		othersPercentDiv.innerText = `${data.assets
 			.filter(
 				(a) =>
-					a.asset !== "USDT" && a.asset !== "BTC" && a.asset !== "XRP"
+					a.asset !== "USDT" &&
+					a.asset !== "BTC" &&
+					a.asset !== "XRP" &&
+					a.asset !== "ETH"
 			)
 			.reduce((acc, a) => acc + a.pct, 0)
 			.toFixed(2)}%`;
 		// usdt-percent
 		// btc-percent
 		// xrp-percent
+		// eth-percent
 		// others-percent
 
 		const quantityMap = raw ? mapQuantities(raw.balances) : {};
