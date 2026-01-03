@@ -154,6 +154,7 @@ function renderWalletBarChart(assets) {
 		if (a.asset === "USDT") return "rgba(77, 212, 255, 0.8)";
 		if (a.asset === "BTC") return "rgba(247, 147, 26, 0.8)";
 		if (a.asset === "XRP") return "rgba(107, 242, 197, 0.8)";
+		if (a.asset === "ETH") return "rgba(138, 43, 226, 0.8)";
 		return "rgba(155, 176, 214, 0.8)";
 	});
 
@@ -287,6 +288,11 @@ async function loadBalances() {
 		const xrpPercentDiv = document.getElementById("xrp-percent");
 		const ethPercentDiv = document.getElementById("eth-percent");
 		const othersPercentDiv = document.getElementById("others-percent");
+		const usdtUsdtDiv = document.getElementById("usdt-usdt");
+		const btcUsdtDiv = document.getElementById("btc-usdt");
+		const xrpUsdtDiv = document.getElementById("xrp-usdt");
+		const ethUsdtDiv = document.getElementById("eth-usdt");
+		const othersUsdtDiv = document.getElementById("others-usdt");
 		usdtPercentDiv.innerText = `${
 			data.assets.find((a) => a.asset === "USDT")?.pct.toFixed(2) || 0
 		}%`;
@@ -309,11 +315,32 @@ async function loadBalances() {
 			)
 			.reduce((acc, a) => acc + a.pct, 0)
 			.toFixed(2)}%`;
-		// usdt-percent
-		// btc-percent
-		// xrp-percent
-		// eth-percent
-		// others-percent
+		usdtUsdtDiv.innerText = `${
+			data.assets.find((a) => a.asset === "USDT")?.totalUSDT.toFixed(2) ||
+			0
+		} USDT`;
+		btcUsdtDiv.innerText = `${
+			data.assets.find((a) => a.asset === "BTC")?.totalUSDT.toFixed(2) ||
+			0
+		} USDT`;
+		xrpUsdtDiv.innerText = `${
+			data.assets.find((a) => a.asset === "XRP")?.totalUSDT.toFixed(2) ||
+			0
+		} USDT`;
+		ethUsdtDiv.innerText = `${
+			data.assets.find((a) => a.asset === "ETH")?.totalUSDT.toFixed(2) ||
+			0
+		} USDT`;
+		othersUsdtDiv.innerText = `${data.assets
+			.filter(
+				(a) =>
+					a.asset !== "USDT" &&
+					a.asset !== "BTC" &&
+					a.asset !== "XRP" &&
+					a.asset !== "ETH"
+			)
+			.reduce((acc, a) => acc + a.totalUSDT, 0)
+			.toFixed(2)} USDT`;
 
 		const quantityMap = raw ? mapQuantities(raw.balances) : {};
 		if (summaryTbody) {

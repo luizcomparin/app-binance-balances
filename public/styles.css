@@ -135,6 +135,13 @@ button:active {
   font-weight: 700;
 }
 
+.stat-card .usdt-value {
+    font-size: 17px;
+    font-weight: 400;
+    color: #8b95bc;
+    margin-top: 4px;
+}
+
 .card {
   background: var(--card);
   border: 1px solid var(--border);
