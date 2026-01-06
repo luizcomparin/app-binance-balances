@@ -31,6 +31,144 @@ body {
   padding: 32px 22px 64px;
 }
 
+/* ========================================== */
+/* LOGIN SCREEN                               */
+/* ========================================== */
+.login-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(
+      120% 120% at 20% 20%,
+      rgba(77, 212, 255, 0.15),
+      transparent
+    ),
+    radial-gradient(120% 120% at 80% 0%, rgba(107, 242, 197, 0.15), transparent),
+    var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.login-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 40px;
+  width: 100%;
+  max-width: 450px;
+  box-shadow: var(--shadow);
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.login-header h1 {
+  margin: 0 0 8px;
+  font-size: 28px;
+  letter-spacing: -0.3px;
+}
+
+.login-header p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.login-form .field {
+  margin-bottom: 20px;
+}
+
+.login-form label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--muted);
+}
+
+.login-form input[type="text"],
+.login-form input[type="password"] {
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--card-alt);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  transition: border 0.2s;
+}
+
+.login-form input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.field-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.field-checkbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.field-checkbox label {
+  font-size: 14px;
+  color: var(--muted);
+  cursor: pointer;
+  margin: 0;
+}
+
+.btn-login {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  border: none;
+  border-radius: 8px;
+  color: #0b1021;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-login:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(77, 212, 255, 0.3);
+}
+
+.btn-login:active {
+  transform: translateY(0);
+}
+
+.login-info {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.logout-btn {
+  background: rgba(255, 77, 77, 0.1) !important;
+  border-color: rgba(255, 77, 77, 0.2) !important;
+}
+
+.logout-btn:hover {
+  background: rgba(255, 77, 77, 0.2) !important;
+}
+
 .app {
   max-width: 1200px;
   margin: 0 auto;
@@ -136,10 +274,10 @@ button:active {
 }
 
 .stat-card .usdt-value {
-    font-size: 17px;
-    font-weight: 400;
-    color: #8b95bc;
-    margin-top: 4px;
+  font-size: 17px;
+  font-weight: 400;
+  color: #8b95bc;
+  margin-top: 4px;
 }
 
 .card {

@@ -1,228 +1,289 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-
-<head>
+  <head>
     <meta charset="UTF-8" />
     <title>Binance Dashboard Local</title>
     <link rel="stylesheet" href="styles.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-</head>
+  </head>
 
-<body>
-    <div id="loading-overlay" class="loading-overlay">
-        <div class="loading-spinner">
-            <div class="spinner"></div>
-            <p>Carregando dados...</p>
+  <body>
+    <!-- Tela de Login -->
+    <div id="login-screen" class="login-screen">
+      <div class="login-card">
+        <div class="login-header">
+          <h1>🔐 Binance Dashboard</h1>
+          <p>Insira suas credenciais da API Binance</p>
         </div>
+        <form id="login-form" class="login-form">
+          <div class="field">
+            <label for="apiKey">API Key</label>
+            <input
+              type="text"
+              id="apiKey"
+              placeholder="Sua API Key da Binance"
+              required
+              autocomplete="off"
+            />
+          </div>
+          <div class="field">
+            <label for="apiSecret">API Secret</label>
+            <input
+              type="password"
+              id="apiSecret"
+              placeholder="Seu API Secret da Binance"
+              required
+              autocomplete="off"
+            />
+          </div>
+          <div class="field-checkbox">
+            <input type="checkbox" id="rememberMe" />
+            <label for="rememberMe">Lembrar minhas credenciais</label>
+          </div>
+          <button type="submit" class="btn-login">Entrar</button>
+          <p class="login-info">
+            ⚠️ Suas credenciais são armazenadas apenas localmente no seu
+            navegador
+          </p>
+        </form>
+      </div>
     </div>
-    <div class="app">
-        <header class="topbar">
-            <div class="brand">
-                <p class="eyebrow">Painel Local</p>
-                <h1>Binance Dashboard</h1>
-                <p class="subtitle">
-                    Visão rápida da carteira, ativos e ordens abertas.
-                </p>
-            </div>
-            <div class="actions">
-                <button class="ghost" onclick="loadOrders()">
-                    Recarregar Ordens
-                </button>
-                <button class="ghost" onclick="loadBalances()">
-                    Recarregar Carteira
-                </button>
-                <button class="primary" onclick="openSimulationDialog()">
-                    Simular Valorização
-                </button>
-            </div>
-        </header>
 
-        <section class="stat-grid">
-            <div class="stat-card accent">
-                <p class="label">Total da carteira</p>
-                <p class="value" id="total-balance">--</p>
-            </div>
-            <div class="stat-card">
-                <p class="label">USDT</p>
-                <p class="value" id="usdt-percent">--</p>
-                <p class="value usdt-value" id="usdt-usdt">--</p>
-            </div>
-            <div class="stat-card">
-                <p class="label">BTC</p>
-                <p class="value" id="btc-percent">--</p>
-                <p class="value usdt-value" id="btc-usdt">--</p>
-            </div>
-            <div class="stat-card">
-                <p class="label">XRP</p>
-                <p class="value" id="xrp-percent">--</p>
-                <p class="value usdt-value" id="xrp-usdt">--</p>
-            </div>
-            <div class="stat-card">
-                <p class="label">ETH</p>
-                <p class="value" id="eth-percent">--</p>
-                <p class="value usdt-value" id="eth-usdt">--</p>
-            </div>
-            <div class="stat-card">
-                <p class="label">Outros</p>
-                <p class="value" id="others-percent">--</p>
-                <p class="value usdt-value" id="others-usdt">--</p>
-            </div>
-        </section>
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+      <div class="loading-spinner">
+        <div class="spinner"></div>
+        <p>Carregando dados...</p>
+      </div>
+    </div>
 
-        <section class="card">
-            <button class="accordion active">Distribuição da Carteira</button>
-            <div class="panel" style="display: block">
-                <div class="panel-header">
-                    <div>
-                        <h3>Visualizações</h3>
-                        <p>Gráficos de distribuição percentual e valores em USDT.</p>
-                    </div>
-                </div>
-                <div class="charts-grid">
-                    <div class="chart-container">
-                        <h4 class="chart-title">Distribuição (%)</h4>
-                        <canvas id="walletChart"></canvas>
-                    </div>
-                    <div class="chart-container">
-                        <h4 class="chart-title">Valores (USDT)</h4>
-                        <canvas id="walletBarChart"></canvas>
-                    </div>
-                </div>
+    <!-- Dashboard Principal -->
+    <div class="app" style="display: none">
+      <header class="topbar">
+        <div class="brand">
+          <p class="eyebrow">Painel Local</p>
+          <h1>Binance Dashboard</h1>
+          <p class="subtitle">
+            Visão rápida da carteira, ativos e ordens abertas.
+          </p>
+        </div>
+        <div class="actions">
+          <button class="ghost" onclick="loadOrders()">
+            Recarregar Ordens
+          </button>
+          <button class="ghost" onclick="loadBalances()">
+            Recarregar Carteira
+          </button>
+          <button class="primary" onclick="openSimulationDialog()">
+            Simular Valorização
+          </button>
+          <button class="ghost logout-btn" onclick="logout()">🚪 Sair</button>
+        </div>
+      </header>
+
+      <section class="stat-grid">
+        <div class="stat-card accent">
+          <p class="label">Total da carteira</p>
+          <p class="value" id="total-balance">--</p>
+        </div>
+        <div class="stat-card">
+          <p class="label">USDT</p>
+          <p class="value" id="usdt-percent">--</p>
+          <p class="value usdt-value" id="usdt-usdt">--</p>
+        </div>
+        <div class="stat-card">
+          <p class="label">BTC</p>
+          <p class="value" id="btc-percent">--</p>
+          <p class="value usdt-value" id="btc-usdt">--</p>
+        </div>
+        <div class="stat-card">
+          <p class="label">XRP</p>
+          <p class="value" id="xrp-percent">--</p>
+          <p class="value usdt-value" id="xrp-usdt">--</p>
+        </div>
+        <div class="stat-card">
+          <p class="label">ETH</p>
+          <p class="value" id="eth-percent">--</p>
+          <p class="value usdt-value" id="eth-usdt">--</p>
+        </div>
+        <div class="stat-card">
+          <p class="label">Outros</p>
+          <p class="value" id="others-percent">--</p>
+          <p class="value usdt-value" id="others-usdt">--</p>
+        </div>
+      </section>
+
+      <section class="card">
+        <button class="accordion active">Distribuição da Carteira</button>
+        <div class="panel" style="display: block">
+          <div class="panel-header">
+            <div>
+              <h3>Visualizações</h3>
+              <p>Gráficos de distribuição percentual e valores em USDT.</p>
             </div>
-        </section>
-
-        <section class="card">
-            <button class="accordion">Carteira Binance</button>
-            <div class="panel">
-                <div class="panel-header">
-                    <div>
-                        <h3>Saldos por moeda</h3>
-                        <p>Totais em USDT, livres e travados.</p>
-                    </div>
-                </div>
-                <div class="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Moeda</th>
-                                <th>Total (USDT)</th>
-                                <th>%</th>
-                                <th>Livre (USDT)</th>
-                                <th>Travado (USDT)</th>
-                            </tr>
-                        </thead>
-                        <tbody id="table-body-balances"></tbody>
-                    </table>
-                </div>
+          </div>
+          <div class="charts-grid">
+            <div class="chart-container">
+              <h4 class="chart-title">Distribuição (%)</h4>
+              <canvas id="walletChart"></canvas>
             </div>
-        </section>
-
-        <section class="card">
-            <button class="accordion">Resumo dos Ativos</button>
-            <div class="panel">
-                <div class="panel-header">
-                    <div>
-                        <h3>Média de compra e valorização</h3>
-                        <p>Preços médios, custo e valor atual por ativo.</p>
-                    </div>
-                </div>
-                <div class="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Moeda</th>
-                                <th>Preço médio (compras)</th>
-                                <th>Qtd do ativo</th>
-                                <th>Custo de compra (USDT)</th>
-                                <th>Preço atual (USDT)</th>
-                                <th>Valorização (USDT)</th>
-                            </tr>
-                        </thead>
-                        <tbody id="table-body-asset-stats"></tbody>
-                    </table>
-                </div>
+            <div class="chart-container">
+              <h4 class="chart-title">Valores (USDT)</h4>
+              <canvas id="walletBarChart"></canvas>
             </div>
-        </section>
+          </div>
+        </div>
+      </section>
 
-        <section class="card">
-            <button class="accordion">Ordens Abertas</button>
-            <div class="panel">
-                <div class="panel-header">
-                    <div>
-                        <h3>Ordens em aberto</h3>
-                        <p>Filtre por par e lado para ver o somatório.</p>
-                    </div>
-                    <div class="panel-actions">
-                        <button class="ghost" onclick="loadOrders()">
-                            Recarregar ordens
-                        </button>
-                        <div id="total-orders"></div>
-                    </div>
-                </div>
-
-                <div class="orders-filters">
-                    <div class="field">
-                        <label>Par</label>
-                        <select id="filterPair"></select>
-                    </div>
-                    <div class="field">
-                        <label>Lado</label>
-                        <select id="filterSide">
-                            <option value="ALL">Todos</option>
-                            <option value="BUY">BUY</option>
-                            <option value="SELL">SELL</option>
-                        </select>
-                    </div>
-                    <button class="primary" onclick="applyOrderFilters()">
-                        Aplicar filtro
-                    </button>
-                </div>
-
-                <div class="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th onclick="sortOrders('pair')">Pair ƒÎ.</th>
-                                <th onclick="sortOrders('side')">Side ƒÎ.</th>
-                                <th onclick="sortOrders('type')">Type ƒÎ.</th>
-                                <th onclick="sortOrders('price')">Price ƒÎ.</th>
-                                <th onclick="sortOrders('amount')">Amount ƒÎ.</th>
-                                <th onclick="sortOrders('total')">Total (USDT) ƒÎ.</th>
-                                <th onclick="sortOrders('time')">Time ƒÎ.</th>
-                            </tr>
-                        </thead>
-                        <tbody id="table-body-orders"></tbody>
-                    </table>
-                </div>
+      <section class="card">
+        <button class="accordion">Carteira Binance</button>
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>Saldos por moeda</h3>
+              <p>Totais em USDT, livres e travados.</p>
             </div>
-        </section>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Moeda</th>
+                  <th>Total (USDT)</th>
+                  <th>%</th>
+                  <th>Livre (USDT)</th>
+                  <th>Travado (USDT)</th>
+                </tr>
+              </thead>
+              <tbody id="table-body-balances"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <button class="accordion">Resumo dos Ativos</button>
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>Média de compra e valorização</h3>
+              <p>Preços médios, custo e valor atual por ativo.</p>
+            </div>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Moeda</th>
+                  <th>Preço médio (compras)</th>
+                  <th>Qtd do ativo</th>
+                  <th>Custo de compra (USDT)</th>
+                  <th>Preço atual (USDT)</th>
+                  <th>Valorização (USDT)</th>
+                </tr>
+              </thead>
+              <tbody id="table-body-asset-stats"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <button class="accordion">Ordens Abertas</button>
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>Ordens em aberto</h3>
+              <p>Filtre por par e lado para ver o somatório.</p>
+            </div>
+            <div class="panel-actions">
+              <button class="ghost" onclick="loadOrders()">
+                Recarregar ordens
+              </button>
+              <div id="total-orders"></div>
+            </div>
+          </div>
+
+          <div class="orders-filters">
+            <div class="field">
+              <label>Par</label>
+              <select id="filterPair"></select>
+            </div>
+            <div class="field">
+              <label>Lado</label>
+              <select id="filterSide">
+                <option value="ALL">Todos</option>
+                <option value="BUY">BUY</option>
+                <option value="SELL">SELL</option>
+              </select>
+            </div>
+            <button class="primary" onclick="applyOrderFilters()">
+              Aplicar filtro
+            </button>
+          </div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th onclick="sortOrders('pair')">Pair ƒÎ.</th>
+                  <th onclick="sortOrders('side')">Side ƒÎ.</th>
+                  <th onclick="sortOrders('type')">Type ƒÎ.</th>
+                  <th onclick="sortOrders('price')">Price ƒÎ.</th>
+                  <th onclick="sortOrders('amount')">Amount ƒÎ.</th>
+                  <th onclick="sortOrders('total')">Total (USDT) ƒÎ.</th>
+                  <th onclick="sortOrders('time')">Time ƒÎ.</th>
+                </tr>
+              </thead>
+              <tbody id="table-body-orders"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
     </div>
 
     <!-- Novo: Modal para simulação de valorização -->
-    <div id="simulation-modal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <span class="close" onclick="closeSimulationDialog()">&times;</span>
-                <h2>Simulação de Valorização da Carteira</h2>
-                <p>Informe a porcentagem de mudança para cada ativo (ex: 10 para +10%, -5 para -5%).</p>
-                <div id="simulation-result" style="margin-top: 20px; font-weight: bold;"></div>
-            </div>
-            <div class="modal-body">
-                <input type="text" id="simulation-search" placeholder="Buscar moeda..." style="width: 100%; padding: 10px; margin-bottom: 20px; border: 1px solid var(--border); border-radius: 8px; background: var(--card-alt); color: var(--text);">
-                <div class="simulation-table">
-                    <div class="simulation-header">
-                        <span>Moedas</span>
-                        <span>Porcentagem</span>
-                    </div>
-                    <div id="simulation-inputs"></div>
-                </div>
-            </div>
-            <div class="modal-footer">
-            </div>
+    <div id="simulation-modal" class="modal" style="display: none">
+      <div class="modal-content">
+        <div class="modal-header">
+          <span class="close" onclick="closeSimulationDialog()">&times;</span>
+          <h2>Simulação de Valorização da Carteira</h2>
+          <p>
+            Informe a porcentagem de mudança para cada ativo (ex: 10 para +10%,
+            -5 para -5%).
+          </p>
+          <div
+            id="simulation-result"
+            style="margin-top: 20px; font-weight: bold"
+          ></div>
         </div>
+        <div class="modal-body">
+          <input
+            type="text"
+            id="simulation-search"
+            placeholder="Buscar moeda..."
+            style="
+              width: 100%;
+              padding: 10px;
+              margin-bottom: 20px;
+              border: 1px solid var(--border);
+              border-radius: 8px;
+              background: var(--card-alt);
+              color: var(--text);
+            "
+          />
+          <div class="simulation-table">
+            <div class="simulation-header">
+              <span>Moedas</span>
+              <span>Porcentagem</span>
+            </div>
+            <div id="simulation-inputs"></div>
+          </div>
+        </div>
+        <div class="modal-footer"></div>
+      </div>
     </div>
 
     <script src="script.js"></script>
-</body>
-
+  </body>
 </html>

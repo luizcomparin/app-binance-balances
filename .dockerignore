@@ -1,0 +1,29 @@
+# Arquivos de desenvolvimento
+node_modules
+npm-debug.log
+.env
+.env.local
+.env.*.local
+
+# Git
+.git
+.gitignore
+
+# IDEs
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Logs
+logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Outros
+README.md
+.editorconfig
