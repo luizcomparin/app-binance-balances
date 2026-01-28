@@ -1,3 +1,64 @@
+// EXEMPLO DE COMENTÁRIO DE FUNÇÃO JSDOC
+/**
+ * Calculates the total price of items including tax.
+ * @param {number[]} prices - The prices of the items.
+ * @param {number} taxRate - The tax rate to apply.
+ * @returns {number} The total price.
+ */
+function calculateTotalPrice(prices, taxRate) {
+	let total = 0;
+	for (const price of prices) {
+		total += price;
+	}
+	return total * (1 + taxRate);
+}
+
+/* ---------------------------------------- */
+/* PROTOTYPE FUNCTIONS                      */
+/* ---------------------------------------- */
+
+/**
+ * Formata uma string como moeda no padrão brasileiro.
+ * @returns {string} Valor formatado. Ex: "1.234,56"
+ * @example
+ * "1234.56".formatCurrency() // "1.234,56"
+ * "invalid".formatCurrency() // "0,00"
+ */
+String.prototype.formatCurrency = function () {
+	// Converte para número
+	const numValue = parseFloat(this);
+
+	// Verifica se é um número válido
+	if (isNaN(numValue) || numValue === null || numValue === undefined) {
+		return "0,00";
+	}
+
+	// Formata no padrão brasileiro
+	return numValue.toLocaleString("pt-BR", {
+		minimumFractionDigits: 2,
+		maximumFractionDigits: 2,
+	});
+};
+
+/**
+ * Formata um número como moeda no padrão brasileiro.
+ * @returns {string} Valor formatado. Ex: "1.234,56"
+ * @example
+ * (1234.56).formatCurrency() // "1.234,56"
+ */
+Number.prototype.formatCurrency = function () {
+	// Verifica se é um número válido
+	if (isNaN(this) || this === null || this === undefined) {
+		return "0,00";
+	}
+
+	// Formata no padrão brasileiro
+	return this.toLocaleString("pt-BR", {
+		minimumFractionDigits: 2,
+		maximumFractionDigits: 2,
+	});
+};
+
 /* ---------------------------------------- */
 /* LOADING                                  */
 /* ---------------------------------------- */
@@ -198,7 +259,9 @@ function renderWalletBarChart(assets) {
 					callbacks: {
 						label: function (context) {
 							const value = context.parsed.x || 0;
-							return ` Valor: ${value.toFixed(2)} USDT`;
+							return ` Valor: ${value
+								.toFixed(2)
+								.formatCurrency()} USDT`;
 						},
 					},
 				},
@@ -255,22 +318,23 @@ async function loadBalances() {
 			fetch("http://localhost:3000/raw")
 				.then((x) => x.json())
 				.catch(() => null),
-			fetch("http://localhost:3000/avg-buy-prices")
-				.then((x) => x.json())
-				.catch(() => ({})),
+			// fetch("http://localhost:3000/avg-buy-prices")
+			// 	.then((x) => x.json())
+			// 	.catch(() => ({})),
 		]);
 
 		const totalUsdt = data.total_usdt.toFixed(2);
 
 		tbody.innerHTML = "";
+		/** @asset string */
 		data.assets.forEach((asset) => {
 			tbody.innerHTML += `
           <tr>
             <td>${asset.asset}</td>
-            <td>${asset.totalUSDT.toFixed(2)}</td>
             <td>${asset.pct.toFixed(2)}%</td>
-            <td>${asset.freeUSDT.toFixed(2)}</td>
-            <td>${asset.lockedUSDT.toFixed(2)}</td>
+            <td>${asset.freeUSDT.toFixed(2).formatCurrency()} USDT</td>
+            <td>${asset.lockedUSDT.toFixed(2).formatCurrency()} USDT</td>
+            <td>${asset.totalUSDT.toFixed(2).formatCurrency()} USDT</td>
           </tr>
         `;
 		});
@@ -316,20 +380,28 @@ async function loadBalances() {
 			.reduce((acc, a) => acc + a.pct, 0)
 			.toFixed(2)}%`;
 		usdtUsdtDiv.innerText = `${
-			data.assets.find((a) => a.asset === "USDT")?.totalUSDT.toFixed(2) ||
-			0
+			data.assets
+				.find((a) => a.asset === "USDT")
+				?.totalUSDT.toFixed(2)
+				.formatCurrency() || 0
 		} USDT`;
 		btcUsdtDiv.innerText = `${
-			data.assets.find((a) => a.asset === "BTC")?.totalUSDT.toFixed(2) ||
-			0
+			data.assets
+				.find((a) => a.asset === "BTC")
+				?.totalUSDT.toFixed(2)
+				.formatCurrency() || 0
 		} USDT`;
 		xrpUsdtDiv.innerText = `${
-			data.assets.find((a) => a.asset === "XRP")?.totalUSDT.toFixed(2) ||
-			0
+			data.assets
+				.find((a) => a.asset === "XRP")
+				?.totalUSDT.toFixed(2)
+				.formatCurrency() || 0
 		} USDT`;
 		ethUsdtDiv.innerText = `${
-			data.assets.find((a) => a.asset === "ETH")?.totalUSDT.toFixed(2) ||
-			0
+			data.assets
+				.find((a) => a.asset === "ETH")
+				?.totalUSDT.toFixed(2)
+				.formatCurrency() || 0
 		} USDT`;
 		othersUsdtDiv.innerText = `${data.assets
 			.filter(
@@ -340,7 +412,8 @@ async function loadBalances() {
 					a.asset !== "ETH"
 			)
 			.reduce((acc, a) => acc + a.totalUSDT, 0)
-			.toFixed(2)} USDT`;
+			.toFixed(2)
+			.formatCurrency()} USDT`;
 
 		const quantityMap = raw ? mapQuantities(raw.balances) : {};
 		if (summaryTbody) {
@@ -391,64 +464,65 @@ function formatMaybeNumber(value, digits = 2, unit = "", nullLabel = "NULL") {
 	return unit ? `${formatted} ${unit}` : formatted;
 }
 
-async function renderAssetSummary(assets, quantityMap, avgPriceMap = {}) {
-	const tbody = document.querySelector("#table-body-asset-stats");
-	if (!tbody) return;
+// // Resumo dos Ativos: Renderiza o resumo dos ativos com base na quantidade e preço médio
+// async function renderAssetSummary(assets, quantityMap, avgPriceMap = {}) {
+// 	const tbody = document.querySelector("#table-body-asset-stats");
+// 	if (!tbody) return;
 
-	tbody.innerHTML = "<tr><td colspan='6'>Carregando...</td></tr>";
+// 	tbody.innerHTML = "<tr><td colspan='6'>Carregando...</td></tr>";
 
-	const rows = await Promise.all(
-		assets.map(async (asset) => {
-			const qty = quantityMap[asset.asset] || 0;
-			const hasQty = qty > 0;
+// 	const rows = await Promise.all(
+// 		assets.map(async (asset) => {
+// 			const qty = quantityMap[asset.asset] || 0;
+// 			const hasQty = qty > 0;
 
-			const avgPrice = getAveragePurchasePrice(asset.asset, avgPriceMap);
+// 			const avgPrice = getAveragePurchasePrice(asset.asset, avgPriceMap);
 
-			const cost = hasQty && avgPrice !== null ? avgPrice * qty : null;
-			const currentValue = hasQty ? asset.totalUSDT : null;
-			const valorizacao =
-				cost !== null && currentValue !== null
-					? cost - currentValue
-					: null;
+// 			const cost = hasQty && avgPrice !== null ? avgPrice * qty : null;
+// 			const currentValue = hasQty ? asset.totalUSDT : null;
+// 			const valorizacao =
+// 				cost !== null && currentValue !== null
+// 					? cost - currentValue
+// 					: null;
 
-			return {
-				asset: asset.asset,
-				avgPrice,
-				qty,
-				cost,
-				currentValue,
-				valorizacao: valorizacao * -1,
-			};
-		})
-	);
+// 			return {
+// 				asset: asset.asset,
+// 				avgPrice,
+// 				qty,
+// 				cost,
+// 				currentValue,
+// 				valorizacao: valorizacao * -1,
+// 			};
+// 		})
+// 	);
 
-	if (!rows.length) {
-		tbody.innerHTML =
-			"<tr><td colspan='6'>Nenhum ativo com dados suficientes.</td></tr>";
-		return;
-	}
+// 	if (!rows.length) {
+// 		tbody.innerHTML =
+// 			"<tr><td colspan='6'>Nenhum ativo com dados suficientes.</td></tr>";
+// 		return;
+// 	}
 
-	tbody.innerHTML = rows
-		.map(
-			(row) => `
-        <tr>
-          <td>${row.asset}</td>
-          <td>${formatMaybeNumber(row.avgPrice, 5, "USDT")}</td>
-          <td>${formatMaybeNumber(row.qty, 6, row.asset)}</td>
-          <td>${formatMaybeNumber(row.cost, 2, "USDT")}</td>
-          <td>${formatMaybeNumber(row.currentValue, 2, "USDT")}</td>
-          <td class="${
-				row.valorizacao > 0
-					? "positive"
-					: row.valorizacao < 0
-					? "negative"
-					: ""
-			}">${formatMaybeNumber(row.valorizacao, 2, "USDT")}</td>
-        </tr>
-      `
-		)
-		.join("");
-}
+// 	tbody.innerHTML = rows
+// 		.map(
+// 			(row) => `
+//         <tr>
+//           <td>${row.asset}</td>
+//           <td>${formatMaybeNumber(row.avgPrice, 5, "USDT")}</td>
+//           <td>${formatMaybeNumber(row.qty, 6, row.asset)}</td>
+//           <td>${formatMaybeNumber(row.cost, 2, "USDT")}</td>
+//           <td>${formatMaybeNumber(row.currentValue, 2, "USDT")}</td>
+//           <td class="${
+// 				row.valorizacao > 0
+// 					? "positive"
+// 					: row.valorizacao < 0
+// 					? "negative"
+// 					: ""
+// 			}">${formatMaybeNumber(row.valorizacao, 2, "USDT")}</td>
+//         </tr>
+//       `
+// 		)
+// 		.join("");
+// }
 
 /* ---------------------------------------- */
 /* SIMULAÇÃO DE VALORIZAÇÃO               */
@@ -467,7 +541,9 @@ function openSimulationDialog() {
 		const div = document.createElement("div");
 		div.setAttribute("data-asset", asset.asset);
 		div.innerHTML = `
-      <label>${asset.asset} (${asset.totalUSDT.toFixed(2)} USDT):</label>
+      <label>${asset.asset} (${asset.totalUSDT
+			.toFixed(2)
+			.formatCurrency()} USDT):</label>
       <input type="number" id="sim-${asset.asset}" placeholder="0" step="0.01">
     `;
 		inputsDiv.appendChild(div);
@@ -504,7 +580,9 @@ function calculateSimulation() {
 
 	document.getElementById(
 		"simulation-result"
-	).innerText = `Valor estimado da carteira: \n ${newTotal.toFixed(2)} USDT`;
+	).innerText = `Valor estimado da carteira: \n ${newTotal
+		.toFixed(2)
+		.formatCurrency()} USDT`;
 }
 
 function filterAssets() {
@@ -652,8 +730,8 @@ function renderOrders() {
 			const pairTotal = totalsByPair[o.pair].toFixed(2);
 			tbody.innerHTML += `
             <tr class="group-header" data-group="${o.pair}">
-                <td colspan="5">${o.pair}</td>
-                <td colspan="1">${pairTotal}</td>
+                <td colspan="4">${o.pair}</td>
+                <td colspan="1">${pairTotal.formatCurrency()} USDT</td>
                 <td colspan="1"></td>
             </tr>`;
 
@@ -662,14 +740,14 @@ function renderOrders() {
 
 		const formattedDate = new Date(o.time).toLocaleString("pt-BR");
 
+		// <td>${o.type}</td>
 		tbody.innerHTML += `
         <tr data-group="${o.pair}">
           <td>${o.pair}</td>
           <td class="${o.side === "BUY" ? "buy" : "sell"}">${o.side}</td>
-          <td>${o.type}</td>
-          <td>${o.price.toFixed(5)}</td>
+          <td>${o.price.toFixed(5).formatCurrency()} USDT</td>
           <td>${o.amount.toFixed(8)}</td>
-          <td>${o.total.toFixed(2)}</td>
+          <td>${o.total.toFixed(2).formatCurrency()} USDT</td>
           <td>${formattedDate}</td>
         </tr>
       `;
@@ -677,7 +755,7 @@ function renderOrders() {
 
 	totalOrdersDiv.innerHTML =
 		"Total das ordens abertas filtradas: <b>" +
-		total.toFixed(2) +
+		total.toFixed(2).formatCurrency() +
 		" USDT</b>";
 
 	if (!FILTERED.length) {

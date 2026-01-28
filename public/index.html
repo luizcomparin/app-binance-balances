@@ -40,7 +40,7 @@
         <section class="stat-grid">
             <div class="stat-card accent">
                 <p class="label">Total da carteira</p>
-                <p class="value" id="total-balance">--</p>
+                <p class="value" id="total-balance" style="white-space: nowrap;">--</p>
             </div>
             <div class="stat-card">
                 <p class="label">USDT</p>
@@ -105,10 +105,10 @@
                         <thead>
                             <tr>
                                 <th>Moeda</th>
-                                <th>Total (USDT)</th>
                                 <th>%</th>
                                 <th>Livre (USDT)</th>
-                                <th>Travado (USDT)</th>
+                                <th>Ordens (USDT)</th>
+                                <th>Total (USDT)</th>
                             </tr>
                         </thead>
                         <tbody id="table-body-balances"></tbody>
@@ -117,7 +117,7 @@
             </div>
         </section>
 
-        <section class="card">
+        <!-- <section class="card">
             <button class="accordion">Resumo dos Ativos</button>
             <div class="panel">
                 <div class="panel-header">
@@ -142,7 +142,7 @@
                     </table>
                 </div>
             </div>
-        </section>
+        </section> -->
 
         <section class="card">
             <button class="accordion">Ordens Abertas</button>
@@ -182,13 +182,13 @@
                     <table>
                         <thead>
                             <tr>
-                                <th onclick="sortOrders('pair')">Pair ƒÎ.</th>
-                                <th onclick="sortOrders('side')">Side ƒÎ.</th>
-                                <th onclick="sortOrders('type')">Type ƒÎ.</th>
-                                <th onclick="sortOrders('price')">Price ƒÎ.</th>
-                                <th onclick="sortOrders('amount')">Amount ƒÎ.</th>
-                                <th onclick="sortOrders('total')">Total (USDT) ƒÎ.</th>
-                                <th onclick="sortOrders('time')">Time ƒÎ.</th>
+                                <th onclick="sortOrders('pair')">Par ⇅.</th>
+                                <th onclick="sortOrders('side')">Lado ⇅.</th>
+                                <!-- <th onclick="sortOrders('type')">Tipo ⇅.</th> -->
+                                <th onclick="sortOrders('price')">Preço ⇅.</th>
+                                <th onclick="sortOrders('amount')">QTD ⇅.</th>
+                                <th onclick="sortOrders('total')">Total (USDT) ⇅.</th>
+                                <th onclick="sortOrders('time')">Data e Hora ⇅.</th>
                             </tr>
                         </thead>
                         <tbody id="table-body-orders"></tbody>
