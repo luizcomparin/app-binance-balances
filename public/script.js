@@ -353,6 +353,45 @@ function renderWalletBarChart(assets) {
 	});
 }
 
+
+function renderAssetStrip(assets) {
+	const list = document.getElementById("asset-strip-list");
+	if (!list) return;
+
+	if (!assets || !assets.length) {
+		list.innerHTML = "<div class=\"asset-pill empty\">Sem ativos.</div>";
+		return;
+	}
+
+	const sortedAssets = [...assets].sort((a, b) => b.totalUSDT - a.totalUSDT);
+
+	list.innerHTML = sortedAssets
+		.map((asset) => {
+			const pct = asset.pct ?? 0;
+			const usdtValue = asset.totalUSDT ?? 0;
+			const brlValue = usdtBrlPrice ? usdtValue * usdtBrlPrice : null;
+			const brlText = usdtBrlPrice
+				? `${brlValue.toFixed(2).formatCurrency()} BRL`
+				: "--";
+
+			return `
+        <div class="asset-pill">
+          <div class="asset-pill-head">
+            <span class="asset-symbol">${asset.asset}</span>
+            <span class="asset-percent">${pct.toFixed(2)}%</span>
+          </div>
+          <div class="asset-values">
+            <span class="asset-usdt">${usdtValue
+						.toFixed(2)
+						.formatCurrency()} USDT</span>
+            <span class="asset-brl">${brlText}</span>
+          </div>
+        </div>
+      `;
+		})
+		.join("");
+}
+
 /* ---------------------------------------- */
 /* BALANCES                                 */
 /* ---------------------------------------- */
@@ -491,6 +530,7 @@ async function loadBalances() {
 		// Renderizar gráficos
 		renderWalletChart(data.assets);
 		renderWalletBarChart(data.assets);
+		renderAssetStrip(data.assets);
 	} catch (e) {
 		tbody.innerHTML = `<tr><td colspan="5" style="color:red;">Erro: ${e}</td></tr>`;
 		if (summaryTbody) {
@@ -877,3 +917,7 @@ function activateGroupAccordions() {
 /* INIT */
 showLoading();
 Promise.all([loadBalances(), loadOrders()]).finally(() => hideLoading());
+
+
+
+
