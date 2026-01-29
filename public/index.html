@@ -69,9 +69,14 @@
             </div>
         </section>
 
-        <section class="card">
-            <button class="accordion active">Gráficos e Visualizações</button>
-            <div class="panel" style="display: block">
+        <div class="tabs">
+            <button class="tab active" data-tab="charts">Gráficos e Visualizações</button>
+            <button class="tab" data-tab="balances">Saldos por moeda</button>
+            <button class="tab" data-tab="orders">Ordens Abertas</button>
+        </div>
+
+        <section class="card tab-panel active" data-tab="charts">
+            <div class="panel">
                 <div class="panel-header">
                     <div>
                         <!-- <h3>Visualizações</h3> -->
@@ -91,8 +96,7 @@
             </div>
         </section>
 
-        <section class="card">
-            <button class="accordion">Saldos por moeda</button>
+        <section class="card tab-panel" data-tab="balances">
             <div class="panel">
                 <div class="panel-header">
                     <div>
@@ -144,8 +148,7 @@
             </div>
         </section> -->
 
-        <section class="card">
-            <button class="accordion">Ordens Abertas</button>
+        <section class="card tab-panel" data-tab="orders">
             <div class="panel">
                 <div class="panel-header">
                     <div>

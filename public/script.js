@@ -77,16 +77,31 @@ function hideLoading() {
 }
 
 /* ---------------------------------------- */
-/* ACCORDION                                */
+/* TABS                                     */
 /* ---------------------------------------- */
-document.querySelectorAll(".accordion").forEach((acc) => {
-	acc.addEventListener("click", () => {
-		acc.classList.toggle("active");
-		const panel = acc.nextElementSibling;
-		panel.style.display =
-			panel.style.display === "block" ? "none" : "block";
+const tabButtons = document.querySelectorAll(".tab");
+const tabPanels = document.querySelectorAll(".tab-panel");
+
+function setActiveTab(tabName) {
+	tabButtons.forEach((btn) => {
+		const isActive = btn.dataset.tab === tabName;
+		btn.classList.toggle("active", isActive);
 	});
-});
+
+	tabPanels.forEach((panel) => {
+		const isActive = panel.dataset.tab === tabName;
+		panel.classList.toggle("active", isActive);
+	});
+}
+
+if (tabButtons.length) {
+	const activeBtn = document.querySelector(".tab.active") || tabButtons[0];
+	setActiveTab(activeBtn.dataset.tab);
+
+	tabButtons.forEach((btn) => {
+		btn.addEventListener("click", () => setActiveTab(btn.dataset.tab));
+	});
+}
 
 /* ---------------------------------------- */
 /* CHART                                    */
@@ -415,10 +430,10 @@ async function loadBalances() {
 			.toFixed(2)
 			.formatCurrency()} USDT`;
 
-		const quantityMap = raw ? mapQuantities(raw.balances) : {};
-		if (summaryTbody) {
-			await renderAssetSummary(data.assets, quantityMap, avgPrices);
-		}
+		// const quantityMap = raw ? mapQuantities(raw.balances) : {};
+		// if (summaryTbody) {
+		// await renderAssetSummary(data.assets, quantityMap, avgPrices);
+		// }
 
 		// Renderizar gráficos
 		renderWalletChart(data.assets);
@@ -439,30 +454,30 @@ function mapQuantities(rawBalances = []) {
 	}, {});
 }
 
-const AVG_PRICE_CACHE = {};
+// const AVG_PRICE_CACHE = {};
 
-function getAveragePurchasePrice(asset, avgPriceMap = {}) {
-	if (asset === "USDT" || asset === "BUSD") return 1;
-	const cached = AVG_PRICE_CACHE[asset];
-	if (cached !== undefined) return cached;
+// function getAveragePurchasePrice(asset, avgPriceMap = {}) {
+// 	if (asset === "USDT" || asset === "BUSD") return 1;
+// 	const cached = AVG_PRICE_CACHE[asset];
+// 	if (cached !== undefined) return cached;
 
-	const fromApi = avgPriceMap[asset];
-	if (fromApi === null || fromApi === undefined || Number.isNaN(fromApi)) {
-		AVG_PRICE_CACHE[asset] = null;
-		return null;
-	}
+// 	const fromApi = avgPriceMap[asset];
+// 	if (fromApi === null || fromApi === undefined || Number.isNaN(fromApi)) {
+// 		AVG_PRICE_CACHE[asset] = null;
+// 		return null;
+// 	}
 
-	AVG_PRICE_CACHE[asset] = Number(fromApi);
-	return AVG_PRICE_CACHE[asset];
-}
+// 	AVG_PRICE_CACHE[asset] = Number(fromApi);
+// 	return AVG_PRICE_CACHE[asset];
+// }
 
-function formatMaybeNumber(value, digits = 2, unit = "", nullLabel = "NULL") {
-	if (value === null || value === undefined || Number.isNaN(value)) {
-		return nullLabel;
-	}
-	const formatted = Number(value).toFixed(digits);
-	return unit ? `${formatted} ${unit}` : formatted;
-}
+// function formatMaybeNumber(value, digits = 2, unit = "", nullLabel = "NULL") {
+// 	if (value === null || value === undefined || Number.isNaN(value)) {
+// 		return nullLabel;
+// 	}
+// 	const formatted = Number(value).toFixed(digits);
+// 	return unit ? `${formatted} ${unit}` : formatted;
+// }
 
 // // Resumo dos Ativos: Renderiza o resumo dos ativos com base na quantidade e preço médio
 // async function renderAssetSummary(assets, quantityMap, avgPriceMap = {}) {

@@ -151,34 +151,44 @@ button:active {
   overflow: visible;
 }
 
-.accordion {
-  width: 100%;
-  background: var(--card-alt);
-  color: var(--text);
-  border: none;
-  text-align: left;
-  padding: 16px 18px;
-  font-size: 18px;
-  letter-spacing: -0.2px;
+.tabs {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  cursor: pointer;
+  gap: 8px;
+  padding: 8px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  margin-bottom: 18px;
+  flex-wrap: wrap;
 }
 
-.accordion::after {
-  content: "▼";
-  font-size: 12px;
+.tab {
+  background: transparent;
   color: var(--muted);
-  transition: transform 160ms ease;
+  border: 1px solid transparent;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
 }
 
-.accordion.active::after {
-  transform: rotate(-180deg);
+.tab.active {
+  color: var(--text);
+  background: var(--card-alt);
+  border-color: var(--border);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+
+.tab-panel {
+  display: none;
+}
+
+.tab-panel.active {
+  display: block;
 }
 
 .panel {
-  display: none;
   padding: 14px 18px 18px;
 }
 
