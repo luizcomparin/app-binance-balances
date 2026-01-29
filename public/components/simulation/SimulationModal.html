@@ -1,0 +1,24 @@
+﻿<div id="simulation-modal" class="modal" style="display: none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <span class="close" onclick="closeSimulationDialog()">&times;</span>
+      <h2>Simulação de Valorização da Carteira</h2>
+      <p>Informe a porcentagem de mudança para cada ativo (ex: 10 para +10%, -5 para -5%).</p>
+      <div id="simulation-result" style="margin-top: 20px; font-weight: bold;"></div>
+    </div>
+    <div class="modal-body">
+      <input type="text" id="simulation-search" placeholder="Buscar moeda..." style="width: 100%; padding: 10px; margin-bottom: 20px; border: 1px solid var(--border); border-radius: 8px; background: var(--card-alt); color: var(--text);">
+      <div class="simulation-table">
+        <div class="simulation-header">
+          <span>Moedas</span>
+          <span>Porcentagem</span>
+        </div>
+        <div id="simulation-inputs"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+    </div>
+  </div>
+</div>
+
+

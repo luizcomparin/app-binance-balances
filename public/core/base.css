@@ -1,0 +1,172 @@
+﻿@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap");
+
+:root {
+  --bg: #0b1021;
+  --card: #11172e;
+  --card-alt: #131b32;
+  --text: #e5ecff;
+  --muted: #9bb0d6;
+  --accent: #4dd4ff;
+  --accent-strong: #6bf2c5;
+  --border: rgba(255, 255, 255, 0.08);
+  --shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Manrope", "Segoe UI", Arial, sans-serif;
+  background: radial-gradient(
+      120% 120% at 20% 20%,
+      rgba(77, 212, 255, 0.12),
+      transparent
+    ),
+    radial-gradient(120% 120% at 80% 0%, rgba(107, 242, 197, 0.12), transparent),
+    var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding: 32px 22px 64px;
+}
+
+.app {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+button {
+  border: none;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 160ms ease, background 160ms ease,
+    color 160ms ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+}
+
+button:active {
+  transform: translateY(0);
+}
+
+.primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: #0a0e1d;
+  box-shadow: 0 12px 30px rgba(77, 212, 255, 0.3);
+}
+
+.ghost {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  margin-bottom: 18px;
+  overflow: visible;
+}
+
+.panel {
+  padding: 14px 18px 18px;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.panel-header h3 {
+  margin: 0 0 4px;
+}
+
+.panel-header p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.table-wrapper {
+  overflow: auto;
+  max-height: 60vh;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--card-alt);
+}
+
+th,
+ td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--card-alt);
+  box-shadow: inset 0 -1px 0 var(--border);
+}
+
+th {
+  color: var(--muted);
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+@media (max-width: 820px) {
+  .topbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .actions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  th,
+  td {
+    white-space: nowrap;
+  }
+
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .asset-pill {
+    min-width: 120px;
+    padding: 8px;
+  }
+}

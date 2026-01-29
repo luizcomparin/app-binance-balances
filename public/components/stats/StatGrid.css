@@ -1,0 +1,54 @@
+﻿.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.stat-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: var(--shadow);
+}
+
+.stat-card.accent {
+  background: linear-gradient(
+    135deg,
+    rgba(77, 212, 255, 0.1),
+    rgba(107, 242, 197, 0.08)
+  );
+  border-color: rgba(77, 212, 255, 0.35);
+}
+
+.stat-card .label {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.stat-card .value {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.stat-card .usdt-value {
+  font-size: 17px;
+  font-weight: 400;
+  color: #8b95bc;
+  margin-top: 4px;
+}
+
+.stat-card .brl-value {
+  font-size: 14px;
+  font-weight: 400;
+  color: #8b95bc;
+  margin-top: 2px;
+}
+
+#total-balance {
+  font-weight: 700;
+  color: var(--text);
+}

@@ -1,0 +1,67 @@
+﻿.orders-filters {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 14px;
+}
+
+.orders-filters .field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 160px;
+}
+
+.orders-filters label {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.orders-filters select {
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--card-alt);
+  color: var(--text);
+}
+
+.group-header {
+  background: rgba(77, 212, 255, 0.08);
+  font-weight: 700;
+}
+
+.group-header.group-collapsed {
+  background: rgba(77, 212, 255, 0.12);
+  opacity: 0.9;
+}
+
+.buy {
+  color: #52ffa8;
+  font-weight: 800;
+}
+
+.sell {
+  color: #ff7272;
+  font-weight: 800;
+}
+
+.positive {
+  color: #52ffa8;
+  font-weight: 700;
+}
+
+.negative {
+  color: #ff7272;
+  font-weight: 700;
+}
+
+#total-orders {
+  font-weight: 700;
+  color: var(--text);
+}
