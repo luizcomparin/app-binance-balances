@@ -1,11 +1,17 @@
-﻿.stat-grid {
+﻿/* .stat-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
+} */
+.stat-grid {
+  display: flex;
   gap: 14px;
   margin-bottom: 22px;
 }
 
 .stat-card {
+    flex: 1;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 14px;

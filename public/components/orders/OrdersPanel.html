@@ -1,52 +1,50 @@
 ﻿<section class="card tab-panel" data-tab="orders">
-  <div class="panel">
-    <div class="panel-header">
-      <div>
-        <h3>Ordens em aberto</h3>
-        <p>Filtre por par e lado para ver o somatório.</p>
-      </div>
-      <div class="panel-actions">
-        <button class="ghost" onclick="loadOrders()">
-          Recarregar ordens
-        </button>
-        <div id="total-orders"></div>
-      </div>
-    </div>
+    <div class="panel">
+        <div class="panel-header">
+            <div>
+                <h3>Ordens em aberto</h3>
+                <p>Filtre por par e lado para ver o somatório.</p>
+            </div>
+            <div class="panel-actions">
+                <button class="ghost" onclick="loadOrders()">
+                    Recarregar ordens
+                </button>
+                <div id="total-orders"></div>
+            </div>
+        </div>
 
-    <div class="orders-filters">
-      <div class="field">
-        <label>Par</label>
-        <select id="filterPair"></select>
-      </div>
-      <div class="field">
-        <label>Lado</label>
-        <select id="filterSide">
-          <option value="ALL">Todos</option>
-          <option value="BUY">BUY</option>
-          <option value="SELL">SELL</option>
-        </select>
-      </div>
-      <button class="primary" onclick="applyOrderFilters()">
-        Aplicar filtro
-      </button>
-    </div>
+        <div class="orders-filters">
+            <div class="field">
+                <label>Par</label>
+                <select id="filterPair"></select>
+            </div>
+            <div class="field">
+                <label>Lado</label>
+                <select id="filterSide">
+                    <option value="ALL">Todos</option>
+                    <option value="BUY">BUY</option>
+                    <option value="SELL">SELL</option>
+                </select>
+            </div>
+            <button class="primary" onclick="applyOrderFilters()">
+                Aplicar filtro
+            </button>
+        </div>
 
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr>
-            <th onclick="sortOrders('pair')">Par â‡….</th>
-            <th onclick="sortOrders('side')">Lado â‡….</th>
-            <th onclick="sortOrders('price')">Preço ⇅.</th>
-            <th onclick="sortOrders('amount')">QTD â‡….</th>
-            <th onclick="sortOrders('total')">Total (USDT) â‡….</th>
-            <th onclick="sortOrders('time')">Data e Hora â‡….</th>
-          </tr>
-        </thead>
-        <tbody id="table-body-orders"></tbody>
-      </table>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th onclick="sortOrders('pair')">Par ⇅</th>
+                        <th onclick="sortOrders('side')">Lado ⇅</th>
+                        <th onclick="sortOrders('price')">Preço ⇅</th>
+                        <th onclick="sortOrders('amount')">QTD ⇅</th>
+                        <th onclick="sortOrders('total')">Total (USDT) ⇅</th>
+                        <th onclick="sortOrders('time')">Data e Hora ⇅</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body-orders"></tbody>
+            </table>
+        </div>
     </div>
-  </div>
 </section>
-
-
