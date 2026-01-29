@@ -130,29 +130,34 @@ function renderWalletChart(assets) {
 	const labels = [];
 	const data = [];
 	const colors = [];
+	const valueMap = new Map();
 
 	if (usdt && usdt.pct > 0) {
 		labels.push("USDT");
 		data.push(usdt.pct);
 		colors.push("rgba(77, 212, 255, 0.8)");
+		valueMap.set("USDT", { pct: usdt.pct, usdt: usdt.totalUSDT });
 	}
 
 	if (btc && btc.pct > 0) {
 		labels.push("BTC");
 		data.push(btc.pct);
 		colors.push("rgba(247, 147, 26, 0.8)");
+		valueMap.set("BTC", { pct: btc.pct, usdt: btc.totalUSDT });
 	}
 
 	if (xrp && xrp.pct > 0) {
 		labels.push("XRP");
 		data.push(xrp.pct);
 		colors.push("rgba(107, 242, 197, 0.8)");
+		valueMap.set("XRP", { pct: xrp.pct, usdt: xrp.totalUSDT });
 	}
 
 	if (eth && eth.pct > 0) {
 		labels.push("ETH");
 		data.push(eth.pct);
 		colors.push("rgba(138, 43, 226, 0.8)"); // Purple color for ETH
+		valueMap.set("ETH", { pct: eth.pct, usdt: eth.totalUSDT });
 	}
 
 	const othersTotal = others.reduce((acc, a) => acc + a.pct, 0);
@@ -160,6 +165,8 @@ function renderWalletChart(assets) {
 		labels.push("Outros");
 		data.push(othersTotal);
 		colors.push("rgba(155, 176, 214, 0.8)");
+		const othersTotalUsdt = others.reduce((acc, a) => acc + a.totalUSDT, 0);
+		valueMap.set("Outros", { pct: othersTotal, usdt: othersTotalUsdt });
 	}
 
 	// Destruir gráfico anterior se existir
@@ -207,8 +214,22 @@ function renderWalletChart(assets) {
 					callbacks: {
 						label: function (context) {
 							const label = context.label || "";
-							const value = context.parsed || 0;
-							return ` ${label}: ${value.toFixed(2)}%`;
+							const entry = valueMap.get(label);
+							const pct = entry ? entry.pct : context.parsed || 0;
+							const usdtValue = entry ? entry.usdt : 0;
+							const brlValue = usdtBrlPrice
+								? usdtValue * usdtBrlPrice
+								: null;
+							const brlText = usdtBrlPrice
+								? `${brlValue.toFixed(2).formatCurrency()} BRL`
+								: "--";
+							return [
+								` ${label}: ${pct.toFixed(2)}%`,
+								` USDT: ${usdtValue
+									.toFixed(2)
+									.formatCurrency()} USDT`,
+								` BRL: ${brlText}`,
+							];
 						},
 					},
 				},
@@ -223,6 +244,8 @@ function renderWalletBarChart(assets) {
 
 	// Pegar todos os ativos ordenados por valor
 	const sortedAssets = [...assets].sort((a, b) => b.totalUSDT - a.totalUSDT);
+	const totalWalletUsdt = assets.reduce((acc, a) => acc + a.totalUSDT, 0);
+	const assetMap = new Map(sortedAssets.map((asset) => [asset.asset, asset]));
 
 	const labels = sortedAssets.map((a) => a.asset);
 	const data = sortedAssets.map((a) => a.totalUSDT);
@@ -273,10 +296,28 @@ function renderWalletBarChart(assets) {
 					displayColors: true,
 					callbacks: {
 						label: function (context) {
-							const value = context.parsed.x || 0;
-							return ` Valor: ${value
-								.toFixed(2)
-								.formatCurrency()} USDT`;
+							const label = context.label || "";
+							const asset = assetMap.get(label);
+							const usdtValue = asset
+								? asset.totalUSDT
+								: context.parsed.x || 0;
+							const pct = totalWalletUsdt
+								? (usdtValue / totalWalletUsdt) * 100
+								: 0;
+							const brlValue = usdtBrlPrice
+								? usdtValue * usdtBrlPrice
+								: null;
+							const brlText = usdtBrlPrice
+								? `${brlValue.toFixed(2).formatCurrency()} BRL`
+								: "--";
+
+							return [
+								` ${label}: ${pct.toFixed(2)}%`,
+								` USDT: ${usdtValue
+									.toFixed(2)
+									.formatCurrency()} USDT`,
+								` BRL: ${brlText}`,
+							];
 						},
 					},
 				},
@@ -317,6 +358,7 @@ function renderWalletBarChart(assets) {
 /* ---------------------------------------- */
 
 let currentAssets = []; // Novo: armazenar ativos atuais para simulação
+let usdtBrlPrice = 0;
 
 async function loadBalances() {
 	const tbody = document.querySelector("#table-body-balances");
@@ -339,6 +381,7 @@ async function loadBalances() {
 		]);
 
 		const totalUsdt = data.total_usdt.toFixed(2);
+		usdtBrlPrice = Number(data.usdt_brl_price || 0);
 
 		tbody.innerHTML = "";
 		/** @asset string */
@@ -357,9 +400,10 @@ async function loadBalances() {
 		currentAssets = data.assets; // Novo: salvar ativos para simulação
 
 		const totalBalanceDivs = document.querySelectorAll("#total-balance");
+		const totalBrlDiv = document.getElementById("total-brl");
 		// totalDiv.innerText = "Total da carteira: " + data.total_usdt.toFixed(2) + " USDT";
 		totalBalanceDivs.forEach((totalBalanceDiv) => {
-			totalBalanceDiv.innerText = `${totalUsdt} USDT`;
+			totalBalanceDiv.innerText = `${totalUsdt.formatCurrency()} USDT`;
 		});
 
 		const usdtPercentDiv = document.getElementById("usdt-percent");
@@ -372,18 +416,30 @@ async function loadBalances() {
 		const xrpUsdtDiv = document.getElementById("xrp-usdt");
 		const ethUsdtDiv = document.getElementById("eth-usdt");
 		const othersUsdtDiv = document.getElementById("others-usdt");
-		usdtPercentDiv.innerText = `${
-			data.assets.find((a) => a.asset === "USDT")?.pct.toFixed(2) || 0
-		}%`;
-		btcPercentDiv.innerText = `${
-			data.assets.find((a) => a.asset === "BTC")?.pct.toFixed(2) || 0
-		}%`;
-		xrpPercentDiv.innerText = `${
-			data.assets.find((a) => a.asset === "XRP")?.pct.toFixed(2) || 0
-		}%`;
-		ethPercentDiv.innerText = `${
-			data.assets.find((a) => a.asset === "ETH")?.pct.toFixed(2) || 0
-		}%`;
+		const usdtBrlDiv = document.getElementById("usdt-brl");
+		const btcBrlDiv = document.getElementById("btc-brl");
+		const xrpBrlDiv = document.getElementById("xrp-brl");
+		const ethBrlDiv = document.getElementById("eth-brl");
+		const othersBrlDiv = document.getElementById("others-brl");
+
+		const usdtAsset = data.assets.find((a) => a.asset === "USDT");
+		const btcAsset = data.assets.find((a) => a.asset === "BTC");
+		const xrpAsset = data.assets.find((a) => a.asset === "XRP");
+		const ethAsset = data.assets.find((a) => a.asset === "ETH");
+		const othersTotalUsdt = data.assets
+			.filter(
+				(a) =>
+					a.asset !== "USDT" &&
+					a.asset !== "BTC" &&
+					a.asset !== "XRP" &&
+					a.asset !== "ETH"
+			)
+			.reduce((acc, a) => acc + a.totalUSDT, 0);
+
+		usdtPercentDiv.innerText = `${usdtAsset?.pct.toFixed(2) || 0}%`;
+		btcPercentDiv.innerText = `${btcAsset?.pct.toFixed(2) || 0}%`;
+		xrpPercentDiv.innerText = `${xrpAsset?.pct.toFixed(2) || 0}%`;
+		ethPercentDiv.innerText = `${ethAsset?.pct.toFixed(2) || 0}%`;
 		othersPercentDiv.innerText = `${data.assets
 			.filter(
 				(a) =>
@@ -395,40 +451,37 @@ async function loadBalances() {
 			.reduce((acc, a) => acc + a.pct, 0)
 			.toFixed(2)}%`;
 		usdtUsdtDiv.innerText = `${
-			data.assets
-				.find((a) => a.asset === "USDT")
-				?.totalUSDT.toFixed(2)
-				.formatCurrency() || 0
+			usdtAsset?.totalUSDT.toFixed(2).formatCurrency() || 0
 		} USDT`;
 		btcUsdtDiv.innerText = `${
-			data.assets
-				.find((a) => a.asset === "BTC")
-				?.totalUSDT.toFixed(2)
-				.formatCurrency() || 0
+			btcAsset?.totalUSDT.toFixed(2).formatCurrency() || 0
 		} USDT`;
 		xrpUsdtDiv.innerText = `${
-			data.assets
-				.find((a) => a.asset === "XRP")
-				?.totalUSDT.toFixed(2)
-				.formatCurrency() || 0
+			xrpAsset?.totalUSDT.toFixed(2).formatCurrency() || 0
 		} USDT`;
 		ethUsdtDiv.innerText = `${
-			data.assets
-				.find((a) => a.asset === "ETH")
-				?.totalUSDT.toFixed(2)
-				.formatCurrency() || 0
+			ethAsset?.totalUSDT.toFixed(2).formatCurrency() || 0
 		} USDT`;
-		othersUsdtDiv.innerText = `${data.assets
-			.filter(
-				(a) =>
-					a.asset !== "USDT" &&
-					a.asset !== "BTC" &&
-					a.asset !== "XRP" &&
-					a.asset !== "ETH"
-			)
-			.reduce((acc, a) => acc + a.totalUSDT, 0)
+		othersUsdtDiv.innerText = `${othersTotalUsdt
 			.toFixed(2)
 			.formatCurrency()} USDT`;
+
+		const setBrlValue = (element, usdtValue) => {
+			if (!element) return;
+			if (!usdtBrlPrice) {
+				element.innerText = "--";
+				return;
+			}
+			const brl = usdtValue * usdtBrlPrice;
+			element.innerText = `${brl.toFixed(2).formatCurrency()} BRL`;
+		};
+
+		setBrlValue(totalBrlDiv, Number(data.total_usdt || 0));
+		setBrlValue(usdtBrlDiv, Number(usdtAsset?.totalUSDT || 0));
+		setBrlValue(btcBrlDiv, Number(btcAsset?.totalUSDT || 0));
+		setBrlValue(xrpBrlDiv, Number(xrpAsset?.totalUSDT || 0));
+		setBrlValue(ethBrlDiv, Number(ethAsset?.totalUSDT || 0));
+		setBrlValue(othersBrlDiv, Number(othersTotalUsdt || 0));
 
 		// const quantityMap = raw ? mapQuantities(raw.balances) : {};
 		// if (summaryTbody) {

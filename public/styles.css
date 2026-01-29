@@ -142,6 +142,13 @@ button:active {
     margin-top: 4px;
 }
 
+.stat-card .brl-value {
+  font-size: 14px;
+  font-weight: 400;
+  color: #8b95bc;
+  margin-top: 2px;
+}
+
 .card {
   background: var(--card);
   border: 1px solid var(--border);

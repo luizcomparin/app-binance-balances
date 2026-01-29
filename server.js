@@ -174,6 +174,7 @@ async function buildWalletData() {
 	);
 
 	const allPrices = await getAllPrices();
+	const usdtBrlPrice = Number(allPrices.USDTBRL || 0);
 
 	const rows = [];
 
@@ -211,6 +212,7 @@ async function buildWalletData() {
 
 	return {
 		total_usdt: totalWalletUSDT,
+		usdt_brl_price: usdtBrlPrice || null,
 		assets: sortByPercentage(processed),
 	};
 }
