@@ -1,5 +1,6 @@
-﻿import { fetchBalances, fetchRaw } from "../../api/binance.js";
+import { fetchBalances, fetchRaw } from "../../api/binance.js";
 import { state } from "../../core/state.js";
+import { toggleSort, compareValues } from "../../core/sort.js";
 import { renderWalletBarChart, renderWalletChart } from "../charts/ChartsPanel.js";
 import { renderAssetStrip } from "../asset-strip/AssetStrip.js";
 
@@ -15,30 +16,13 @@ export async function loadBalances() {
   }
 
   try {
-    const [data] = await Promise.all([
-      fetchBalances(),
-      fetchRaw(),
-    ]);
+    const [data] = await Promise.all([fetchBalances(), fetchRaw()]);
 
     const totalUsdt = data.total_usdt.toFixed(2);
     state.usdtBrlPrice = Number(data.usdt_brl_price || 0);
 
-    if (tbody) {
-      tbody.innerHTML = "";
-      data.assets.forEach((asset) => {
-        tbody.innerHTML += `
-          <tr>
-            <td>${asset.asset}</td>
-            <td>${asset.pct.toFixed(2)}%</td>
-            <td>${asset.freeUSDT.toFixed(2).formatCurrency()} USDT</td>
-            <td>${asset.lockedUSDT.toFixed(2).formatCurrency()} USDT</td>
-            <td>${asset.totalUSDT.toFixed(2).formatCurrency()} USDT</td>
-          </tr>
-        `;
-      });
-    }
-
-    state.currentAssets = data.assets;
+    state.currentAssets = data.assets.slice();
+    renderBalances();
 
     const totalBalanceDivs = document.querySelectorAll("#total-balance");
     const totalBrlDiv = document.getElementById("total-brl");
@@ -154,6 +138,44 @@ export async function loadBalances() {
       summaryTbody.innerHTML = `<tr><td colspan="6" style="color:red;">Erro: ${e}</td></tr>`;
     }
   }
+}
+
+export function sortBalances(key) {
+  toggleSort(state.balanceSort, key);
+  renderBalances();
+}
+
+function renderBalances() {
+  const tbody = document.querySelector("#table-body-balances");
+  if (!tbody) return;
+
+  const assets = Array.isArray(state.currentAssets)
+    ? [...state.currentAssets]
+    : [];
+
+  if (state.balanceSort?.key) {
+    const { key, asc } = state.balanceSort;
+    assets.sort((a, b) => compareValues(a[key], b[key], asc));
+  }
+
+  tbody.innerHTML = "";
+
+  if (!assets.length) {
+    tbody.innerHTML = "<tr><td colspan='5'>Nenhum saldo encontrado.</td></tr>";
+    return;
+  }
+
+  assets.forEach((asset) => {
+    tbody.innerHTML += `
+          <tr>
+            <td>${asset.asset}</td>
+            <td>${asset.pct.toFixed(2)}%</td>
+            <td>${asset.freeUSDT.toFixed(2).formatCurrency()} USDT</td>
+            <td>${asset.lockedUSDT.toFixed(2).formatCurrency()} USDT</td>
+            <td>${asset.totalUSDT.toFixed(2).formatCurrency()} USDT</td>
+          </tr>
+        `;
+  });
 }
 
 export function mapQuantities(rawBalances = []) {

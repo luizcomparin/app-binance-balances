@@ -3,7 +3,8 @@
   usdtBrlPrice: 0,
   orders: [],
   filteredOrders: [],
-  currentSort: { key: null, asc: true },
+  orderSort: { key: null, asc: true },
+  balanceSort: { key: null, asc: true },
   pairs: [],
   totalsByPair: {},
 };

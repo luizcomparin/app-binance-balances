@@ -1,23 +1,23 @@
 ﻿<section class="card tab-panel" data-tab="balances">
-  <div class="panel">
-    <div class="panel-header">
-      <div>
-        <p>Totais em USDT, livres e posicionados em ordens.</p>
-      </div>
+    <div class="panel">
+        <div class="panel-header">
+            <div>
+                <p>Totais em USDT, livres e posicionados em ordens.</p>
+            </div>
+        </div>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th onclick="sortBalances('asset')">Moeda ⇅</th>
+                        <th onclick="sortBalances('pct')">% ⇅</th>
+                        <th onclick="sortBalances('freeUSDT')">Livre (USDT) ⇅</th>
+                        <th onclick="sortBalances('lockedUSDT')">Ordens (USDT) ⇅</th>
+                        <th onclick="sortBalances('totalUSDT')">Total (USDT) ⇅</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body-balances"></tbody>
+            </table>
+        </div>
     </div>
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr>
-            <th>Moeda</th>
-            <th>%</th>
-            <th>Livre (USDT)</th>
-            <th>Ordens (USDT)</th>
-            <th>Total (USDT)</th>
-          </tr>
-        </thead>
-        <tbody id="table-body-balances"></tbody>
-      </table>
-    </div>
-  </div>
 </section>

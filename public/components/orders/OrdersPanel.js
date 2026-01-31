@@ -1,5 +1,6 @@
 ﻿import { fetchOrders } from "../../api/binance.js";
 import { state } from "../../core/state.js";
+import { toggleSort, compareValues } from "../../core/sort.js";
 
 export async function loadOrders() {
   const tbody = document.querySelector("#table-body-orders");
@@ -63,31 +64,26 @@ export function applyOrderFilters() {
 }
 
 export function sortOrders(key) {
-  if (state.currentSort.key === key) state.currentSort.asc = !state.currentSort.asc;
-  else {
-    state.currentSort.key = key;
-    state.currentSort.asc = true;
-  }
+  toggleSort(state.orderSort, key);
 
   state.totalsByPair = calculateTotalsByPair(state.filteredOrders);
   state.filteredOrders.sort((a, b) => {
     if (key === "total") {
       const totalA = state.totalsByPair[a.pair] || 0;
       const totalB = state.totalsByPair[b.pair] || 0;
-      if (totalA < totalB) return state.currentSort.asc ? -1 : 1;
-      if (totalA > totalB) return state.currentSort.asc ? 1 : -1;
-      return a.time < b.time ? -1 : a.time > b.time ? 1 : 0;
+      const totalCompare = compareValues(totalA, totalB, state.orderSort.asc);
+      if (totalCompare !== 0) return totalCompare;
+      return compareValues(a.time, b.time, true);
     }
 
     const A = a[key],
       B = b[key];
-    if (A < B) return state.currentSort.asc ? -1 : 1;
-    if (A > B) return state.currentSort.asc ? 1 : -1;
-    return 0;
+    return compareValues(A, B, state.orderSort.asc);
   });
 
   renderOrders();
 }
+
 
 function calculateTotalsByPair(orders) {
   return orders.reduce((totals, order) => {
