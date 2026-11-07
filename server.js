@@ -37,7 +37,12 @@ app.get("/site", (req, res) => {
 	res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-const PORT = 3000;
+const PORT = Number(process.env.PORT);
+
+if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
+	console.error("Erro: defina PORT no .env com uma porta entre 1 e 65535");
+	process.exit(1);
+}
 
 const { BINANCE_API_KEY, BINANCE_API_SECRET } = process.env;
 const BASE_URL = "https://api.binance.com";
