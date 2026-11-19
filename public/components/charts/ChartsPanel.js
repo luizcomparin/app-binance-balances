@@ -1,7 +1,16 @@
 ﻿import { state } from "../../core/state.js";
 
+import { BALANCES_UPDATED, on } from "../../core/events.js";
+
 let walletChart = null;
 let walletBarChart = null;
+
+export function initChartsPanel() {
+  on(BALANCES_UPDATED, (data) => {
+    renderWalletChart(data.assets);
+    renderWalletBarChart(data.assets);
+  });
+}
 
 export function renderWalletChart(assets) {
   const ctx = document.getElementById("walletChart");

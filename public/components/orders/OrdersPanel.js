@@ -1,7 +1,8 @@
 ﻿import { fetchOrders } from "../../api/binance.js";
 import { state } from "../../core/state.js";
 import { toggleSort, compareValues } from "../../core/sort.js";
-import { formatSigned, signClass } from "../../core/format.js";
+import { formatSigned } from "../../core/format.js";
+import { renderOrderSimulation } from "./orderSimulation.js";
 
 export async function loadOrders() {
   const tbody = document.querySelector("#table-body-orders");
@@ -166,57 +167,6 @@ function renderOrders() {
 
   activateGroupAccordions();
   renderOrderSimulation();
-}
-
-// Simulação: como fica a carteira se todas as ordens filtradas executarem.
-// Vendas: recebe o total da ordem no lugar do valor de mercado atual da moeda.
-// Compras: gasta USDT e recebe moeda valendo o preço pago (não muda o patrimônio).
-export function renderOrderSimulation() {
-  const box = document.getElementById("orders-simulation");
-  if (!box) return;
-
-  const orders = state.filteredOrders;
-  if (!orders.length) {
-    box.hidden = true;
-    return;
-  }
-  box.hidden = false;
-
-  const sells = orders.filter((o) => o.side === "SELL");
-  const buys = orders.filter((o) => o.side === "BUY");
-  const sum = (list, key) => list.reduce((acc, o) => acc + (o[key] ?? 0), 0);
-
-  const sellProceeds = sum(sells, "total");
-  const sellMarketValue = sum(sells, "marketValueUSDT");
-  const buyCost = sum(buys, "total");
-  const buyMarketValue = sum(buys, "marketValueUSDT");
-
-  const walletUSDT = state.currentAssets.find((a) => a.asset === "USDT")?.totalUSDT ?? 0;
-  const walletTotal = state.currentAssets.reduce((acc, a) => acc + a.totalUSDT, 0);
-
-  const projectedUSDT = walletUSDT + sellProceeds - buyCost;
-  const sellGain = sellProceeds - sellMarketValue;
-  const projectedTotal = walletTotal + sellGain;
-
-  const usdt = (v) => `${v.toFixed(2).formatCurrency()} USDT`;
-  const set = (id, html) => {
-    const el = document.getElementById(id);
-    if (el) el.innerHTML = html;
-  };
-
-  set(
-    "sim-sells",
-    `${usdt(sellProceeds)} <small class="muted">(${sells.length} ordens · hoje valem ${usdt(sellMarketValue)})</small>`
-  );
-  set(
-    "sim-buys",
-    `${usdt(buyCost)} <small class="muted">(${buys.length} ordens · hoje valeriam ${usdt(buyMarketValue)})</small>`
-  );
-  set("sim-usdt", `${usdt(projectedUSDT)} <small class="muted">(hoje ${usdt(walletUSDT)})</small>`);
-  set(
-    "sim-total",
-    `${usdt(projectedTotal)} <small class="${signClass(sellGain)}">(${formatSigned(sellGain)} USDT)</small>`
-  );
 }
 
 function activateGroupAccordions() {

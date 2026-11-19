@@ -1,5 +1,10 @@
 ﻿import { state } from "../../core/state.js";
 import { formatSigned, signClass } from "../../core/format.js";
+import { BALANCES_UPDATED, on } from "../../core/events.js";
+
+export function initAssetStrip() {
+  on(BALANCES_UPDATED, (data) => renderAssetStrip(data.assets));
+}
 
 export function renderAssetStrip(assets) {
   const list = document.getElementById("asset-strip-list");

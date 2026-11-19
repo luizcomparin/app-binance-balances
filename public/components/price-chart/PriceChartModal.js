@@ -6,6 +6,7 @@
 // Se a janela pedir velas demais para o tamanho escolhido, a vela sobe automaticamente.
 import { state } from "../../core/state.js";
 import { formatPrice } from "../../core/format.js";
+import { on, POSITIONS_UPDATED } from "../../core/events.js";
 import { getKlines, KLINES_PAGE, loadMyOrders, loadOpenOrders, ordersOnChart } from "./chartData.js";
 import { createPriceChart } from "./chartRender.js";
 import { avgAfterBuys, initBuySimulator, setSimContext, updateSimAvailability } from "./buySimulator.js";
@@ -236,7 +237,7 @@ function highlightRange() {
 
 export function initPriceChartModal() {
   // posições (preço médio) chegam depois dos saldos: se o modal já estiver aberto, redesenha
-  window.addEventListener("positions:updated", () => {
+  on(POSITIONS_UPDATED, () => {
     if (!isOpen()) return;
     updateSimAvailability();
     updateProjectedAvailability();

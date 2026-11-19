@@ -1,16 +1,20 @@
-import { fetchBalances, fetchPositions } from "../../api/binance.js";
+// Aba "Saldos por moeda": tabela de saldos com preço médio/P&L e o resumo de P&L do cabeçalho.
+// Carrega /balances e avisa os outros componentes (cards, gráficos, faixa de ativos, simulação)
+// com BALANCES_UPDATED; o P&L chega depois, via POSITIONS_UPDATED.
+import { fetchBalances } from "../../api/binance.js";
 import { state } from "../../core/state.js";
 import { formatPrice, formatQty, formatSigned, signClass } from "../../core/format.js";
 import { toggleSort, compareValues } from "../../core/sort.js";
-import { renderWalletBarChart, renderWalletChart } from "../charts/ChartsPanel.js";
-import { renderAssetStrip } from "../asset-strip/AssetStrip.js";
-import { renderOrderSimulation } from "../orders/OrdersPanel.js";
+import { BALANCES_UPDATED, emit, on, POSITIONS_UPDATED } from "../../core/events.js";
+import { loadPositions } from "../../core/positions.js";
 
 const BALANCE_COLUMNS = 12;
-// moedas com card fixo no topo (o restante entra em "Outros")
-const FIXED_CARD_ASSETS = ["USDT", "BTC", "XRP", "ETH"];
 // abaixo disso, parte relevante da quantidade não veio de trades (depósito, Convert, Earn...)
 const LOW_COVERAGE = 0.95;
+
+export function initBalancesPanel() {
+  on(POSITIONS_UPDATED, onPositionsUpdated);
+}
 
 export async function loadBalances() {
   const tbody = document.querySelector("#table-body-balances");
@@ -32,13 +36,8 @@ export async function loadBalances() {
 
     renderBalances();
     renderUnpricedNote(data.unpriced);
-    renderStatCards(data);
     renderPnlSummary();
-    renderWalletChart(data.assets);
-    renderWalletBarChart(data.assets);
-    renderAssetStrip(data.assets);
-    // a simulação das ordens abertas usa o saldo atual; recalcula se as ordens já chegaram
-    renderOrderSimulation();
+    emit(BALANCES_UPDATED, data);
   } catch (e) {
     if (tbody) {
       tbody.innerHTML = `<tr><td colspan="${BALANCE_COLUMNS}" style="color:red;">Erro: ${e.message || e}</td></tr>`;
@@ -46,57 +45,36 @@ export async function loadBalances() {
   }
 }
 
-let positionsRequest = null;
+// Posições começaram a carregar, chegaram ou falharam
+function onPositionsUpdated() {
+  setPnlSummaryLoading(state.positionsLoading);
+  renderPositionsStatus();
+  if (state.positionsLoading) return;
 
-async function loadPositions() {
-  if (positionsRequest) return positionsRequest;
-
-  const status = document.getElementById("positions-status");
-  setPnlSummaryLoading(true);
-  state.positionsLoading = true;
-  window.dispatchEvent(new CustomEvent("positions:updated"));
-
-  if (status) {
-    status.hidden = true;
-    status.classList.remove("error");
-    status.textContent = "";
+  if (state.positionsError) {
+    const detail = document.getElementById("pnl-detail");
+    if (detail) detail.innerText = "Falha ao calcular o P&L.";
+    return;
   }
 
-  positionsRequest = fetchPositions()
-    .then((data) => {
-      state.positions = data.positions || {};
-      state.positionsTotals = data.totals || null;
-      mergePositions();
-      renderBalances();
-      renderPnlSummary();
+  mergePositions();
+  renderBalances();
+  renderPnlSummary();
+}
 
-      if (status) {
-        const errorCount = data.errors?.length || 0;
-        status.hidden = !errorCount;
-        status.textContent = errorCount
-          ? `P&L calculado, mas ${errorCount} par(es) falharam ao buscar trades.`
-          : "";
-      }
-    })
-    .catch((e) => {
-      state.positionsTotals = null;
-      const detail = document.getElementById("pnl-detail");
-      if (detail) detail.innerText = "Falha ao calcular o P&L.";
+function renderPositionsStatus() {
+  const status = document.getElementById("positions-status");
+  if (!status) return;
 
-      if (status) {
-        status.hidden = false;
-        status.classList.add("error");
-        status.textContent = `Não foi possível calcular o P&L: ${e.message}`;
-      }
-    })
-    .finally(() => {
-      setPnlSummaryLoading(false);
-      positionsRequest = null;
-      state.positionsLoading = false;
-      window.dispatchEvent(new CustomEvent("positions:updated"));
-    });
-
-  return positionsRequest;
+  const error = !state.positionsLoading && state.positionsError;
+  const failed = !state.positionsLoading && !error ? state.positionsFailedPairs : 0;
+  status.classList.toggle("error", !!error);
+  status.hidden = !error && !failed;
+  status.textContent = error
+    ? `Não foi possível calcular o P&L: ${error}`
+    : failed
+      ? `P&L calculado, mas ${failed} par(es) falharam ao buscar trades.`
+      : "";
 }
 
 // Junta os dados de /positions em cada linha de saldo (para exibir e ordenar)
@@ -114,71 +92,6 @@ function mergePositions() {
       tradesCount: p?.tradesCount ?? null,
     };
   });
-}
-
-function brlText(usdtValue) {
-  if (!state.usdtBrlPrice) return "--";
-  return `${(usdtValue * state.usdtBrlPrice).toFixed(2).formatCurrency()} BRL`;
-}
-
-function change24hHtml(pct, usdt) {
-  if (pct === null || pct === undefined) return "";
-  const usdtPart =
-    usdt === null || usdt === undefined ? "" : ` (${formatSigned(usdt)} USDT)`;
-  return `<span class="${signClass(pct)}">${formatSigned(pct)}%</span>${usdtPart} <span class="muted">24h</span>`;
-}
-
-function setText(id, text) {
-  const el = document.getElementById(id);
-  if (el) el.innerText = text;
-}
-
-function setHtml(id, html) {
-  const el = document.getElementById(id);
-  if (el) el.innerHTML = html;
-}
-
-// Cards fixos do topo: total, USDT, BTC, XRP, ETH e "Outros"
-function renderStatCards(data) {
-  const totalUSDT = Number(data.total_usdt || 0);
-
-  document.querySelectorAll("#total-balance").forEach((el) => {
-    el.innerText = `${totalUSDT.toFixed(2).formatCurrency()} USDT`;
-  });
-  setText("total-brl", brlText(totalUSDT));
-  setHtml("total-change-24h", change24hHtml(data.change_24h_pct, data.change_24h_usdt));
-
-  for (const symbol of FIXED_CARD_ASSETS) {
-    const key = symbol.toLowerCase();
-    const asset = data.assets.find((a) => a.asset === symbol);
-    const usdt = Number(asset?.totalUSDT || 0);
-
-    setText(`${key}-percent`, `${asset?.pct.toFixed(2) || 0}%`);
-    setText(`${key}-usdt`, `${usdt.toFixed(2).formatCurrency()} USDT`);
-    setText(`${key}-brl`, brlText(usdt));
-    setHtml(`${key}-change-24h`, change24hHtml(asset?.change24hPct, asset?.change24hUSDT));
-  }
-
-  const others = data.assets.filter((a) => !FIXED_CARD_ASSETS.includes(a.asset));
-  const othersUSDT = others.reduce((acc, a) => acc + a.totalUSDT, 0);
-  const othersPct = others.reduce((acc, a) => acc + a.pct, 0);
-  const othersWithChange = others.filter((a) => a.change24hUSDT !== null);
-  const othersChangeUSDT = othersWithChange.reduce((acc, a) => acc + a.change24hUSDT, 0);
-  const othersValue24hAgo = othersWithChange.reduce(
-    (acc, a) => acc + a.totalUSDT - a.change24hUSDT,
-    0
-  );
-
-  setText("others-percent", `${othersPct.toFixed(2)}%`);
-  setText("others-usdt", `${othersUSDT.toFixed(2).formatCurrency()} USDT`);
-  setText("others-brl", brlText(othersUSDT));
-  setHtml(
-    "others-change-24h",
-    change24hHtml(
-      othersValue24hAgo ? (othersChangeUSDT / othersValue24hAgo) * 100 : null,
-      othersWithChange.length ? othersChangeUSDT : null
-    )
-  );
 }
 
 function setPnlSummaryLoading(isLoading) {
