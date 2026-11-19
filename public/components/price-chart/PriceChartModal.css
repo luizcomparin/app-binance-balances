@@ -1,0 +1,44 @@
+.price-chart-content {
+  max-width: 960px;
+  height: auto;
+  max-height: 90vh;
+}
+
+.price-chart-content h2 {
+  margin: 0 0 4px;
+}
+
+.price-chart-info {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.price-chart-ranges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.price-chart-ranges button.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.price-chart-canvas {
+  position: relative;
+  height: 420px;
+}
+
+/* nome da moeda clicável na tabela de saldos */
+.asset-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}

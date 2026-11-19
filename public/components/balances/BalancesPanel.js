@@ -1,143 +1,229 @@
-import { fetchBalances, fetchRaw } from "../../api/binance.js";
+import { fetchBalances, fetchPositions } from "../../api/binance.js";
 import { state } from "../../core/state.js";
+import { formatPrice, formatQty, formatSigned, signClass } from "../../core/format.js";
 import { toggleSort, compareValues } from "../../core/sort.js";
 import { renderWalletBarChart, renderWalletChart } from "../charts/ChartsPanel.js";
 import { renderAssetStrip } from "../asset-strip/AssetStrip.js";
+import { renderOrderSimulation } from "../orders/OrdersPanel.js";
+
+const BALANCE_COLUMNS = 12;
+// moedas com card fixo no topo (o restante entra em "Outros")
+const FIXED_CARD_ASSETS = ["USDT", "BTC", "XRP", "ETH"];
+// abaixo disso, parte relevante da quantidade não veio de trades (depósito, Convert, Earn...)
+const LOW_COVERAGE = 0.95;
 
 export async function loadBalances() {
   const tbody = document.querySelector("#table-body-balances");
-  const summaryTbody = document.querySelector("#table-body-asset-stats");
 
   if (tbody) {
-    tbody.innerHTML = "<tr><td colspan='5'>Carregando...</td></tr>";
+    tbody.innerHTML = `<tr><td colspan='${BALANCE_COLUMNS}'>Carregando...</td></tr>`;
   }
-  if (summaryTbody) {
-    summaryTbody.innerHTML = "<tr><td colspan='6'>Carregando...</td></tr>";
-  }
+
+  // P&L é mais lento (histórico de trades): dispara em paralelo sem travar a tela
+  loadPositions();
 
   try {
-    const [data] = await Promise.all([fetchBalances(), fetchRaw()]);
+    const data = await fetchBalances();
+    if (data.error) throw new Error(data.error);
 
-    const totalUsdt = data.total_usdt.toFixed(2);
     state.usdtBrlPrice = Number(data.usdt_brl_price || 0);
-
     state.currentAssets = data.assets.slice();
+    mergePositions();
+
     renderBalances();
-
-    const totalBalanceDivs = document.querySelectorAll("#total-balance");
-    const totalBrlDiv = document.getElementById("total-brl");
-    totalBalanceDivs.forEach((totalBalanceDiv) => {
-      totalBalanceDiv.innerText = `${totalUsdt.formatCurrency()} USDT`;
-    });
-
-    const usdtPercentDiv = document.getElementById("usdt-percent");
-    const btcPercentDiv = document.getElementById("btc-percent");
-    const xrpPercentDiv = document.getElementById("xrp-percent");
-    const ethPercentDiv = document.getElementById("eth-percent");
-    const othersPercentDiv = document.getElementById("others-percent");
-    const usdtUsdtDiv = document.getElementById("usdt-usdt");
-    const btcUsdtDiv = document.getElementById("btc-usdt");
-    const xrpUsdtDiv = document.getElementById("xrp-usdt");
-    const ethUsdtDiv = document.getElementById("eth-usdt");
-    const othersUsdtDiv = document.getElementById("others-usdt");
-    const usdtBrlDiv = document.getElementById("usdt-brl");
-    const btcBrlDiv = document.getElementById("btc-brl");
-    const xrpBrlDiv = document.getElementById("xrp-brl");
-    const ethBrlDiv = document.getElementById("eth-brl");
-    const othersBrlDiv = document.getElementById("others-brl");
-
-    const usdtAsset = data.assets.find((a) => a.asset === "USDT");
-    const btcAsset = data.assets.find((a) => a.asset === "BTC");
-    const xrpAsset = data.assets.find((a) => a.asset === "XRP");
-    const ethAsset = data.assets.find((a) => a.asset === "ETH");
-    const othersTotalUsdt = data.assets
-      .filter(
-        (a) =>
-          a.asset !== "USDT" &&
-          a.asset !== "BTC" &&
-          a.asset !== "XRP" &&
-          a.asset !== "ETH"
-      )
-      .reduce((acc, a) => acc + a.totalUSDT, 0);
-
-    if (usdtPercentDiv) {
-      usdtPercentDiv.innerText = `${usdtAsset?.pct.toFixed(2) || 0}%`;
-    }
-    if (btcPercentDiv) {
-      btcPercentDiv.innerText = `${btcAsset?.pct.toFixed(2) || 0}%`;
-    }
-    if (xrpPercentDiv) {
-      xrpPercentDiv.innerText = `${xrpAsset?.pct.toFixed(2) || 0}%`;
-    }
-    if (ethPercentDiv) {
-      ethPercentDiv.innerText = `${ethAsset?.pct.toFixed(2) || 0}%`;
-    }
-    if (othersPercentDiv) {
-      othersPercentDiv.innerText = `${data.assets
-        .filter(
-          (a) =>
-            a.asset !== "USDT" &&
-            a.asset !== "BTC" &&
-            a.asset !== "XRP" &&
-            a.asset !== "ETH"
-        )
-        .reduce((acc, a) => acc + a.pct, 0)
-        .toFixed(2)}%`;
-    }
-    if (usdtUsdtDiv) {
-      usdtUsdtDiv.innerText = `${
-        usdtAsset?.totalUSDT.toFixed(2).formatCurrency() || 0
-      } USDT`;
-    }
-    if (btcUsdtDiv) {
-      btcUsdtDiv.innerText = `${
-        btcAsset?.totalUSDT.toFixed(2).formatCurrency() || 0
-      } USDT`;
-    }
-    if (xrpUsdtDiv) {
-      xrpUsdtDiv.innerText = `${
-        xrpAsset?.totalUSDT.toFixed(2).formatCurrency() || 0
-      } USDT`;
-    }
-    if (ethUsdtDiv) {
-      ethUsdtDiv.innerText = `${
-        ethAsset?.totalUSDT.toFixed(2).formatCurrency() || 0
-      } USDT`;
-    }
-    if (othersUsdtDiv) {
-      othersUsdtDiv.innerText = `${othersTotalUsdt
-        .toFixed(2)
-        .formatCurrency()} USDT`;
-    }
-
-    const setBrlValue = (element, usdtValue) => {
-      if (!element) return;
-      if (!state.usdtBrlPrice) {
-        element.innerText = "--";
-        return;
-      }
-      const brl = usdtValue * state.usdtBrlPrice;
-      element.innerText = `${brl.toFixed(2).formatCurrency()} BRL`;
-    };
-
-    setBrlValue(totalBrlDiv, Number(data.total_usdt || 0));
-    setBrlValue(usdtBrlDiv, Number(usdtAsset?.totalUSDT || 0));
-    setBrlValue(btcBrlDiv, Number(btcAsset?.totalUSDT || 0));
-    setBrlValue(xrpBrlDiv, Number(xrpAsset?.totalUSDT || 0));
-    setBrlValue(ethBrlDiv, Number(ethAsset?.totalUSDT || 0));
-    setBrlValue(othersBrlDiv, Number(othersTotalUsdt || 0));
-
+    renderUnpricedNote(data.unpriced);
+    renderStatCards(data);
+    renderPnlSummary();
     renderWalletChart(data.assets);
     renderWalletBarChart(data.assets);
     renderAssetStrip(data.assets);
+    // a simulação das ordens abertas usa o saldo atual; recalcula se as ordens já chegaram
+    renderOrderSimulation();
   } catch (e) {
     if (tbody) {
-      tbody.innerHTML = `<tr><td colspan="5" style="color:red;">Erro: ${e}</td></tr>`;
-    }
-    if (summaryTbody) {
-      summaryTbody.innerHTML = `<tr><td colspan="6" style="color:red;">Erro: ${e}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="${BALANCE_COLUMNS}" style="color:red;">Erro: ${e.message || e}</td></tr>`;
     }
   }
+}
+
+let positionsRequest = null;
+
+async function loadPositions() {
+  if (positionsRequest) return positionsRequest;
+
+  const status = document.getElementById("positions-status");
+  setPnlSummaryLoading(true);
+
+  if (status) {
+    status.hidden = true;
+    status.classList.remove("error");
+    status.textContent = "";
+  }
+
+  positionsRequest = fetchPositions()
+    .then((data) => {
+      state.positions = data.positions || {};
+      state.positionsTotals = data.totals || null;
+      mergePositions();
+      renderBalances();
+      renderPnlSummary();
+
+      if (status) {
+        const errorCount = data.errors?.length || 0;
+        status.hidden = !errorCount;
+        status.textContent = errorCount
+          ? `P&L calculado, mas ${errorCount} par(es) falharam ao buscar trades.`
+          : "";
+      }
+    })
+    .catch((e) => {
+      state.positionsTotals = null;
+      const detail = document.getElementById("pnl-detail");
+      if (detail) detail.innerText = "Falha ao calcular o P&L.";
+
+      if (status) {
+        status.hidden = false;
+        status.classList.add("error");
+        status.textContent = `Não foi possível calcular o P&L: ${e.message}`;
+      }
+    })
+    .finally(() => {
+      setPnlSummaryLoading(false);
+      positionsRequest = null;
+    });
+
+  return positionsRequest;
+}
+
+// Junta os dados de /positions em cada linha de saldo (para exibir e ordenar)
+function mergePositions() {
+  state.currentAssets = state.currentAssets.map((asset) => {
+    const p = state.positions[asset.asset];
+    return {
+      ...asset,
+      avgBuyPriceUSDT: p?.avgBuyPriceUSDT ?? null,
+      costBasisUSDT: p?.costBasisUSDT ?? null,
+      unrealizedPnlUSDT: p?.unrealizedPnlUSDT ?? null,
+      unrealizedPnlPct: p?.unrealizedPnlPct ?? null,
+      realizedPnlUSDT: p ? p.realizedPnlUSDT : null,
+      coverage: p?.coverage ?? null,
+      tradesCount: p?.tradesCount ?? null,
+    };
+  });
+}
+
+function brlText(usdtValue) {
+  if (!state.usdtBrlPrice) return "--";
+  return `${(usdtValue * state.usdtBrlPrice).toFixed(2).formatCurrency()} BRL`;
+}
+
+function change24hHtml(pct, usdt) {
+  if (pct === null || pct === undefined) return "";
+  const usdtPart =
+    usdt === null || usdt === undefined ? "" : ` (${formatSigned(usdt)} USDT)`;
+  return `<span class="${signClass(pct)}">${formatSigned(pct)}%</span>${usdtPart} <span class="muted">24h</span>`;
+}
+
+function setText(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.innerText = text;
+}
+
+function setHtml(id, html) {
+  const el = document.getElementById(id);
+  if (el) el.innerHTML = html;
+}
+
+// Cards fixos do topo: total, USDT, BTC, XRP, ETH e "Outros"
+function renderStatCards(data) {
+  const totalUSDT = Number(data.total_usdt || 0);
+
+  document.querySelectorAll("#total-balance").forEach((el) => {
+    el.innerText = `${totalUSDT.toFixed(2).formatCurrency()} USDT`;
+  });
+  setText("total-brl", brlText(totalUSDT));
+  setHtml("total-change-24h", change24hHtml(data.change_24h_pct, data.change_24h_usdt));
+
+  for (const symbol of FIXED_CARD_ASSETS) {
+    const key = symbol.toLowerCase();
+    const asset = data.assets.find((a) => a.asset === symbol);
+    const usdt = Number(asset?.totalUSDT || 0);
+
+    setText(`${key}-percent`, `${asset?.pct.toFixed(2) || 0}%`);
+    setText(`${key}-usdt`, `${usdt.toFixed(2).formatCurrency()} USDT`);
+    setText(`${key}-brl`, brlText(usdt));
+    setHtml(`${key}-change-24h`, change24hHtml(asset?.change24hPct, asset?.change24hUSDT));
+  }
+
+  const others = data.assets.filter((a) => !FIXED_CARD_ASSETS.includes(a.asset));
+  const othersUSDT = others.reduce((acc, a) => acc + a.totalUSDT, 0);
+  const othersPct = others.reduce((acc, a) => acc + a.pct, 0);
+  const othersWithChange = others.filter((a) => a.change24hUSDT !== null);
+  const othersChangeUSDT = othersWithChange.reduce((acc, a) => acc + a.change24hUSDT, 0);
+  const othersValue24hAgo = othersWithChange.reduce(
+    (acc, a) => acc + a.totalUSDT - a.change24hUSDT,
+    0
+  );
+
+  setText("others-percent", `${othersPct.toFixed(2)}%`);
+  setText("others-usdt", `${othersUSDT.toFixed(2).formatCurrency()} USDT`);
+  setText("others-brl", brlText(othersUSDT));
+  setHtml(
+    "others-change-24h",
+    change24hHtml(
+      othersValue24hAgo ? (othersChangeUSDT / othersValue24hAgo) * 100 : null,
+      othersWithChange.length ? othersChangeUSDT : null
+    )
+  );
+}
+
+function setPnlSummaryLoading(isLoading) {
+  document.getElementById("pnl-summary")?.classList.toggle("is-loading", isLoading);
+}
+
+// Resumo de P&L no cabeçalho da aba "Saldos por moeda"
+function renderPnlSummary() {
+  const totals = state.positionsTotals;
+  const valueEl = document.getElementById("pnl-total");
+  const pctEl = document.getElementById("pnl-pct");
+  const brlEl = document.getElementById("pnl-brl");
+  const detailEl = document.getElementById("pnl-detail");
+  if (!totals || !valueEl) return;
+
+  const cls = signClass(totals.unrealizedPnlUSDT);
+  valueEl.className = cls;
+  valueEl.innerText = `${formatSigned(totals.unrealizedPnlUSDT)} USDT`;
+
+  if (pctEl) {
+    pctEl.className = cls;
+    pctEl.innerText =
+      totals.unrealizedPnlPct === null ? "" : `(${formatSigned(totals.unrealizedPnlPct)}%)`;
+  }
+  if (brlEl) {
+    brlEl.innerText = state.usdtBrlPrice
+      ? `${formatSigned(totals.unrealizedPnlUSDT * state.usdtBrlPrice)} BRL`
+      : "--";
+  }
+  if (detailEl) {
+    detailEl.innerText =
+      `Custo: ${totals.costBasisUSDT.formatCurrency()} USDT · ` +
+      `Realizado: ${formatSigned(totals.realizedPnlUSDT)} USDT`;
+  }
+}
+
+function renderUnpricedNote(unpriced = []) {
+  const note = document.getElementById("unpriced-note");
+  if (!note) return;
+
+  if (!unpriced.length) {
+    note.hidden = true;
+    note.textContent = "";
+    return;
+  }
+
+  const list = unpriced.map((u) => `${u.asset} (${u.qty})`).join(", ");
+  note.textContent = `Sem cotação encontrada, fora do total: ${list}`;
+  note.hidden = false;
 }
 
 export function sortBalances(key) {
@@ -155,33 +241,57 @@ function renderBalances() {
 
   if (state.balanceSort?.key) {
     const { key, asc } = state.balanceSort;
-    assets.sort((a, b) => compareValues(a[key], b[key], asc));
+    assets.sort((a, b) => {
+      // valores ausentes (sem P&L, ex.: USDT/BRL) sempre no fim
+      const aMissing = a[key] === null || a[key] === undefined;
+      const bMissing = b[key] === null || b[key] === undefined;
+      if (aMissing || bMissing) return aMissing - bMissing;
+      return compareValues(a[key], b[key], asc);
+    });
   }
 
-  tbody.innerHTML = "";
-
   if (!assets.length) {
-    tbody.innerHTML = "<tr><td colspan='5'>Nenhum saldo encontrado.</td></tr>";
+    tbody.innerHTML = `<tr><td colspan='${BALANCE_COLUMNS}'>Nenhum saldo encontrado.</td></tr>`;
     return;
   }
 
-  assets.forEach((asset) => {
-    tbody.innerHTML += `
+  tbody.innerHTML = assets
+    .map((asset) => {
+      const lowCoverage =
+        asset.avgBuyPriceUSDT !== null &&
+        asset.coverage !== null &&
+        asset.coverage < LOW_COVERAGE;
+      const coverageHint = lowCoverage
+        ? ` <span class="coverage-warn" title="Só ${(asset.coverage * 100).toFixed(0)}% da quantidade atual vem de trades na Binance; o restante (depósito, Convert, Earn...) foi considerado com o mesmo preço médio.">⚠</span>`
+        : "";
+      const pnlClass = signClass(asset.unrealizedPnlUSDT);
+      const change24h =
+        asset.change24hPct === null || asset.change24hPct === undefined
+          ? "--"
+          : `${formatSigned(asset.change24hPct)}%`;
+
+      return `
           <tr>
-            <td>${asset.asset}</td>
+            <td>${
+              asset.asset === "USDT"
+                ? asset.asset
+                : `<button class="asset-link" title="Ver gráfico de preço" onclick="openPriceChart('${asset.asset}')">${asset.asset}</button>`
+            }</td>
             <td>${asset.pct.toFixed(2)}%</td>
+            <td>${formatQty(asset.qty)}</td>
+            <td>${formatPrice(asset.priceUSDT)}</td>
+            <td class="${signClass(asset.change24hPct)}">${change24h}</td>
+            <td>${formatPrice(asset.avgBuyPriceUSDT)}${coverageHint}</td>
             <td>${asset.freeUSDT.toFixed(2).formatCurrency()} USDT</td>
             <td>${asset.lockedUSDT.toFixed(2).formatCurrency()} USDT</td>
             <td>${asset.totalUSDT.toFixed(2).formatCurrency()} USDT</td>
+            <td class="${pnlClass}">${formatSigned(asset.unrealizedPnlUSDT)}</td>
+            <td class="${pnlClass}">${
+              asset.unrealizedPnlPct === null ? "--" : `${formatSigned(asset.unrealizedPnlPct)}%`
+            }</td>
+            <td class="${signClass(asset.realizedPnlUSDT)}">${formatSigned(asset.realizedPnlUSDT)}</td>
           </tr>
         `;
-  });
-}
-
-export function mapQuantities(rawBalances = []) {
-  return rawBalances.reduce((acc, item) => {
-    const qty = Number(item.free) + Number(item.locked);
-    if (qty > 0) acc[item.asset] = qty;
-    return acc;
-  }, {});
+    })
+    .join("");
 }

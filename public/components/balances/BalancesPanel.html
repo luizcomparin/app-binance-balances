@@ -3,6 +3,20 @@
         <div class="panel-header">
             <div>
                 <p>Totais em USDT, livres e posicionados em ordens.</p>
+                <p id="positions-status" class="positions-status" hidden></p>
+                <p id="unpriced-note" class="unpriced-note" hidden></p>
+            </div>
+            <div class="pnl-summary is-loading" id="pnl-summary">
+                <span class="pnl-summary-label">Resultado não realizado</span>
+                <div class="pnl-loading" aria-live="polite">
+                    <span class="mini-spinner" aria-hidden="true"></span>
+                    <span>Calculando P&amp;L...</span>
+                </div>
+                <div class="pnl-body">
+                    <span class="pnl-main"><span id="pnl-total">--</span> <span id="pnl-pct"></span></span>
+                    <span class="pnl-sub" id="pnl-brl"></span>
+                    <span class="pnl-sub" id="pnl-detail"></span>
+                </div>
             </div>
         </div>
         <div class="table-wrapper">
@@ -11,9 +25,16 @@
                     <tr>
                         <th onclick="sortBalances('asset')">Moeda ⇅</th>
                         <th onclick="sortBalances('pct')">% ⇅</th>
+                        <th onclick="sortBalances('qty')">Qtd ⇅</th>
+                        <th onclick="sortBalances('priceUSDT')">Preço atual ⇅</th>
+                        <th onclick="sortBalances('change24hPct')">24h ⇅</th>
+                        <th onclick="sortBalances('avgBuyPriceUSDT')">Preço médio ⇅</th>
                         <th onclick="sortBalances('freeUSDT')">Livre (USDT) ⇅</th>
                         <th onclick="sortBalances('lockedUSDT')">Ordens (USDT) ⇅</th>
                         <th onclick="sortBalances('totalUSDT')">Total (USDT) ⇅</th>
+                        <th onclick="sortBalances('unrealizedPnlUSDT')">P&amp;L (USDT) ⇅</th>
+                        <th onclick="sortBalances('unrealizedPnlPct')">P&amp;L % ⇅</th>
+                        <th onclick="sortBalances('realizedPnlUSDT')">Realizado (USDT) ⇅</th>
                     </tr>
                 </thead>
                 <tbody id="table-body-balances"></tbody>

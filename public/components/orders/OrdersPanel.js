@@ -1,6 +1,7 @@
 ﻿import { fetchOrders } from "../../api/binance.js";
 import { state } from "../../core/state.js";
 import { toggleSort, compareValues } from "../../core/sort.js";
+import { formatSigned, signClass } from "../../core/format.js";
 
 export async function loadOrders() {
   const tbody = document.querySelector("#table-body-orders");
@@ -23,10 +24,18 @@ export async function loadOrders() {
           pair: order.symbol,
           side: order.side,
           type: order.type,
-          price: Number(order.price),
-          amount: Number(order.origQty),
-          total: Number(order.price) * Number(order.origQty),
+          quoteAsset: order.quoteAsset || "",
+          price: Number(order.price) || Number(order.stopPrice) || 0,
+          amount: Number(order.remainingQty ?? order.origQty),
+          totalQuote: Number(order.totalQuote || 0),
+          // total convertido para USDT (usado nos somatórios); null se a cotação não foi encontrada
+          total: order.totalUSDT == null ? 0 : Number(order.totalUSDT),
+          totalUnknown: order.totalUSDT == null,
           time: order.time,
+          // % que o preço atual precisa andar até a ordem executar
+          distancePct: order.distancePct ?? null,
+          // valor de mercado hoje da quantidade em aberto (USDT)
+          marketValueUSDT: order.marketValueUSDT ?? null,
         });
       });
     }
@@ -111,7 +120,7 @@ function renderOrders() {
       const pairTotal = state.totalsByPair[o.pair].toFixed(2);
       tbody.innerHTML += `
             <tr class="group-header" data-group="${o.pair}">
-                <td colspan="4">${o.pair}</td>
+                <td colspan="5">${o.pair}</td>
                 <td colspan="1">${pairTotal.formatCurrency()} USDT</td>
                 <td colspan="1"></td>
             </tr>`;
@@ -120,14 +129,24 @@ function renderOrders() {
     }
 
     const formattedDate = new Date(o.time).toLocaleString("pt-BR");
+    const isUsdtQuote = o.quoteAsset === "USDT";
+    const priceText = isUsdtQuote
+      ? `${o.price.toFixed(5).formatCurrency()} USDT`
+      : `${o.price.toFixed(8)} ${o.quoteAsset}`;
+    const totalText = o.totalUnknown
+      ? `-- <small>(${o.totalQuote.toFixed(8)} ${o.quoteAsset})</small>`
+      : isUsdtQuote
+        ? `${o.total.toFixed(2).formatCurrency()} USDT`
+        : `${o.total.toFixed(2).formatCurrency()} USDT <small>(${o.totalQuote.toFixed(8)} ${o.quoteAsset})</small>`;
 
     tbody.innerHTML += `
         <tr data-group="${o.pair}">
           <td>${o.pair}</td>
           <td class="${o.side === "BUY" ? "buy" : "sell"}">${o.side}</td>
-          <td>${o.price.toFixed(5).formatCurrency()} USDT</td>
+          <td>${priceText}</td>
+          <td>${o.distancePct === null ? "--" : `${formatSigned(o.distancePct)}%`}</td>
           <td>${o.amount.toFixed(8)}</td>
-          <td>${o.total.toFixed(2).formatCurrency()} USDT</td>
+          <td>${totalText}</td>
           <td>${formattedDate}</td>
         </tr>
       `;
@@ -146,6 +165,58 @@ function renderOrders() {
   }
 
   activateGroupAccordions();
+  renderOrderSimulation();
+}
+
+// Simulação: como fica a carteira se todas as ordens filtradas executarem.
+// Vendas: recebe o total da ordem no lugar do valor de mercado atual da moeda.
+// Compras: gasta USDT e recebe moeda valendo o preço pago (não muda o patrimônio).
+export function renderOrderSimulation() {
+  const box = document.getElementById("orders-simulation");
+  if (!box) return;
+
+  const orders = state.filteredOrders;
+  if (!orders.length) {
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+
+  const sells = orders.filter((o) => o.side === "SELL");
+  const buys = orders.filter((o) => o.side === "BUY");
+  const sum = (list, key) => list.reduce((acc, o) => acc + (o[key] ?? 0), 0);
+
+  const sellProceeds = sum(sells, "total");
+  const sellMarketValue = sum(sells, "marketValueUSDT");
+  const buyCost = sum(buys, "total");
+  const buyMarketValue = sum(buys, "marketValueUSDT");
+
+  const walletUSDT = state.currentAssets.find((a) => a.asset === "USDT")?.totalUSDT ?? 0;
+  const walletTotal = state.currentAssets.reduce((acc, a) => acc + a.totalUSDT, 0);
+
+  const projectedUSDT = walletUSDT + sellProceeds - buyCost;
+  const sellGain = sellProceeds - sellMarketValue;
+  const projectedTotal = walletTotal + sellGain;
+
+  const usdt = (v) => `${v.toFixed(2).formatCurrency()} USDT`;
+  const set = (id, html) => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = html;
+  };
+
+  set(
+    "sim-sells",
+    `${usdt(sellProceeds)} <small class="muted">(${sells.length} ordens · hoje valem ${usdt(sellMarketValue)})</small>`
+  );
+  set(
+    "sim-buys",
+    `${usdt(buyCost)} <small class="muted">(${buys.length} ordens · hoje valeriam ${usdt(buyMarketValue)})</small>`
+  );
+  set("sim-usdt", `${usdt(projectedUSDT)} <small class="muted">(hoje ${usdt(walletUSDT)})</small>`);
+  set(
+    "sim-total",
+    `${usdt(projectedTotal)} <small class="${signClass(sellGain)}">(${formatSigned(sellGain)} USDT)</small>`
+  );
 }
 
 function activateGroupAccordions() {

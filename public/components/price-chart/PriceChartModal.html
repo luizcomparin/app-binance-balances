@@ -1,0 +1,25 @@
+<div id="price-chart-modal" class="modal" style="display: none;" onclick="closePriceChartOnBackdrop(event)">
+  <div class="modal-content price-chart-content">
+    <div class="modal-header">
+      <span class="close" onclick="closePriceChart()">&times;</span>
+      <h2 id="price-chart-title">Preço</h2>
+      <p id="price-chart-info" class="price-chart-info"></p>
+      <div class="price-chart-ranges" id="price-chart-ranges">
+        <button class="ghost" data-range="7d">7d</button>
+        <button class="ghost active" data-range="30d">30d</button>
+        <button class="ghost" data-range="90d">90d</button>
+        <button class="ghost" data-range="1y">1 ano</button>
+        <button class="ghost" data-range="all">Tudo</button>
+      </div>
+    </div>
+    <div class="modal-body price-chart-body">
+      <div id="price-chart-loading" class="inline-loading" hidden>
+        <span class="mini-spinner"></span>Carregando preços...
+      </div>
+      <p id="price-chart-error" class="positions-status error" hidden></p>
+      <div class="price-chart-canvas">
+        <canvas id="priceChartCanvas"></canvas>
+      </div>
+    </div>
+  </div>
+</div>

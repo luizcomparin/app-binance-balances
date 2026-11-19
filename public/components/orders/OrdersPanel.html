@@ -31,6 +31,27 @@
             </button>
         </div>
 
+        <div class="orders-simulation" id="orders-simulation" hidden>
+
+            <p class="sim-title">Se todas as ordens filtradas executarem</p>
+
+            <div class="sim-grid">
+
+                <div><span class="sim-label">Vendas: você recebe</span><span id="sim-sells">--</span></div>
+
+                <div><span class="sim-label">Compras: você gasta</span><span id="sim-buys">--</span></div>
+
+                <div><span class="sim-label">Saldo USDT projetado</span><span id="sim-usdt">--</span></div>
+
+                <div><span class="sim-label">Patrimônio projetado</span><span id="sim-total">--</span></div>
+
+            </div>
+
+            <p class="sim-note">Patrimônio projetado: moedas vendidas trocadas pelo valor das ordens; as demais a preço de hoje; compras valem o que custaram.</p>
+
+        </div>
+
+
         <div class="table-wrapper">
             <table>
                 <thead>
@@ -38,6 +59,7 @@
                         <th onclick="sortOrders('pair')">Par ⇅</th>
                         <th onclick="sortOrders('side')">Lado ⇅</th>
                         <th onclick="sortOrders('price')">Preço ⇅</th>
+                        <th onclick="sortOrders('distancePct')" title="Quanto o preço atual precisa subir (+) ou cair (-) até a ordem executar">Distância ⇅</th>
                         <th onclick="sortOrders('amount')">QTD ⇅</th>
                         <th onclick="sortOrders('total')">Total (USDT) ⇅</th>
                         <th onclick="sortOrders('time')">Data e Hora ⇅</th>

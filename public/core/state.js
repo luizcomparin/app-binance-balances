@@ -1,6 +1,8 @@
 ﻿export const state = {
   currentAssets: [],
   usdtBrlPrice: 0,
+  positions: {},
+  positionsTotals: null,
   orders: [],
   filteredOrders: [],
   orderSort: { key: null, asc: true },

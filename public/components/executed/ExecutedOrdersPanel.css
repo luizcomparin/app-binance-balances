@@ -1,0 +1,11 @@
+/* spinner inline usado nas tabelas carregadas sob demanda (executadas) e no gráfico de preço */
+.inline-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+}
+
+.inline-loading[hidden] {
+  display: none;
+}

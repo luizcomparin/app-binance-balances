@@ -58,3 +58,15 @@
   font-weight: 700;
   color: var(--text);
 }
+
+.stat-card .change-24h {
+  font-size: 13px;
+  font-weight: 400;
+  color: #8b95bc;
+  margin-top: 6px;
+  white-space: nowrap;
+}
+
+.stat-card .change-24h:empty {
+  display: none;
+}

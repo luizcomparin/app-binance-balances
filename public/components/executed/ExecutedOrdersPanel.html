@@ -1,0 +1,54 @@
+<section class="card tab-panel" data-tab="executed">
+    <div class="panel">
+        <div class="panel-header">
+            <div>
+                <h3>Ordens executadas</h3>
+                <p>Ordens preenchidas das moedas que estão na carteira hoje (moedas já zeradas não aparecem).</p>
+                <p id="executed-status" class="positions-status" hidden></p>
+            </div>
+            <div class="panel-actions">
+                <button class="ghost" onclick="loadExecutedOrders()">
+                    Recarregar executadas
+                </button>
+                <div id="executed-total"></div>
+            </div>
+        </div>
+
+        <div class="orders-filters">
+            <div class="field">
+                <label>Par</label>
+                <select id="executedFilterPair" onchange="applyExecutedFilters()">
+                    <option value="">Todos</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Lado</label>
+                <select id="executedFilterSide" onchange="applyExecutedFilters()">
+                    <option value="ALL">Todos</option>
+                    <option value="BUY">BUY</option>
+                    <option value="SELL">SELL</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th onclick="sortExecutedOrders('time')">Data e Hora ⇅</th>
+                        <th onclick="sortExecutedOrders('symbol')">Par ⇅</th>
+                        <th onclick="sortExecutedOrders('side')">Lado ⇅</th>
+                        <th onclick="sortExecutedOrders('avgPrice')">Preço médio ⇅</th>
+                        <th onclick="sortExecutedOrders('qty')">QTD ⇅</th>
+                        <th onclick="sortExecutedOrders('quoteQty')">Total ⇅</th>
+                        <th onclick="sortExecutedOrders('totalUSDT')">Total (USDT) ⇅</th>
+                        <th onclick="sortExecutedOrders('feeUSDT')">Taxa (USDT) ⇅</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body-executed">
+                    <tr><td colspan="8">Abra esta aba para carregar.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>

@@ -1,4 +1,5 @@
 ﻿import { state } from "../../core/state.js";
+import { formatSigned, signClass } from "../../core/format.js";
 
 export function renderAssetStrip(assets) {
   const list = document.getElementById("asset-strip-list");
@@ -31,6 +32,11 @@ export function renderAssetStrip(assets) {
               .toFixed(2)
               .formatCurrency()} USDT</span>
             <span class="asset-brl">${brlText}</span>
+            ${
+              asset.change24hPct === null || asset.change24hPct === undefined
+                ? ""
+                : `<span class="asset-change ${signClass(asset.change24hPct)}">${formatSigned(asset.change24hPct)}% 24h</span>`
+            }
           </div>
         </div>
       `;

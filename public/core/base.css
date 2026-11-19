@@ -170,3 +170,16 @@ tbody tr:hover {
     padding: 8px;
   }
 }
+
+/* valores positivos / negativos (P&L, variação 24h) */
+.pnl-pos {
+  color: #52ffa8;
+}
+
+.pnl-neg {
+  color: #ff7272;
+}
+
+.muted {
+  color: var(--muted);
+}
