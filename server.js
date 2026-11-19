@@ -141,20 +141,28 @@ app.get("/executed-orders", async (req, res) => {
 	}
 });
 
-// Série de preços de uma moeda em USDT (?range=7d|30d|90d|1y|all ou <n>d|<n>m|<n>y)
+// Série de preços de uma moeda em USDT.
+//   ?interval=1h|4h|1d|1w|1M [&limit=1..1000] [&before=ms]  → velas desse tamanho (usado pelo gráfico)
+//   ?range=7d|30d|90d|1y|all ou <n>d|<n>m|<n>y [&before=ms] → tamanho escolhido pelo período (compat.)
 app.get("/price-chart/:asset", async (req, res) => {
 	const asset = String(req.params.asset).toUpperCase();
 	if (!/^[A-Z0-9]{1,20}$/.test(asset)) {
 		return res.status(400).json({ error: "Moeda inválida" });
 	}
+	const interval = req.query.interval ? String(req.query.interval) : null;
+	if (interval && !CHART_INTERVALS.has(interval)) {
+		return res.status(400).json({ error: "Intervalo inválido" });
+	}
 	try {
 		const before = Number(req.query.before);
+		const limit = Number(req.query.limit);
 		res.json(
-			await buildPriceChart(
-				asset,
-				String(req.query.range || "30d"),
-				Number.isFinite(before) && before > 0 ? before : null
-			)
+			await buildPriceChart(asset, {
+				range: String(req.query.range || "30d"),
+				interval,
+				limit: Number.isInteger(limit) ? Math.min(1000, Math.max(1, limit)) : null,
+				before: Number.isFinite(before) && before > 0 ? before : null,
+			})
 		);
 	} catch (e) {
 		res.status(500).json({ error: e.toString() });
@@ -884,13 +892,20 @@ function parseCustomRange(range) {
 	};
 }
 
+// Tamanhos de vela aceitos explicitamente (todos existem na Binance)
+const CHART_INTERVALS = new Set(["1h", "4h", "1d", "1w", "1M"]);
+
 // Página de velas anteriores (histórico carregado ao arrastar o gráfico para o passado)
 const OLDER_PAGE_LIMIT = 500;
 
-// before (ms, opcional): busca as velas que terminam antes desse instante, no mesmo intervalo do período
-async function buildPriceChart(asset, range, before = null) {
+// interval: tamanho da vela explícito (senão vem do range); before (ms): velas que terminam antes desse instante
+async function buildPriceChart(asset, { range = "30d", interval = null, limit = null, before = null } = {}) {
 	const base = CHART_RANGES[range] || parseCustomRange(range) || CHART_RANGES["30d"];
-	const config = before ? { interval: base.interval, limit: OLDER_PAGE_LIMIT } : base;
+	const config = interval
+		? { interval, limit: limit || 1000 }
+		: before
+			? { interval: base.interval, limit: OLDER_PAGE_LIMIT }
+			: base;
 	const endParam = before ? `&endTime=${before - 1}` : "";
 	const prices = await getAllPrices();
 

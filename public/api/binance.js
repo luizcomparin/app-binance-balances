@@ -26,9 +26,12 @@ export async function fetchExecutedOrders() {
   return getJson("/executed-orders");
 }
 
-export async function fetchPriceChart(asset, range, before = null) {
+// Velas de um tamanho específico (1h|4h|1d|1w|1M); before (ms) = página anterior a esse instante
+export async function fetchKlines(asset, interval, { before = null, limit = 1000 } = {}) {
   const extra = before ? `&before=${before}` : "";
-  return getJson(`/price-chart/${encodeURIComponent(asset)}?range=${encodeURIComponent(range)}${extra}`);
+  return getJson(
+    `/price-chart/${encodeURIComponent(asset)}?interval=${encodeURIComponent(interval)}&limit=${limit}${extra}`
+  );
 }
 
 export async function fetchOpenOrdersForAsset(asset) {

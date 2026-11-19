@@ -1,17 +1,22 @@
 // Dados do gráfico de preço: velas (OHLC) e suas ordens executadas, com cache curto no cliente.
-import { fetchPriceChart, fetchExecutedOrders, fetchOpenOrdersForAsset } from "../../api/binance.js";
+import { fetchKlines, fetchExecutedOrders, fetchOpenOrdersForAsset } from "../../api/binance.js";
 
-// Cache por moeda+período: trocar Linha/Velas nunca refaz requisição,
-// e voltar a um período já visto dentro de 60s também não.
 const CLIENT_CACHE_MS = 60 * 1000;
+// páginas antigas não mudam mais: podem ficar mais tempo em cache
+const OLDER_PAGE_CACHE_MS = 10 * 60 * 1000;
+export const KLINES_PAGE = 1000;
+
+// Cache por moeda + tamanho de vela + página: trocar Linha/Velas nunca refaz requisição,
+// e voltar a uma combinação já vista dentro do prazo também não.
 const chartCache = new Map();
 
-// before (ms, opcional): página de velas anteriores a esse instante
-export async function getChartData(asset, range, before = null) {
-  const key = `${asset}|${range}|${before || ""}`;
+// Uma página de velas (as mais recentes, ou as anteriores a `before` em ms)
+export async function getKlines(asset, interval, before = null) {
+  const key = `${asset}|${interval}|${before || ""}`;
+  const ttl = before ? OLDER_PAGE_CACHE_MS : CLIENT_CACHE_MS;
   const hit = chartCache.get(key);
-  if (hit && Date.now() - hit.at < CLIENT_CACHE_MS) return hit.data;
-  const data = await fetchPriceChart(asset, range, before);
+  if (hit && Date.now() - hit.at < ttl) return hit.data;
+  const data = await fetchKlines(asset, interval, { before, limit: KLINES_PAGE });
   chartCache.set(key, { at: Date.now(), data });
   return data;
 }

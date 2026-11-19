@@ -24,6 +24,12 @@ function toChartTime(ms, interval) {
   return Math.floor((ms - shift) / 1000);
 }
 
+// Inverso de toChartTime (aproximado no fuso atual; suficiente para enquadrar janelas)
+function fromChartTime(t, interval) {
+  const ms = t * 1000;
+  return INTRADAY.has(interval) ? ms + new Date(ms).getTimezoneOffset() * 60000 : ms;
+}
+
 function formatChartTime(t, withTime = true) {
   return new Date(t * 1000).toLocaleString("pt-BR", {
     timeZone: "UTC",
@@ -108,8 +114,8 @@ const sideTitle = (o) => `${o.side === "BUY" ? "Compra" : "Venda"} · ${formatDa
  * els = { container, wrap, legend }   handlers = { onNeedOlder }
  *
  * update(opts): opts = { asset, points, interval, mode, avg, orders: { buys, sells },
- *                        openOrders: { buys, sells } | null, projectedAvg, reset, prepended }
- *   reset: true → enquadra todos os dados (novo período/moeda)
+ *                        openOrders: { buys, sells } | null, projectedAvg, window, prepended }
+ *   window: { fromMs, toMs } → mostra essa janela de tempo (novo período/moeda/vela); null → tudo
  *   prepended: n → n velas antigas foram adicionadas no início (mantém a posição da tela)
  */
 export function createPriceChart(els, handlers = {}) {
@@ -207,7 +213,27 @@ export function createPriceChart(els, handlers = {}) {
     return true;
   }
 
-  function setSeriesData(prepended, reset) {
+  // Mostra a janela [fromMs, toMs] (toMs null = até a última vela); fromMs <= início dos dados = tudo
+  function showWindow(win) {
+    const first = s.points?.[0]?.time;
+    const last = s.points?.at(-1)?.time;
+    if (first === undefined) return;
+    lastFrom = null; // enquadrar não é arrastar
+    if (!win || win.fromMs <= first) {
+      if (!win?.toMs || win.toMs >= last) {
+        chart.timeScale().fitContent();
+        return;
+      }
+    }
+    const from = Math.max(win.fromMs, first);
+    const to = win.toMs ? Math.min(win.toMs, last) : last;
+    chart.timeScale().setVisibleRange({
+      from: toChartTime(from, s.interval),
+      to: toChartTime(to, s.interval),
+    });
+  }
+
+  function setSeriesData(prepended, win) {
     const range = prepended ? chart.timeScale().getVisibleLogicalRange() : null;
     s.timeIndex = new Map();
     const candle = s.mode === "candle";
@@ -224,9 +250,8 @@ export function createPriceChart(els, handlers = {}) {
     if (range) {
       lastFrom = null; // o deslocamento abaixo não é um arrasto
       chart.timeScale().setVisibleLogicalRange({ from: range.from + prepended, to: range.to + prepended });
-    } else if (reset) {
-      lastFrom = null;
-      chart.timeScale().fitContent();
+    } else if (win !== undefined) {
+      showWindow(win);
     }
   }
 
@@ -473,16 +498,22 @@ export function createPriceChart(els, handlers = {}) {
       s.interval = opts.interval;
       chart.applyOptions({ timeScale: { timeVisible: INTRADAY.has(opts.interval), secondsVisible: false } });
 
-      if (dataChanged) setSeriesData(opts.prepended || 0, opts.reset);
-      else if (opts.reset) {
-        lastFrom = null;
-        chart.timeScale().fitContent();
-      }
+      if (dataChanged) setSeriesData(opts.prepended || 0, opts.window);
+      else if (opts.window !== undefined) showWindow(opts.window);
 
       drawPriceLines();
       drawMarkers();
       renderLegend();
       scheduleOffscreen();
+    },
+
+    // janela de tempo visível agora: { fromMs, toMs } (toMs null = encostado na última vela)
+    getVisibleWindow() {
+      const r = chart.timeScale().getVisibleRange();
+      if (!r || !s.points?.length) return null;
+      const fromMs = fromChartTime(r.from, s.interval);
+      const toMs = fromChartTime(r.to, s.interval);
+      return { fromMs, toMs: toMs >= s.points.at(-1).time ? null : toMs };
     },
 
     // limpa ao trocar de moeda (sem destruir o gráfico)

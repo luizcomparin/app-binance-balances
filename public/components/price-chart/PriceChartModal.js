@@ -1,20 +1,38 @@
-// Modal do gráfico de preço: abrir/fechar, períodos, modo Linha/Velas e orquestração do carregamento.
+// Modal do gráfico de preço: abrir/fechar, tamanho da vela, período, modo Linha/Velas e carregamento.
+//
+// Como no TradingView, são dois controles:
+//   - tamanho da vela (1h · 4h · D · S · M): redesenha mantendo a janela de tempo que está na tela;
+//   - período (7d, 30d, ..., Tudo, customizado): mostra essa janela e escolhe a vela recomendada.
+// Se a janela pedir velas demais para o tamanho escolhido, a vela sobe automaticamente.
 import { state } from "../../core/state.js";
 import { formatPrice } from "../../core/format.js";
-import { getChartData, loadMyOrders, loadOpenOrders, ordersOnChart } from "./chartData.js";
+import { getKlines, KLINES_PAGE, loadMyOrders, loadOpenOrders, ordersOnChart } from "./chartData.js";
 import { createPriceChart } from "./chartRender.js";
 import { avgAfterBuys, initBuySimulator, setSimContext, updateSimAvailability } from "./buySimulator.js";
 
 const MODE_STORAGE_KEY = "priceChartMode";
+const INTERVAL_STORAGE_KEY = "priceChartInterval";
 const PROJECTED_STORAGE_KEY = "priceChartProjectedAvg";
+
+const HOUR = 3600 * 1000;
+const DAY = 24 * HOUR;
+// duração aproximada de cada vela (mês ≈ 30 dias) — só para estimar quantidade de velas
+const INTERVAL_MS = { "1h": HOUR, "4h": 4 * HOUR, "1d": DAY, "1w": 7 * DAY, "1M": 30 * DAY };
+const INTERVAL_ORDER = ["1h", "4h", "1d", "1w", "1M"];
+// limite de velas carregadas de uma vez ao enquadrar uma janela (3 páginas da Binance)
+const MAX_CANDLES = 3 * KLINES_PAGE;
+// a Binance começou a operar em jul/2017: base para estimar o "Tudo"
+const BINANCE_START = Date.UTC(2017, 6, 14);
+const PRESET_DAYS = { "7d": 7, "30d": 30, "90d": 90, "1y": 365, all: Infinity };
+const CUSTOM_UNIT_DAYS = { d: 1, m: 30, y: 365 };
 
 let chart = null; // controlador do Lightweight Charts (criado uma vez no init)
 const view = {
   asset: null,
   range: "30d",
+  interval: readStoredInterval(),
   requestId: 0,
   points: null,
-  interval: null,
   loadingOlder: false,
   reachedStart: false, // já chegou na primeira vela da moeda
   mode: readStoredMode(),
@@ -39,6 +57,45 @@ function writeStored(key, value) {
 function readStoredMode() {
   return readStored(MODE_STORAGE_KEY) === "candle" ? "candle" : "line";
 }
+
+function readStoredInterval() {
+  const v = readStored(INTERVAL_STORAGE_KEY);
+  return INTERVAL_MS[v] ? v : null; // null = usar o recomendado do período
+}
+
+// ---------------------------------------------------------------------------
+// período ↔ tamanho de vela
+// ---------------------------------------------------------------------------
+
+function rangeDays(range) {
+  if (range in PRESET_DAYS) return PRESET_DAYS[range];
+  const m = /^(\d{1,4})([dmy])$/.exec(range);
+  return m ? Number(m[1]) * CUSTOM_UNIT_DAYS[m[2]] : 30;
+}
+
+// Vela recomendada para um período: a menor que deixa o gráfico com até ~500 velas
+function recommendedInterval(days) {
+  if (days === Infinity) return "1w";
+  const totalMs = days * DAY;
+  return ["1h", "4h", "1d", "1w"].find((i) => totalMs / INTERVAL_MS[i] <= 500) || "1w";
+}
+
+// Sobe o tamanho da vela enquanto a janela pedir mais velas do que o limite
+function fitInterval(interval, fromMs) {
+  const span = Date.now() - Math.max(fromMs, BINANCE_START);
+  let i = INTERVAL_ORDER.indexOf(interval);
+  while (i < INTERVAL_ORDER.length - 1 && span / INTERVAL_MS[INTERVAL_ORDER[i]] > MAX_CANDLES) i++;
+  return INTERVAL_ORDER[i];
+}
+
+function rangeWindow() {
+  const days = rangeDays(view.range);
+  return { fromMs: days === Infinity ? 0 : Date.now() - days * DAY, toMs: null };
+}
+
+// ---------------------------------------------------------------------------
+// preço médio projetado
+// ---------------------------------------------------------------------------
 
 function positionOf(asset) {
   const pos = state.positions?.[asset];
@@ -71,15 +128,25 @@ function updateProjectedAvailability() {
     : !hasBuys
       ? "Nenhuma ordem de compra aberta para esta moeda"
       : "Disponível apenas para moedas com preço médio calculado";
-  if (text) text.textContent = loading ? "Carregando ordens abertas..." : "Preço médio após compras abertas";
+  if (text) {
+    text.textContent = !loading
+      ? "Preço médio após compras abertas"
+      : state.positionsLoading
+        ? "Calculando preço médio..."
+        : "Carregando ordens abertas...";
+  }
 }
+
+// ---------------------------------------------------------------------------
+// render
+// ---------------------------------------------------------------------------
 
 function isOpen() {
   const modal = document.getElementById("price-chart-modal");
   return !!modal && modal.style.display !== "none";
 }
 
-// extra = { reset } ao carregar um período novo, { prepended } ao receber histórico antigo
+// extra = { window } ao carregar dados novos, { prepended } ao receber histórico antigo
 function render(extra = {}) {
   if (!chart || !view.points) return;
   chart.update({
@@ -99,18 +166,16 @@ function render(extra = {}) {
 async function loadOlder() {
   if (view.loadingOlder || view.reachedStart || !view.points?.length) return;
   view.loadingOlder = true;
-  const { requestId, asset, range } = { requestId: view.requestId, asset: view.asset, range: view.range };
+  const { requestId, asset, interval } = view;
   const wrap = document.getElementById("price-chart-canvas-wrap");
   wrap?.classList.add("is-loading-older");
   try {
-    const data = await getChartData(asset, range, view.points[0].time);
-    if (requestId !== view.requestId) return; // trocou de moeda/período no meio
     const first = view.points[0].time;
+    const data = await getKlines(asset, interval, first);
+    if (requestId !== view.requestId) return; // trocou de moeda/período/vela no meio
     const older = (data.points || []).filter((p) => p.time < first);
-    if (!older.length) {
-      view.reachedStart = true;
-      return;
-    }
+    if (older.length < KLINES_PAGE) view.reachedStart = true;
+    if (!older.length) return;
     view.points = [...older, ...view.points];
     render({ prepended: older.length });
   } catch {
@@ -130,9 +195,30 @@ function setMode(mode) {
   render(); // mesmos dados nos dois modos: só redesenha
 }
 
+function selectInterval(interval) {
+  if (interval === view.interval) return;
+  view.interval = interval;
+  writeStored(INTERVAL_STORAGE_KEY, interval);
+  loadChart({ keepWindow: true });
+}
+
+function selectRange(range) {
+  view.range = range;
+  view.interval = recommendedInterval(rangeDays(range));
+  writeStored(INTERVAL_STORAGE_KEY, view.interval);
+  highlightRange();
+  loadChart();
+}
+
 function highlightMode() {
   document.querySelectorAll("#price-chart-mode button").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.mode === view.mode);
+  });
+}
+
+function highlightInterval() {
+  document.querySelectorAll("#price-chart-interval button").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.interval === view.interval);
   });
 }
 
@@ -144,11 +230,9 @@ function highlightRange() {
   document.getElementById("price-chart-custom")?.classList.toggle("active", isCustom);
 }
 
-function selectRange(range) {
-  view.range = range;
-  highlightRange();
-  loadChart();
-}
+// ---------------------------------------------------------------------------
+// init / abrir / fechar
+// ---------------------------------------------------------------------------
 
 export function initPriceChartModal() {
   // posições (preço médio) chegam depois dos saldos: se o modal já estiver aberto, redesenha
@@ -183,6 +267,10 @@ export function initPriceChartModal() {
     btn.addEventListener("click", () => selectRange(btn.dataset.range));
   });
 
+  document.querySelectorAll("#price-chart-interval button").forEach((btn) => {
+    btn.addEventListener("click", () => selectInterval(btn.dataset.interval));
+  });
+
   document.querySelectorAll("#price-chart-mode button").forEach((btn) => {
     btn.addEventListener("click", () => setMode(btn.dataset.mode));
   });
@@ -205,6 +293,7 @@ export function openPriceChart(asset) {
   view.asset = asset;
   view.points = null;
   view.openOrders = null;
+  if (!view.interval) view.interval = recommendedInterval(rangeDays(view.range));
   const modal = document.getElementById("price-chart-modal");
   if (modal) modal.style.display = "flex";
 
@@ -257,7 +346,15 @@ function renderInfo() {
   info.innerHTML = parts.join(" · ");
 }
 
-async function loadChart() {
+// ---------------------------------------------------------------------------
+// carregamento
+// ---------------------------------------------------------------------------
+
+/**
+ * Carrega as velas de view.interval que cobrem a janela pedida e a enquadra.
+ * keepWindow: true → mantém a janela visível agora (troca de tamanho de vela).
+ */
+async function loadChart({ keepWindow = false } = {}) {
   const requestId = ++view.requestId;
   view.loadingOlder = false;
   view.reachedStart = false;
@@ -267,15 +364,45 @@ async function loadChart() {
   wrap?.classList.remove("is-loading-older");
   if (error) error.hidden = true;
 
-  try {
-    const data = await getChartData(view.asset, view.range);
-    if (requestId !== view.requestId) return; // usuário trocou de período/moeda no meio
+  let win = (keepWindow && chart?.getVisibleWindow()) || rangeWindow();
+  if (keepWindow) {
+    // usuário escolheu a vela: respeita e, se a janela for grande demais pra ela, encurta a janela
+    const end = win.toMs ?? Date.now();
+    win = { ...win, fromMs: Math.max(win.fromMs, end - MAX_CANDLES * INTERVAL_MS[view.interval]) };
+  } else {
+    // janela escolhida pelo período: se a vela atual for fina demais pra ela, sobe a vela
+    const fitted = fitInterval(view.interval, win.fromMs);
+    if (fitted !== view.interval) {
+      view.interval = fitted;
+      writeStored(INTERVAL_STORAGE_KEY, fitted);
+    }
+  }
+  const interval = view.interval;
+  highlightInterval();
 
-    view.points = data.points || [];
-    view.interval = data.interval;
-    setSimContext({ asset: view.asset, lastPrice: view.points.at(-1)?.close ?? null });
+  try {
+    // página mais recente e, se a janela começar antes dela, as anteriores (até MAX_CANDLES)
+    let points = [];
+    let before = null;
+    let reachedStart = false;
+    while (true) {
+      const data = await getKlines(view.asset, interval, before);
+      if (requestId !== view.requestId) return; // usuário trocou de moeda/período/vela no meio
+      const page = (data.points || []).filter((p) => !points.length || p.time < points[0].time);
+      points = [...page, ...points];
+      if (page.length < KLINES_PAGE) {
+        reachedStart = true; // veio menos que uma página: é o começo do histórico da moeda
+        break;
+      }
+      if (points[0].time <= win.fromMs || points.length >= MAX_CANDLES) break;
+      before = points[0].time;
+    }
+
+    view.points = points;
+    view.reachedStart = reachedStart;
+    setSimContext({ asset: view.asset, lastPrice: points.at(-1)?.close ?? null });
     updateSimAvailability();
-    render({ reset: true });
+    render({ window: win.fromMs <= 0 ? null : win });
     renderInfo();
   } catch (e) {
     if (requestId !== view.requestId) return;

@@ -5,6 +5,14 @@
       <h2 id="price-chart-title">Preço</h2>
       <p id="price-chart-info" class="price-chart-info"></p>
       <div class="price-chart-ranges" id="price-chart-ranges">
+        <div class="price-chart-mode price-chart-interval" id="price-chart-interval" title="Tamanho da vela">
+          <button class="ghost" data-interval="1h" title="1 hora">1h</button>
+          <button class="ghost" data-interval="4h" title="4 horas">4h</button>
+          <button class="ghost" data-interval="1d" title="Diário">D</button>
+          <button class="ghost" data-interval="1w" title="Semanal">S</button>
+          <button class="ghost" data-interval="1M" title="Mensal">M</button>
+        </div>
+        <span class="price-chart-sep" aria-hidden="true"></span>
         <button class="ghost" data-range="7d">7d</button>
         <button class="ghost active" data-range="30d">30d</button>
         <button class="ghost" data-range="90d">90d</button>

@@ -67,6 +67,26 @@
   margin-left: -1px;
 }
 
+/* grupo de 5 botões (tamanho da vela): os do meio sem cantos arredondados */
+.price-chart-interval button:not(:first-child):not(:last-child) {
+  border-radius: 0;
+}
+
+.price-chart-interval button:not(:first-child) {
+  margin-left: -1px;
+}
+
+.price-chart-interval button {
+  min-width: 44px;
+}
+
+.price-chart-sep {
+  width: 1px;
+  align-self: stretch;
+  margin: 4px 4px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
 .price-chart-mode button.active {
   border-color: var(--accent);
   color: var(--accent);
