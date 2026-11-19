@@ -11,6 +11,7 @@ import { getKlines, KLINES_PAGE, loadMyOrders, loadOpenOrders, ordersOnChart } f
 import { createPriceChart } from "./chart/createChart.js";
 import { avgAfterBuys, initBuySimulator, setSimContext, updateSimAvailability } from "./buySimulator.js";
 import { initAssetPicker } from "./assetPicker.js";
+import { buysOf, dcaComparison } from "./dca.js";
 import { annualizedPct, dailyVolatility, priceBand, touchProbability } from "./volatility.js";
 import {
   clampWindow,
@@ -35,6 +36,7 @@ const ASSET_STORAGE_KEY = "priceChartAsset"; // última moeda vista
 const DEFAULT_ASSET = "BTC"; // sem última moeda vista
 const PANEL_TAB = "price-chart";
 const STATS_DAYS_STORAGE_KEY = "priceChartStatsDays";
+const DCA_STORAGE_KEY = "priceChartDca";
 
 let chart = null; // controlador do Lightweight Charts (criado uma vez no init)
 let picker = null; // seletor de moeda do título
@@ -53,6 +55,9 @@ const view = {
   showStats: readStored(STATS_STORAGE_KEY) === "1",
   statsDays: clampStatsDays(Number(readStored(STATS_DAYS_STORAGE_KEY)) || 30),
   vol: null, // { sigmaDaily, days, price } | null (sem dados) | undefined (carregando)
+  // comparação com compra mensal fixa: ligada? e resultado da moeda aberta
+  showDca: readStored(DCA_STORAGE_KEY) === "1",
+  dca: null, // resultado de dcaComparison | { empty } | null (não calculado/erro) | undefined (carregando)
 };
 
 function clampStatsDays(n) {
@@ -159,6 +164,8 @@ function render(extra = {}) {
     openOrders: view.openOrders,
     projectedAvg: projectedAvg(),
     statBand: statBand(),
+    fixedAvg: view.showDca ? view.dca?.yourAvg ?? null : null,
+    dcaAvg: view.showDca ? view.dca?.dcaAvg ?? null : null,
     ...extra,
   });
 }
@@ -230,6 +237,87 @@ function renderStats() {
   if (proj) lines.push(touch("o médio após compras abertas", proj));
 
   box.innerHTML = lines.map((l) => `<div>${l}</div>`).join("") + disclaimer;
+}
+
+// ---------------------------------------------------------------------------
+// comparação com compra mensal fixa (DCA)
+// ---------------------------------------------------------------------------
+
+// suas compras da moeda + velas diárias que cobrem desde a primeira compra
+async function loadDca(asset) {
+  view.dca = undefined;
+  renderDca();
+  try {
+    const buys = buysOf(await loadMyOrders(), asset);
+    let daily = [];
+    if (buys.length) {
+      const start = Math.min(...buys.map((o) => o.time));
+      let before = null;
+      while (true) {
+        const data = await getKlines(asset, "1d", before);
+        if (view.asset !== asset) return;
+        const page = (data.points || []).filter((p) => !daily.length || p.time < daily[0].time);
+        daily = [...page, ...daily];
+        if (page.length < KLINES_PAGE || !daily.length || daily[0].time <= start) break;
+        before = daily[0].time;
+      }
+    }
+    if (view.asset !== asset) return;
+    view.dca = dcaComparison(buys, daily) || { empty: buys.length ? "history" : "buys" };
+  } catch {
+    if (view.asset !== asset) return;
+    view.dca = null;
+  }
+  renderDca();
+  render();
+}
+
+function renderDca() {
+  const box = document.getElementById("price-chart-dca-box");
+  if (!box) return;
+  box.hidden = !view.showDca;
+  if (!view.showDca) return;
+
+  const d = view.dca;
+  const date = (ms) => new Date(ms).toLocaleDateString("pt-BR");
+  // quantidade comparável: 4 dígitos significativos abaixo de 1, 2 casas acima
+  const qty = (v) => v.toLocaleString("pt-BR", v >= 1 ? { maximumFractionDigits: 2 } : { maximumSignificantDigits: 4 });
+  const usdt = (v) => `${v.toFixed(2).formatCurrency()} USDT`;
+  const note =
+    '<p class="stats-disclaimer">Considera só as suas compras executadas (vendas ficam de fora), com parcelas mensais iguais entre a primeira e a última compra, pelo fechamento diário de cada data.</p>';
+
+  if (d === undefined) {
+    box.innerHTML = '<span class="mini-spinner"></span> Calculando compra mensal fixa...';
+    return;
+  }
+  if (d === null) {
+    box.innerHTML = "Não foi possível calcular a comparação com compra mensal fixa.";
+    return;
+  }
+  if (d.empty === "buys") {
+    box.innerHTML = "Nenhuma compra desta moeda no seu histórico para comparar.";
+    return;
+  }
+  if (d.empty === "history") {
+    box.innerHTML = "Sem histórico de preço diário cobrindo o período das suas compras.";
+    return;
+  }
+  if (d.tooShort) {
+    box.innerHTML = `Suas compras estão dentro de menos de 1 mês (${date(d.start)} a ${date(d.end)}): não dá para comparar com compras mensais.${note}`;
+    return;
+  }
+
+  const better = d.diffPct < 0;
+  const pct = Math.abs(d.diffPct).toFixed(1).replace(".", ",");
+  const verdict =
+    Math.abs(d.diffPct) < 0.05
+      ? "Empate: seu preço médio é praticamente igual ao da compra mensal fixa"
+      : `<span class="${better ? "dca-better" : "dca-worse"}">Suas compras saíram ${pct}% ${better ? "mais baratas" : "mais caras"} que a compra mensal fixa</span>`;
+  box.innerHTML = [
+    `Mesmo total (<b>${usdt(d.invested)}</b>) em <b>${d.months} parcelas mensais</b> de ${usdt(d.monthly)}, de ${date(d.start)} a ${date(d.end)}:`,
+    `Preço médio fixo (todas as suas compras): <b>${formatPrice(d.yourAvg)}</b> · Médio mensal fixo: <b>${formatPrice(d.dcaAvg)}</b>`,
+    `${verdict} → você comprou <b>${qty(d.qty)} ${view.asset}</b> vs. ${qty(d.dcaQty)} ${view.asset} no automático`,
+  ].map((l) => `<div>${l}</div>`).join("") + note;
 }
 
 // Arrastou até o começo dos dados: busca a página anterior de velas e coloca no início
@@ -363,6 +451,16 @@ export function initPriceChartPanel() {
     render();
   });
 
+  const dcaInput = document.getElementById("price-chart-dca");
+  if (dcaInput) dcaInput.checked = view.showDca;
+  dcaInput?.addEventListener("change", () => {
+    view.showDca = dcaInput.checked;
+    writeStored(DCA_STORAGE_KEY, view.showDca ? "1" : "0");
+    if (view.showDca && view.dca === null && view.asset) loadDca(view.asset);
+    renderDca();
+    render();
+  });
+
   document.querySelectorAll("#price-chart-ranges button[data-range]").forEach((btn) => {
     btn.addEventListener("click", () => selectRange(btn.dataset.range));
   });
@@ -419,6 +517,9 @@ export function openPriceChart(asset) {
   view.vol = null;
   if (view.showStats) loadVolatility(asset);
   else renderStats();
+  view.dca = null;
+  if (view.showDca) loadDca(asset);
+  else renderDca();
   if (!view.interval) view.interval = recommendedInterval(rangeDays(view.range));
 
   document.getElementById("price-chart-title").innerText = `${asset} / USDT`;

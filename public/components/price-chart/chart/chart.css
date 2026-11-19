@@ -76,6 +76,8 @@
 
 .price-chart-legend .sw-avg { border-color: rgba(247, 147, 26, 0.95); }
 .price-chart-legend .sw-projected { border-color: rgba(196, 140, 255, 0.95); }
+.price-chart-legend .sw-fixed-avg { border-color: rgba(255, 128, 191, 0.95); }
+.price-chart-legend .sw-dca { border-color: rgba(255, 214, 102, 0.95); }
 .price-chart-legend .sw-open-buy { border-top-style: dotted; border-color: #52ffa8; }
 .price-chart-legend .sw-open-sell { border-top-style: dotted; border-color: #ff7272; }
 
@@ -90,6 +92,33 @@
 
 .price-chart-legend .sw-sell {
   background: #ff7272;
+}
+
+/* item da legenda com explicação no hover */
+.price-chart-legend .lg-item[data-tip] {
+  position: relative;
+  cursor: help;
+  text-decoration: underline dotted rgba(155, 176, 214, 0.5);
+  text-underline-offset: 3px;
+}
+
+.price-chart-legend .lg-item[data-tip]:hover::after {
+  content: attr(data-tip);
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 340px;
+  padding: 10px 12px;
+  background: rgba(17, 23, 46, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #e5ecff;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  white-space: normal;
+  pointer-events: none;
 }
 
 .price-chart-legend .lg-note {
@@ -118,6 +147,8 @@
   font-size: 12px;
   line-height: 1.5;
 }
+
+.lwc-tooltip.help { max-width: 320px; }
 
 .lwc-tooltip .tt-title {
   color: #4dd4ff;

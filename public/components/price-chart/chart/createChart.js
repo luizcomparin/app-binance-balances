@@ -3,6 +3,7 @@
 import { isSimEnabled, simBox } from "../buySimulator.js";
 import { formatAxisPrice, formatChartTime, fromChartTime, INTRADAY, priceFormatFor, toChartTime } from "./axis.js";
 import {
+  AVG_HELP,
   buildMarkers,
   COLORS,
   drawPriceLines,
@@ -11,7 +12,7 @@ import {
   visibleMyOrders,
 } from "./overlays.js";
 import { createLegend } from "./legend.js";
-import { candleTooltipHtml, createTooltip, ordersTooltipHtml, simTooltipHtml } from "./tooltip.js";
+import { candleTooltipHtml, createTooltip, lineHelpTooltipHtml, ordersTooltipHtml, simTooltipHtml } from "./tooltip.js";
 
 const LWC = window.LightweightCharts;
 
@@ -20,7 +21,7 @@ const LWC = window.LightweightCharts;
  * els = { container, wrap, legend }   handlers = { onNeedOlder }
  *
  * update(opts): opts = { asset, points, interval, mode, avg, orders: { buys, sells },
- *                        openOrders: { buys, sells } | null, projectedAvg, window, prepended }
+ *                        openOrders: { buys, sells } | null, projectedAvg, fixedAvg, dcaAvg, window, prepended }
  *   window: { fromMs, toMs } → mostra essa janela de tempo (novo período/moeda/vela); null → tudo
  *   prepended: n → n velas antigas foram adicionadas no início (mantém a posição da tela)
  */
@@ -96,7 +97,7 @@ export function createPriceChart(els, handlers = {}) {
   const autoscaleInfoProvider = (original) => {
     const res = original();
     if (!res?.priceRange) return res;
-    for (const v of [s.opts?.avg, s.opts?.projectedAvg]) {
+    for (const v of [s.opts?.avg, s.opts?.projectedAvg, s.opts?.fixedAvg, s.opts?.dcaAvg]) {
       if (v === null || v === undefined) continue;
       res.priceRange.minValue = Math.min(res.priceRange.minValue, v);
       res.priceRange.maxValue = Math.max(res.priceRange.maxValue, v);
@@ -247,6 +248,20 @@ export function createPriceChart(els, handlers = {}) {
   // tooltip e simulador
   // ---------------------------------------------------------------------------
 
+  // Etiqueta "Preço médio dinâmico"/"Preço médio fixo" sob o mouse? (desenhada no canto direito da área)
+  function lineLabelAt(point) {
+    const width = chart.paneSize(0)?.width;
+    if (!width) return null;
+    for (const key of ["avg", "fixedAvg"]) {
+      const price = s.opts?.[key];
+      if (!price) continue;
+      const y = s.series.priceToCoordinate(price);
+      const labelWidth = AVG_HELP[key].title.length * 7 + 16; // ≈ largura do texto da etiqueta
+      if (y !== null && Math.abs(y - point.y) <= 9 && point.x >= width - labelWidth) return AVG_HELP[key];
+    }
+    return null;
+  }
+
   chart.subscribeCrosshairMove((param) => {
     scheduleOffscreen();
     if (!s.series || !s.points || !param.point || param.time === undefined) return tooltip.hide();
@@ -257,6 +272,10 @@ export function createPriceChart(els, handlers = {}) {
       const box = simBox(price);
       return tooltip.show(param.point, simTooltipHtml(box), `sim ${box.status}`);
     }
+
+    // mouse na etiqueta (lado direito) de uma linha de preço médio → explicação dela
+    const help = lineLabelAt(param.point);
+    if (help) return tooltip.show(param.point, lineHelpTooltipHtml(help), "help");
 
     const idx = s.timeIndex.get(param.time);
     if (idx === undefined) return tooltip.hide();

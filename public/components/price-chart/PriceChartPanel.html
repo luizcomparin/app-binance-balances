@@ -56,6 +56,10 @@
         <input type="number" id="price-chart-stats-days" class="stats-days" min="1" max="365" value="30" />
         <span>dias</span>
       </label>
+      <label class="price-chart-sim-toggle" id="price-chart-dca-label" title="Seu preço médio de compra vs. comprar o mesmo total em parcelas mensais iguais desde a sua primeira compra">
+        <input type="checkbox" id="price-chart-dca" />
+        <span>Comparar com compra mensal fixa</span>
+      </label>
       <label class="price-chart-sim-toggle" id="price-chart-sim-label">
         <input type="checkbox" id="price-chart-sim" />
         <span class="mini-spinner sim-spinner"></span>
@@ -67,6 +71,7 @@
     <p id="price-chart-error" class="positions-status error" hidden></p>
     <div class="price-chart-legend" id="price-chart-legend"></div>
     <div class="price-chart-stats" id="price-chart-stats-box" hidden></div>
+    <div class="price-chart-stats" id="price-chart-dca-box" hidden></div>
     <div class="price-chart-canvas" id="price-chart-canvas-wrap">
       <div id="priceChartContainer" class="price-chart-lwc"></div>
       <div class="price-chart-overlay">

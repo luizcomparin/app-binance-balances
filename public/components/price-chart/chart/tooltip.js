@@ -90,6 +90,11 @@ export function candleTooltipHtml(title, p, candle, ordersAtCandle) {
   return html;
 }
 
+// Explicação de uma linha de preço (hover na etiqueta da linha)
+export function lineHelpTooltipHtml(help) {
+  return `<div class="tt-title">${escapeHtml(help.title)}</div><div>${escapeHtml(help.text)}</div>`;
+}
+
 // Caixa do simulador: box = { lines, status } (ver buySimulator.simBox)
 export function simTooltipHtml(box) {
   return `<div class="tt-sim-title">${escapeHtml(box.lines[0])}</div>${lines(box.lines.slice(1))}`;
