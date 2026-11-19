@@ -10,3 +10,4 @@
 @import "./components/simulation/SimulationModal.css";
 @import "./components/executed/ExecutedOrdersPanel.css";
 @import "./components/price-chart/PriceChartModal.css";
+@import "./components/price-chart/chart/chart.css";

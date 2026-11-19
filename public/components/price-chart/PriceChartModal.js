@@ -1,31 +1,27 @@
 // Modal do gráfico de preço: abrir/fechar, tamanho da vela, período, modo Linha/Velas e carregamento.
 //
-// Como no TradingView, são dois controles:
+// Como no TradingView, são dois controles (regras em timeframe.js):
 //   - tamanho da vela (1h · 4h · D · S · M): redesenha mantendo a janela de tempo que está na tela;
 //   - período (7d, 30d, ..., Tudo, customizado): mostra essa janela e escolhe a vela recomendada.
-// Se a janela pedir velas demais para o tamanho escolhido, a vela sobe automaticamente.
 import { state } from "../../core/state.js";
 import { formatPrice } from "../../core/format.js";
 import { on, POSITIONS_UPDATED } from "../../core/events.js";
 import { getKlines, KLINES_PAGE, loadMyOrders, loadOpenOrders, ordersOnChart } from "./chartData.js";
-import { createPriceChart } from "./chartRender.js";
+import { createPriceChart } from "./chart/createChart.js";
 import { avgAfterBuys, initBuySimulator, setSimContext, updateSimAvailability } from "./buySimulator.js";
+import {
+  clampWindow,
+  fitInterval,
+  INTERVAL_MS,
+  MAX_CANDLES,
+  rangeDays,
+  rangeWindow,
+  recommendedInterval,
+} from "./timeframe.js";
 
 const MODE_STORAGE_KEY = "priceChartMode";
 const INTERVAL_STORAGE_KEY = "priceChartInterval";
 const PROJECTED_STORAGE_KEY = "priceChartProjectedAvg";
-
-const HOUR = 3600 * 1000;
-const DAY = 24 * HOUR;
-// duração aproximada de cada vela (mês ≈ 30 dias) — só para estimar quantidade de velas
-const INTERVAL_MS = { "1h": HOUR, "4h": 4 * HOUR, "1d": DAY, "1w": 7 * DAY, "1M": 30 * DAY };
-const INTERVAL_ORDER = ["1h", "4h", "1d", "1w", "1M"];
-// limite de velas carregadas de uma vez ao enquadrar uma janela (3 páginas da Binance)
-const MAX_CANDLES = 3 * KLINES_PAGE;
-// a Binance começou a operar em jul/2017: base para estimar o "Tudo"
-const BINANCE_START = Date.UTC(2017, 6, 14);
-const PRESET_DAYS = { "7d": 7, "30d": 30, "90d": 90, "6m": 182, "1y": 365, "2y": 730, all: Infinity };
-const CUSTOM_UNIT_DAYS = { d: 1, m: 30, y: 365 };
 
 let chart = null; // controlador do Lightweight Charts (criado uma vez no init)
 const view = {
@@ -62,36 +58,6 @@ function readStoredMode() {
 function readStoredInterval() {
   const v = readStored(INTERVAL_STORAGE_KEY);
   return INTERVAL_MS[v] ? v : null; // null = usar o recomendado do período
-}
-
-// ---------------------------------------------------------------------------
-// período ↔ tamanho de vela
-// ---------------------------------------------------------------------------
-
-function rangeDays(range) {
-  if (range in PRESET_DAYS) return PRESET_DAYS[range];
-  const m = /^(\d{1,4})([dmy])$/.exec(range);
-  return m ? Number(m[1]) * CUSTOM_UNIT_DAYS[m[2]] : 30;
-}
-
-// Vela recomendada para um período: a menor que deixa o gráfico com até ~500 velas
-function recommendedInterval(days) {
-  if (days === Infinity) return "1w";
-  const totalMs = days * DAY;
-  return ["1h", "4h", "1d", "1w"].find((i) => totalMs / INTERVAL_MS[i] <= 500) || "1w";
-}
-
-// Sobe o tamanho da vela enquanto a janela pedir mais velas do que o limite
-function fitInterval(interval, fromMs) {
-  const span = Date.now() - Math.max(fromMs, BINANCE_START);
-  let i = INTERVAL_ORDER.indexOf(interval);
-  while (i < INTERVAL_ORDER.length - 1 && span / INTERVAL_MS[INTERVAL_ORDER[i]] > MAX_CANDLES) i++;
-  return INTERVAL_ORDER[i];
-}
-
-function rangeWindow() {
-  const days = rangeDays(view.range);
-  return { fromMs: days === Infinity ? 0 : Date.now() - days * DAY, toMs: null };
 }
 
 // ---------------------------------------------------------------------------
@@ -365,11 +331,10 @@ async function loadChart({ keepWindow = false } = {}) {
   wrap?.classList.remove("is-loading-older");
   if (error) error.hidden = true;
 
-  let win = (keepWindow && chart?.getVisibleWindow()) || rangeWindow();
+  let win = (keepWindow && chart?.getVisibleWindow()) || rangeWindow(view.range);
   if (keepWindow) {
     // usuário escolheu a vela: respeita e, se a janela for grande demais pra ela, encurta a janela
-    const end = win.toMs ?? Date.now();
-    win = { ...win, fromMs: Math.max(win.fromMs, end - MAX_CANDLES * INTERVAL_MS[view.interval]) };
+    win = clampWindow(win, view.interval);
   } else {
     // janela escolhida pelo período: se a vela atual for fina demais pra ela, sobe a vela
     const fitted = fitInterval(view.interval, win.fromMs);

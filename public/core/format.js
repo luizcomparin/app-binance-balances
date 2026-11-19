@@ -52,3 +52,19 @@ export function formatSigned(value, decimals = 2) {
   const sign = value > 0 ? "+" : "";
   return sign + Number(value.toFixed(decimals)).formatCurrency();
 }
+
+// Percentual com sinal sempre visível: "+1,23%" / "-4,56%"
+export function formatPct(value) {
+  return `${value >= 0 ? "+" : ""}${value.toFixed(2).formatCurrency()}%`;
+}
+
+// Data e hora curtas no fuso local: "19/11/26, 14:05"
+export function formatDateTime(ms) {
+  return new Date(ms).toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
