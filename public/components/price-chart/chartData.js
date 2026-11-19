@@ -1,5 +1,5 @@
 // Dados do gráfico de preço: velas (OHLC) e suas ordens executadas, com cache curto no cliente.
-import { fetchPriceChart, fetchExecutedOrders } from "../../api/binance.js";
+import { fetchPriceChart, fetchExecutedOrders, fetchOpenOrdersForAsset } from "../../api/binance.js";
 
 // Cache por moeda+período: trocar Linha/Velas nunca refaz requisição,
 // e voltar a um período já visto dentro de 60s também não.
@@ -33,6 +33,30 @@ export function loadMyOrders() {
       myOrders.loading = null;
     });
   return myOrders.loading;
+}
+
+// Ordens abertas por moeda, já convertidas para USDT: { buys, sells }, cada item = { priceUSDT, qty, order }
+const openOrdersCache = new Map();
+
+export async function loadOpenOrders(asset) {
+  const hit = openOrdersCache.get(asset);
+  if (hit && Date.now() - hit.at < CLIENT_CACHE_MS) return hit.data;
+
+  const raw = await fetchOpenOrdersForAsset(asset).catch(() => null);
+  if (!raw) return hit?.data || { buys: [], sells: [] };
+
+  const buys = [];
+  const sells = [];
+  for (const o of raw) {
+    const price = Number(o.price) || Number(o.stopPrice) || 0;
+    const qty = Number(o.remainingQty ?? o.origQty) || 0;
+    if (!price || !qty || o.quotePriceUSDT == null) continue;
+    const item = { priceUSDT: price * Number(o.quotePriceUSDT), qty, order: o };
+    (o.side === "BUY" ? buys : sells).push(item);
+  }
+  const data = { buys, sells };
+  openOrdersCache.set(asset, { at: Date.now(), data });
+  return data;
 }
 
 /**

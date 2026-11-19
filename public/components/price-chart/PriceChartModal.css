@@ -84,6 +84,10 @@
   user-select: none;
 }
 
+.price-chart-sim-toggle + .price-chart-sim-toggle {
+  margin-left: 14px;
+}
+
 .price-chart-sim-toggle input {
   accent-color: var(--accent);
   width: 16px;

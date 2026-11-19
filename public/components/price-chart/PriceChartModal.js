@@ -1,9 +1,10 @@
 // Modal do gráfico de preço: abrir/fechar, períodos, modo Linha/Velas e orquestração do carregamento.
 import { state } from "../../core/state.js";
 import { formatPrice } from "../../core/format.js";
-import { getChartData, loadMyOrders, ordersOnChart } from "./chartData.js";
+import { getChartData, loadMyOrders, loadOpenOrders, ordersOnChart } from "./chartData.js";
 import { renderPriceChart } from "./chartRender.js";
 import {
+  avgAfterBuys,
   buyTargetPlugin,
   initBuySimulator,
   isSimEnabled,
@@ -13,6 +14,7 @@ import {
 } from "./buySimulator.js";
 
 const MODE_STORAGE_KEY = "priceChartMode";
+const PROJECTED_STORAGE_KEY = "priceChartProjectedAvg";
 
 let chart = null;
 const view = {
@@ -22,14 +24,60 @@ const view = {
   points: null,
   interval: null,
   mode: readStoredMode(),
+  openOrders: null, // { buys, sells } da moeda aberta; null enquanto carrega
+  showProjected: readStored(PROJECTED_STORAGE_KEY) === "1",
 };
 
-function readStoredMode() {
+function readStored(key) {
   try {
-    return localStorage.getItem(MODE_STORAGE_KEY) === "candle" ? "candle" : "line";
+    return localStorage.getItem(key);
   } catch {
-    return "line";
+    return null;
   }
+}
+
+function writeStored(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {}
+}
+
+function readStoredMode() {
+  return readStored(MODE_STORAGE_KEY) === "candle" ? "candle" : "line";
+}
+
+function positionOf(asset) {
+  const pos = state.positions?.[asset];
+  return { avg: pos?.avgBuyPriceUSDT ?? null, qty: pos?.qty ?? null };
+}
+
+function projectedAvg() {
+  if (!view.showProjected || !view.openOrders) return null;
+  return avgAfterBuys(positionOf(view.asset), view.openOrders.buys);
+}
+
+// Checkbox do preço médio projetado: spinner enquanto carrega posição/ordens, desabilitado se não se aplica
+function updateProjectedAvailability() {
+  const input = document.getElementById("price-chart-projected");
+  const label = document.getElementById("price-chart-projected-label");
+  const text = document.getElementById("price-chart-projected-text");
+  if (!input || !label) return;
+
+  const loading = state.positionsLoading || !view.openOrders;
+  const pos = positionOf(view.asset);
+  const hasBuys = !!view.openOrders?.buys.length;
+  const ok = !loading && !!(pos.avg && pos.qty) && hasBuys;
+
+  input.checked = view.showProjected;
+  input.disabled = !ok;
+  label.classList.toggle("is-loading", loading);
+  label.classList.toggle("disabled", !loading && !ok);
+  label.title = ok || loading
+    ? ""
+    : !hasBuys
+      ? "Nenhuma ordem de compra aberta para esta moeda"
+      : "Disponível apenas para moedas com preço médio calculado";
+  if (text) text.textContent = loading ? "Carregando ordens abertas..." : "Preço médio após compras abertas";
 }
 
 function isOpen() {
@@ -52,8 +100,10 @@ function render() {
     points: view.points,
     interval: view.interval,
     mode: view.mode,
-    avg: state.positions?.[view.asset]?.avgBuyPriceUSDT ?? null,
+    avg: positionOf(view.asset).avg,
     orders: ordersOnChart(view.points, view.asset),
+    openOrders: view.openOrders,
+    projectedAvg: projectedAvg(),
     tooltipEnabled: !isSimEnabled(),
     plugins: [buyTargetPlugin],
   });
@@ -61,9 +111,7 @@ function render() {
 
 function setMode(mode) {
   view.mode = mode;
-  try {
-    localStorage.setItem(MODE_STORAGE_KEY, mode);
-  } catch {}
+  writeStored(MODE_STORAGE_KEY, mode);
   highlightMode();
   render(); // mesmos dados nos dois modos: só redesenha
 }
@@ -93,12 +141,20 @@ export function initPriceChartModal() {
   window.addEventListener("positions:updated", () => {
     if (!isOpen()) return;
     updateSimAvailability();
+    updateProjectedAvailability();
     if (!view.points || state.positionsLoading) return;
     render();
     renderInfo();
   });
 
   initBuySimulator(() => chart);
+
+  const projectedInput = document.getElementById("price-chart-projected");
+  projectedInput?.addEventListener("change", () => {
+    view.showProjected = projectedInput.checked;
+    writeStored(PROJECTED_STORAGE_KEY, view.showProjected ? "1" : "0");
+    render();
+  });
 
   document.querySelectorAll("#price-chart-ranges button[data-range]").forEach((btn) => {
     btn.addEventListener("click", () => selectRange(btn.dataset.range));
@@ -125,6 +181,7 @@ export function initPriceChartModal() {
 export function openPriceChart(asset) {
   view.asset = asset;
   view.points = null;
+  view.openOrders = null;
   const modal = document.getElementById("price-chart-modal");
   if (modal) modal.style.display = "flex";
 
@@ -135,12 +192,19 @@ export function openPriceChart(asset) {
   const info = document.getElementById("price-chart-info");
   if (info) info.innerHTML = "";
   updateSimAvailability();
+  updateProjectedAvailability();
   highlightRange();
   loadChart();
 
-  // ordens chegam em paralelo ao gráfico; se vierem depois, redesenha com os pontos
+  // ordens chegam em paralelo ao gráfico; se vierem depois, redesenha com os pontos/linhas
   loadMyOrders().then(() => {
     if (view.asset === asset && view.points && isOpen()) render();
+  });
+  loadOpenOrders(asset).then((openOrders) => {
+    if (view.asset !== asset) return;
+    view.openOrders = openOrders;
+    updateProjectedAvailability();
+    if (view.points && isOpen()) render();
   });
 }
 

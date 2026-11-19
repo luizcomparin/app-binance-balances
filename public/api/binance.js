@@ -30,6 +30,11 @@ export async function fetchPriceChart(asset, range) {
   return getJson(`/price-chart/${encodeURIComponent(asset)}?range=${encodeURIComponent(range)}`);
 }
 
+export async function fetchOpenOrdersForAsset(asset) {
+  const json = await getJson(`/orders/${encodeURIComponent(asset)}`);
+  return Array.isArray(json) ? json : [];
+}
+
 export async function fetchOrders() {
   return fetch("/orders").then((x) => x.json());
 }

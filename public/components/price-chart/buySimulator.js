@@ -35,6 +35,22 @@ export function buyToReachAvg(target, { avg: A, qty: Q, price: P }) {
   return { reachable: true, usdt, qty: usdt / P, A, P };
 }
 
+/**
+ * Preço médio depois de executar compras a preços definidos (ex.: ordens de compra abertas):
+ * (Q·A + Σ qtdᵢ·preçoᵢ) / (Q + Σ qtdᵢ). Mesma conta do simulador, com várias compras.
+ * Taxas não entram. Retorna null sem posição ou sem compras.
+ */
+export function avgAfterBuys({ avg: A, qty: Q }, buys) {
+  if (!A || !Q || !buys?.length) return null;
+  let cost = Q * A;
+  let qty = Q;
+  for (const b of buys) {
+    cost += b.qty * b.priceUSDT;
+    qty += b.qty;
+  }
+  return cost / qty;
+}
+
 export const buyTargetPlugin = {
   id: "buyTarget",
   afterDraw(c) {

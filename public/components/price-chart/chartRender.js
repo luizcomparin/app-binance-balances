@@ -25,10 +25,112 @@ if (!Chart.Interaction.modes.priceChart) {
 
     return chart
       .getSortedVisibleDatasetMetas()
-      .filter((meta) => !chart.data.datasets[meta.index].myOrders && meta.data[index])
+      .filter((meta) => {
+        const ds = chart.data.datasets[meta.index];
+        return !ds.myOrders && !ds.openOrders && meta.data[index];
+      })
       .map((meta) => ({ element: meta.data[index], datasetIndex: meta.index, index }));
   };
 }
+
+const OPEN_BUY_COLOR = "rgba(82, 255, 168, 0.55)";
+const OPEN_SELL_COLOR = "rgba(255, 114, 114, 0.55)";
+const PROJECTED_AVG_COLOR = "rgba(196, 140, 255, 0.95)";
+
+/**
+ * Ordens abertas: dataset sem dados (só para a legenda ligar/desligar cada lado);
+ * as linhas são desenhadas pelo plugin abaixo, sem mexer na escala do eixo Y —
+ * uma venda lá em cima não pode achatar o gráfico do preço.
+ */
+function openOrdersDataset(label, items, color) {
+  return {
+    type: "line",
+    label,
+    openOrders: items,
+    data: [],
+    borderColor: color,
+    backgroundColor: color,
+    borderWidth: 1,
+    borderDash: [2, 4],
+    pointRadius: 0,
+  };
+}
+
+const TAG_H = 14;
+
+function drawTag(ctx, area, y, text, color, align = "right") {
+  const w = ctx.measureText(text).width + 8;
+  const x = align === "left" ? area.left + 2 : area.right - w - 2;
+  ctx.fillStyle = "rgba(11, 16, 36, 0.85)";
+  ctx.fillRect(x, y - TAG_H / 2, w, TAG_H);
+  ctx.fillStyle = color;
+  ctx.fillText(text, x + 4, y);
+}
+
+// Linha + etiqueta "C 0,5 · 8,50" por ordem visível; fora da área, um resumo "↑ 3 vendas acima"
+const openOrderLinesPlugin = {
+  id: "openOrderLines",
+  afterDatasetsDraw(c) {
+    const { ctx, chartArea: area, scales } = c;
+    const visible = [];
+    const above = { BUY: 0, SELL: 0 };
+    const below = { BUY: 0, SELL: 0 };
+
+    c.data.datasets.forEach((ds, i) => {
+      if (!ds.openOrders || !c.isDatasetVisible(i)) return;
+      for (const it of ds.openOrders) {
+        const y = scales.y.getPixelForValue(it.priceUSDT);
+        const side = it.order.side;
+        if (y < area.top) above[side]++;
+        else if (y > area.bottom) below[side]++;
+        else visible.push({ y, it, color: ds.borderColor });
+      }
+    });
+    if (!visible.length && !above.BUY && !above.SELL && !below.BUY && !below.SELL) return;
+
+    ctx.save();
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 4]);
+    for (const v of visible) {
+      ctx.strokeStyle = v.color;
+      ctx.beginPath();
+      ctx.moveTo(area.left, Math.round(v.y) + 0.5);
+      ctx.lineTo(area.right, Math.round(v.y) + 0.5);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    ctx.font = "600 10px Manrope, sans-serif";
+    ctx.textBaseline = "middle";
+    // etiquetas de cima para baixo; as que encostariam na anterior são agrupadas nela
+    visible.sort((a, b) => a.y - b.y);
+    const groups = [];
+    for (const v of visible) {
+      const g = groups.at(-1);
+      if (g && v.y - g.y < TAG_H + 1) g.extra++;
+      else groups.push({ ...v, extra: 0 });
+    }
+    for (const g of groups) {
+      const o = g.it.order;
+      const text = `${o.side === "BUY" ? "C" : "V"} ${formatQty(g.it.qty)} · ${formatPrice(g.it.priceUSDT)}${g.extra ? ` (+${g.extra})` : ""}`;
+      drawTag(ctx, area, g.y, text, o.side === "BUY" ? "#52ffa8" : "#ff7272");
+    }
+
+    const summary = (counts, dir) =>
+      [
+        counts.SELL ? `${dir} ${counts.SELL} venda${counts.SELL > 1 ? "s" : ""}` : null,
+        counts.BUY ? `${dir} ${counts.BUY} compra${counts.BUY > 1 ? "s" : ""}` : null,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+    const up = summary(above, "↑");
+    const down = summary(below, "↓");
+    // resumos no canto esquerdo, para não cobrir as etiquetas das ordens (lado direito)
+    if (up) drawTag(ctx, area, area.top + TAG_H / 2 + 2, `${up} acima`, "#9bb0d6", "left");
+    if (down) drawTag(ctx, area, area.bottom - TAG_H / 2 - 2, `${down} abaixo`, "#9bb0d6", "left");
+    ctx.restore();
+  },
+};
 
 const formatDateTime = (time) =>
   new Date(time).toLocaleString("pt-BR", {
@@ -156,10 +258,11 @@ function orderLine(m) {
 
 /**
  * Desenha o gráfico e devolve a nova instância do Chart.js (destrói a anterior).
- * opts = { asset, points, interval, mode, avg, orders: { buys, sells }, tooltipEnabled, plugins }
+ * opts = { asset, points, interval, mode, avg, orders: { buys, sells }, openOrders: { buys, sells },
+ *          projectedAvg, tooltipEnabled, plugins }
  */
 export function renderPriceChart(canvas, previous, opts) {
-  const { asset, points, interval, mode, avg, orders, tooltipEnabled, plugins = [] } = opts;
+  const { asset, points, interval, mode, avg, orders, openOrders, projectedAvg, tooltipEnabled, plugins = [] } = opts;
   const labels = points.map((p) => formatLabel(p.time, interval));
   const candle = mode === "candle";
   const { buys, sells } = orders;
@@ -180,6 +283,25 @@ export function renderPriceChart(canvas, previous, opts) {
     });
   }
 
+  // preço médio projetado se todas as compras abertas executarem (opcional)
+  if (projectedAvg !== null && projectedAvg !== undefined) {
+    datasets.push({
+      label: `Preço médio após compras abertas: ${formatPrice(projectedAvg)}`,
+      tooltipLabel: "Preço médio após compras abertas",
+      data: points.map(() => projectedAvg),
+      borderColor: PROJECTED_AVG_COLOR,
+      backgroundColor: PROJECTED_AVG_COLOR,
+      borderWidth: 2,
+      borderDash: [10, 4, 2, 4],
+      pointRadius: 0,
+      fill: false,
+    });
+  }
+
+  // suas ordens abertas (linhas horizontais)
+  if (openOrders?.buys.length) datasets.push(openOrdersDataset("Compras abertas", openOrders.buys, OPEN_BUY_COLOR));
+  if (openOrders?.sells.length) datasets.push(openOrdersDataset("Vendas abertas", openOrders.sells, OPEN_SELL_COLOR));
+
   // suas compras (verde) e vendas (vermelho), no preço médio de execução da ordem
   if (buys.length) datasets.push(markerDataset("Suas compras", buys, labels, "#52ffa8"));
   if (sells.length) datasets.push(markerDataset("Suas vendas", sells, labels, "#ff7272"));
@@ -189,7 +311,7 @@ export function renderPriceChart(canvas, previous, opts) {
   return new Chart(canvas, {
     type: "line",
     data: { labels, datasets },
-    plugins,
+    plugins: [openOrderLinesPlugin, ...plugins],
     options: {
       responsive: true,
       maintainAspectRatio: false,
@@ -251,7 +373,7 @@ export function renderPriceChart(canvas, previous, opts) {
                   ` Fechamento: ${formatPrice(p.close)} (${chg >= 0 ? "+" : ""}${chg.toFixed(2).formatCurrency()}%)`,
                 ];
               }
-              return ` ${context.dataset.label}: ${formatPrice(context.parsed.y)} USDT`;
+              return ` ${context.dataset.tooltipLabel ?? context.dataset.label}: ${formatPrice(context.parsed.y)} USDT`;
             },
           },
         },
