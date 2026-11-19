@@ -23,7 +23,7 @@ const INTERVAL_ORDER = ["1h", "4h", "1d", "1w", "1M"];
 const MAX_CANDLES = 3 * KLINES_PAGE;
 // a Binance começou a operar em jul/2017: base para estimar o "Tudo"
 const BINANCE_START = Date.UTC(2017, 6, 14);
-const PRESET_DAYS = { "7d": 7, "30d": 30, "90d": 90, "1y": 365, all: Infinity };
+const PRESET_DAYS = { "7d": 7, "30d": 30, "90d": 90, "6m": 182, "1y": 365, "2y": 730, all: Infinity };
 const CUSTOM_UNIT_DAYS = { d: 1, m: 30, y: 365 };
 
 let chart = null; // controlador do Lightweight Charts (criado uma vez no init)
