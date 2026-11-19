@@ -1,11 +1,12 @@
-// Modal do gráfico de preço: abrir/fechar, tamanho da vela, período, modo Linha/Velas e carregamento.
+// Aba "Gráfico de preço": moeda, tamanho da vela, período, modo Linha/Velas, opções e carregamento.
 //
 // Como no TradingView, são dois controles (regras em timeframe.js):
 //   - tamanho da vela (1h · 4h · D · S · M): redesenha mantendo a janela de tempo que está na tela;
 //   - período (7d, 30d, ..., Tudo, customizado): mostra essa janela e escolhe a vela recomendada.
 import { state } from "../../core/state.js";
 import { formatPrice } from "../../core/format.js";
-import { on, POSITIONS_UPDATED } from "../../core/events.js";
+import { on, POSITIONS_UPDATED, TAB_CHANGED } from "../../core/events.js";
+import { isTabActive, showTab } from "../tabs/Tabs.js";
 import { getKlines, KLINES_PAGE, loadMyOrders, loadOpenOrders, ordersOnChart } from "./chartData.js";
 import { createPriceChart } from "./chart/createChart.js";
 import { avgAfterBuys, initBuySimulator, setSimContext, updateSimAvailability } from "./buySimulator.js";
@@ -14,7 +15,6 @@ import { annualizedPct, dailyVolatility, priceBand, touchProbability } from "./v
 import {
   clampWindow,
   fitInterval,
-  INTERVAL_MS,
   MAX_CANDLES,
   rangeDays,
   rangeWindow,
@@ -22,16 +22,25 @@ import {
 } from "./timeframe.js";
 
 const MODE_STORAGE_KEY = "priceChartMode";
+// período e tamanho de vela escolhidos ficam salvos; sem nada salvo, começa em D + 1 ano
+const RANGE_STORAGE_KEY = "priceChartRange";
 const INTERVAL_STORAGE_KEY = "priceChartInterval";
+const DEFAULT_RANGE = "1y";
+const DEFAULT_INTERVAL = "1d";
+const VALID_INTERVALS = ["1h", "4h", "1d", "1w", "1M"];
+const VALID_RANGE = /^(7d|30d|90d|6m|1y|2y|all|\d{1,4}[dmy])$/;
 const PROJECTED_STORAGE_KEY = "priceChartProjectedAvg";
 const STATS_STORAGE_KEY = "priceChartStats";
+const ASSET_STORAGE_KEY = "priceChartAsset"; // última moeda vista
+const DEFAULT_ASSET = "BTC"; // sem última moeda vista
+const PANEL_TAB = "price-chart";
 const STATS_DAYS_STORAGE_KEY = "priceChartStatsDays";
 
 let chart = null; // controlador do Lightweight Charts (criado uma vez no init)
 let picker = null; // seletor de moeda do título
 const view = {
   asset: null,
-  range: "30d",
+  range: readStoredRange(),
   interval: readStoredInterval(),
   requestId: 0,
   points: null,
@@ -68,9 +77,20 @@ function readStoredMode() {
   return readStored(MODE_STORAGE_KEY) === "candle" ? "candle" : "line";
 }
 
+function readStoredRange() {
+  const v = readStored(RANGE_STORAGE_KEY);
+  return v && VALID_RANGE.test(v) ? v : DEFAULT_RANGE;
+}
+
 function readStoredInterval() {
   const v = readStored(INTERVAL_STORAGE_KEY);
-  return INTERVAL_MS[v] ? v : null; // null = usar o recomendado do período
+  return VALID_INTERVALS.includes(v) ? v : DEFAULT_INTERVAL;
+}
+
+// salva período e vela juntos (os dois definem o que a aba mostra ao abrir de novo)
+function saveTimeframe() {
+  writeStored(RANGE_STORAGE_KEY, view.range);
+  writeStored(INTERVAL_STORAGE_KEY, view.interval);
 }
 
 // ---------------------------------------------------------------------------
@@ -121,9 +141,9 @@ function updateProjectedAvailability() {
 // render
 // ---------------------------------------------------------------------------
 
+// a aba do gráfico está na tela? (fora dela, o que mudar é redesenhado ao voltar)
 function isOpen() {
-  const modal = document.getElementById("price-chart-modal");
-  return !!modal && modal.style.display !== "none";
+  return isTabActive(PANEL_TAB);
 }
 
 // extra = { window } ao carregar dados novos, { prepended } ao receber histórico antigo
@@ -248,14 +268,14 @@ function setMode(mode) {
 function selectInterval(interval) {
   if (interval === view.interval) return;
   view.interval = interval;
-  writeStored(INTERVAL_STORAGE_KEY, interval);
+  saveTimeframe();
   loadChart({ keepWindow: true });
 }
 
 function selectRange(range) {
   view.range = range;
   view.interval = recommendedInterval(rangeDays(range));
-  writeStored(INTERVAL_STORAGE_KEY, view.interval);
+  saveTimeframe();
   highlightRange();
   loadChart();
 }
@@ -278,14 +298,20 @@ function highlightRange() {
   });
   const isCustom = !document.querySelector(`#price-chart-ranges button[data-range="${view.range}"]`);
   document.getElementById("price-chart-custom")?.classList.toggle("active", isCustom);
+  // período customizado salvo (ex.: "3m"): mostra o valor no formulário
+  const custom = isCustom && /^(\d+)([dmy])$/.exec(view.range);
+  if (custom) {
+    document.getElementById("price-chart-custom-value").value = custom[1];
+    document.getElementById("price-chart-custom-unit").value = custom[2];
+  }
 }
 
 // ---------------------------------------------------------------------------
 // init / abrir / fechar
 // ---------------------------------------------------------------------------
 
-export function initPriceChartModal() {
-  // posições (preço médio) chegam depois dos saldos: se o modal já estiver aberto, redesenha
+export function initPriceChartPanel() {
+  // posições (preço médio) chegam depois dos saldos: se a aba estiver na tela, redesenha
   on(POSITIONS_UPDATED, () => {
     if (!isOpen()) return;
     updateSimAvailability();
@@ -298,7 +324,7 @@ export function initPriceChartModal() {
 
   initBuySimulator();
 
-  // título "XRP / USDT ▾": troca de moeda sem fechar o modal
+  // título "XRP / USDT ▾": troca de moeda direto na aba
   picker = initAssetPicker({ getCurrent: () => view.asset, onSelect: openPriceChart });
 
   const container = document.getElementById("priceChartContainer");
@@ -358,24 +384,42 @@ export function initPriceChartModal() {
     selectRange(`${n}${unit}`);
   });
 
+  // Esc fecha a lista de moedas (se aberta)
   document.addEventListener("keydown", (e) => {
-    if (e.key !== "Escape") return;
-    // com a lista de moedas aberta, o Esc fecha só a lista
-    if (picker?.isOpen()) picker.close();
-    else closePriceChart();
+    if (e.key === "Escape" && picker?.isOpen()) picker.close();
+  });
+
+  // Ao entrar na aba: sem moeda ainda → última vista (ou BTC); com moeda → atualiza o que mudou fora dela
+  on(TAB_CHANGED, (tab) => {
+    if (tab !== PANEL_TAB) {
+      picker?.close();
+      return;
+    }
+    if (!view.asset) {
+      openPriceChart(readStored(ASSET_STORAGE_KEY) || DEFAULT_ASSET);
+      return;
+    }
+    updateSimAvailability();
+    updateProjectedAvailability();
+    renderStats();
+    if (view.points) {
+      render();
+      renderInfo();
+    }
   });
 }
 
+// Abre o gráfico de `asset` na aba "Gráfico de preço" (vindo da tabela de saldos ou do seletor)
 export function openPriceChart(asset) {
   view.asset = asset;
+  writeStored(ASSET_STORAGE_KEY, asset);
+  showTab(PANEL_TAB); // com view.asset já definido, a aba não abre a moeda padrão por cima
   view.points = null;
   view.openOrders = null;
   view.vol = null;
   if (view.showStats) loadVolatility(asset);
   else renderStats();
   if (!view.interval) view.interval = recommendedInterval(rangeDays(view.range));
-  const modal = document.getElementById("price-chart-modal");
-  if (modal) modal.style.display = "flex";
 
   document.getElementById("price-chart-title").innerText = `${asset} / USDT`;
   setSimContext({ asset, lastPrice: null });
@@ -398,16 +442,6 @@ export function openPriceChart(asset) {
     renderStats(); // o médio projetado depende das ordens abertas
     if (view.points && isOpen()) render();
   });
-}
-
-export function closePriceChart() {
-  picker?.close();
-  const modal = document.getElementById("price-chart-modal");
-  if (modal) modal.style.display = "none";
-}
-
-export function closePriceChartOnBackdrop(event) {
-  if (event.target.id === "price-chart-modal") closePriceChart();
 }
 
 function renderInfo() {
@@ -455,7 +489,7 @@ async function loadChart({ keepWindow = false } = {}) {
     const fitted = fitInterval(view.interval, win.fromMs);
     if (fitted !== view.interval) {
       view.interval = fitted;
-      writeStored(INTERVAL_STORAGE_KEY, fitted);
+      saveTimeframe();
     }
   }
   const interval = view.interval;

@@ -5,6 +5,8 @@
 export const BALANCES_UPDATED = "balances:updated";
 // Posições/P&L mudaram de estado (carregando, carregadas ou com erro) — dados em `state`
 export const POSITIONS_UPDATED = "positions:updated";
+// Aba ativa mudou (detail = nome da aba, ex.: "price-chart")
+export const TAB_CHANGED = "tab:changed";
 
 export function emit(name, detail) {
   window.dispatchEvent(new CustomEvent(name, { detail }));

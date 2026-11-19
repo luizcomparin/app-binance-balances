@@ -1,11 +1,28 @@
-.price-chart-content {
-  max-width: 960px;
-  height: auto;
-  max-height: 90vh;
+/* aba "Gráfico de preço" */
+.price-chart-header h2 {
+  margin: 0 0 4px;
 }
 
-.price-chart-content h2 {
-  margin: 0 0 4px;
+/* o cabeçalho fica acima do gráfico para a lista de moedas abrir por cima dele */
+.price-chart-header {
+  position: relative;
+  z-index: 30;
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.price-chart-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 22px;
+  margin-top: 12px;
+}
+
+/* nas opções, os checkboxes ficam lado a lado à esquerda */
+.price-chart-toggles .price-chart-sim-toggle {
+  margin-left: 0;
 }
 
 /* número de dias da faixa estatística, dentro do rótulo do checkbox */
@@ -52,12 +69,6 @@
   margin: 6px 0 0;
   color: var(--muted);
   font-size: 12px;
-}
-
-/* o cabeçalho fica acima do corpo (gráfico) para a lista de moedas abrir por cima dele */
-.price-chart-content .modal-header {
-  position: relative;
-  z-index: 30;
 }
 
 /* título "XRP / USDT ▾" que abre a lista de moedas */

@@ -15,12 +15,7 @@ import {
   applyExecutedFilters,
   sortExecutedOrders,
 } from "./components/executed/ExecutedOrdersPanel.js";
-import {
-  initPriceChartModal,
-  openPriceChart,
-  closePriceChart,
-  closePriceChartOnBackdrop,
-} from "./components/price-chart/PriceChartModal.js";
+import { initPriceChartPanel, openPriceChart } from "./components/price-chart/PriceChartPanel.js";
 
 async function boot() {
   showLoading();
@@ -39,8 +34,6 @@ async function boot() {
   window.applyExecutedFilters = applyExecutedFilters;
   window.sortExecutedOrders = sortExecutedOrders;
   window.openPriceChart = openPriceChart;
-  window.closePriceChart = closePriceChart;
-  window.closePriceChartOnBackdrop = closePriceChartOnBackdrop;
 
   // componentes passam a escutar os eventos de dados antes do primeiro carregamento
   initBalancesPanel();
@@ -49,7 +42,7 @@ async function boot() {
   initAssetStrip();
   initOrderSimulation();
   initExecutedOrdersPanel();
-  initPriceChartModal();
+  initPriceChartPanel();
 
   Promise.all([loadBalances(), loadOrders()]).finally(() => hideLoading());
 }
