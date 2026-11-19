@@ -4,6 +4,74 @@ import { formatPrice, formatQty } from "../../core/format.js";
 const CANDLE_UP = "rgba(82, 255, 168, 1)";
 const CANDLE_DOWN = "rgba(255, 114, 114, 1)";
 
+/**
+ * Interação do gráfico:
+ *  - mouse em cima de um ponto de ordem → só esse(s) ponto(s) (tooltip com detalhes da ordem);
+ *  - senão → a vela/ponto sob o mouse em todos os datasets de preço.
+ * O modo "index" padrão não serve: ele casa pela posição no array, e os marcadores
+ * têm arrays próprios (o 3º marcador não é a 3ª vela).
+ */
+if (!Chart.Interaction.modes.priceChart) {
+  Chart.Interaction.modes.priceChart = function (chart, e, options, useFinalPosition) {
+    const hits = Chart.Interaction.modes.point(chart, e, { intersect: true }, useFinalPosition).filter(
+      (item) => chart.data.datasets[item.datasetIndex]?.myOrders
+    );
+    if (hits.length) return hits;
+
+    const { chartArea, scales } = chart;
+    if (e.x < chartArea.left || e.x > chartArea.right) return [];
+    const last = chart.data.labels.length - 1;
+    const index = Math.max(0, Math.min(last, Math.round(scales.x.getValueForPixel(e.x))));
+
+    return chart
+      .getSortedVisibleDatasetMetas()
+      .filter((meta) => !chart.data.datasets[meta.index].myOrders && meta.data[index])
+      .map((meta) => ({ element: meta.data[index], datasetIndex: meta.index, index }));
+  };
+}
+
+const formatDateTime = (time) =>
+  new Date(time).toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+const formatPct = (v) => `${v >= 0 ? "+" : ""}${v.toFixed(2).formatCurrency()}%`;
+
+// Linhas do tooltip de uma ordem sua (hover no ponto)
+function orderDetails(m, currentPrice) {
+  const o = m.order;
+  const lines = [
+    ` Par: ${o.baseAsset}/${o.quoteAsset}`,
+    ` Quantidade: ${formatQty(o.qty)} ${o.baseAsset}`,
+  ];
+  if (o.quoteAsset !== "USDT") {
+    lines.push(` Preço: ${formatPrice(o.avgPrice)} ${o.quoteAsset} (≈ ${formatPrice(m.y)} USDT)`);
+    lines.push(` Total: ${formatPrice(o.quoteQty)} ${o.quoteAsset} (≈ ${o.totalUSDT.toFixed(2).formatCurrency()} USDT)`);
+  } else {
+    lines.push(` Preço: ${formatPrice(m.y)} USDT`);
+    lines.push(` Total: ${o.totalUSDT.toFixed(2).formatCurrency()} USDT`);
+  }
+  if (o.feeUSDT) lines.push(` Taxa: ≈ ${formatPrice(o.feeUSDT)} USDT`);
+  if (o.fills > 1) lines.push(` Executada em ${o.fills} partes`);
+
+  if (currentPrice) {
+    const diff = ((currentPrice - m.y) / m.y) * 100;
+    if (o.side === "BUY") {
+      // quanto essa compra vale hoje
+      const nowUSDT = o.qty * currentPrice;
+      lines.push(` Hoje: ${formatPct(diff)} (${nowUSDT.toFixed(2).formatCurrency()} USDT)`);
+    } else {
+      // se não tivesse vendido: positivo = vendeu cedo demais, negativo = vendeu bem
+      lines.push(` Preço atual vs. venda: ${formatPct(diff)}`);
+    }
+  }
+  return lines;
+}
+
 function formatLabel(time, interval) {
   const date = new Date(time);
   if (interval === "1h" || interval === "4h") {
@@ -71,6 +139,7 @@ function markerDataset(label, markers, labels, color) {
     showLine: false,
     pointRadius: 5,
     pointHoverRadius: 7,
+    pointHitRadius: 4,
     pointBackgroundColor: color,
     pointBorderColor: "#0b1024",
     pointBorderWidth: 1.5,
@@ -82,14 +151,7 @@ function markerDataset(label, markers, labels, color) {
 
 function orderLine(m) {
   const o = m.order;
-  const when = new Date(o.time).toLocaleString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  return `● ${o.side === "BUY" ? "Compra" : "Venda"} ${when}: ${formatQty(o.qty)} ${o.baseAsset} a ${formatPrice(m.y)} (${o.totalUSDT.toFixed(2).formatCurrency()} USDT)`;
+  return `● ${o.side === "BUY" ? "Compra" : "Venda"} ${formatDateTime(o.time)}: ${formatQty(o.qty)} ${o.baseAsset} a ${formatPrice(m.y)} (${o.totalUSDT.toFixed(2).formatCurrency()} USDT)`;
 }
 
 /**
@@ -101,6 +163,8 @@ export function renderPriceChart(canvas, previous, opts) {
   const labels = points.map((p) => formatLabel(p.time, interval));
   const candle = mode === "candle";
   const { buys, sells } = orders;
+  const currentPrice = points.at(-1)?.close ?? null;
+  let markerHoverCount = 0;
 
   const datasets = priceDatasets(asset, points, candle);
 
@@ -130,7 +194,7 @@ export function renderPriceChart(canvas, previous, opts) {
       responsive: true,
       maintainAspectRatio: false,
       animation: false,
-      interaction: { mode: "index", intersect: false },
+      interaction: { mode: "priceChart", intersect: false },
       plugins: {
         legend: {
           labels: {
@@ -141,7 +205,7 @@ export function renderPriceChart(canvas, previous, opts) {
         },
         tooltip: {
           enabled: tooltipEnabled,
-          filter: (item) => !item.dataset.isWick && !item.dataset.myOrders,
+          filter: (item) => !item.dataset.isWick,
           backgroundColor: "#11172e",
           titleColor: "#4dd4ff",
           bodyColor: "#e5ecff",
@@ -149,15 +213,34 @@ export function renderPriceChart(canvas, previous, opts) {
           borderWidth: 1,
           padding: 12,
           callbacks: {
-            // o modo "index" casa pontos pela posição no array, então as ordens
-            // daquela vela são listadas aqui em vez de virem como itens do tooltip
+            title: (items) => {
+              // o título é gerado antes dos labels: guarda quantas ordens estão sob o mouse
+              markerHoverCount = items[0]?.dataset.myOrders ? items.length : 0;
+              const m = items[0]?.raw;
+              if (items[0]?.dataset.myOrders && m?.order) {
+                return items.length > 1
+                  ? `${items.length} ordens neste ponto`
+                  : `${m.order.side === "BUY" ? "Compra" : "Venda"} · ${formatDateTime(m.order.time)}`;
+              }
+              return items[0]?.label ?? "";
+            },
+            // hover na vela: lista resumida das suas ordens daquela vela
             afterBody: (items) => {
+              if (items[0]?.dataset.myOrders) return [];
               const idx = items[0]?.dataIndex;
               if (idx === undefined) return [];
               const lines = [...buys, ...sells].filter((m) => m.idx === idx).map(orderLine);
               return lines.length ? ["", ...lines] : [];
             },
             label: (context) => {
+              const m = context.raw;
+              if (context.dataset.myOrders && m?.order) {
+                const details = orderDetails(m, currentPrice);
+                // várias ordens sobrepostas: identifica cada uma
+                return markerHoverCount > 1
+                  ? [`${m.order.side === "BUY" ? "Compra" : "Venda"} · ${formatDateTime(m.order.time)}`, ...details, ""]
+                  : details;
+              }
               const p = context.dataset.ohlc?.[context.dataIndex];
               if (p) {
                 const chg = p.open ? ((p.close - p.open) / p.open) * 100 : 0;
