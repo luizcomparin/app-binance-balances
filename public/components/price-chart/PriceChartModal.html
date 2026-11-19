@@ -2,7 +2,18 @@
   <div class="modal-content price-chart-content">
     <div class="modal-header">
       <span class="close" onclick="closePriceChart()">&times;</span>
-      <h2 id="price-chart-title">Preço</h2>
+      <div class="asset-picker-wrap">
+        <h2>
+          <button type="button" class="asset-picker-btn" id="price-chart-title-btn" aria-haspopup="listbox" aria-expanded="false" title="Trocar moeda">
+            <span id="price-chart-title">Preço</span>
+            <span class="asset-picker-caret" aria-hidden="true">▾</span>
+          </button>
+        </h2>
+        <div class="asset-picker" id="asset-picker" hidden>
+          <input type="search" id="asset-picker-search" placeholder="Buscar moeda..." autocomplete="off" spellcheck="false" />
+          <ul id="asset-picker-list" role="listbox"></ul>
+        </div>
+      </div>
       <p id="price-chart-info" class="price-chart-info"></p>
       <div class="price-chart-ranges" id="price-chart-ranges">
         <div class="price-chart-mode price-chart-interval" id="price-chart-interval" title="Tamanho da vela">

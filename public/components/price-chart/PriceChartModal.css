@@ -8,6 +8,143 @@
   margin: 0 0 4px;
 }
 
+/* o cabeçalho fica acima do corpo (gráfico) para a lista de moedas abrir por cima dele */
+.price-chart-content .modal-header {
+  position: relative;
+  z-index: 30;
+}
+
+/* título "XRP / USDT ▾" que abre a lista de moedas */
+.asset-picker-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.asset-picker-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 0 -8px;
+  padding: 2px 8px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.asset-picker-btn:hover,
+.asset-picker-btn[aria-expanded="true"] {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.asset-picker-caret {
+  font-size: 0.6em;
+  color: var(--muted);
+  transition: transform 0.15s ease;
+}
+
+.asset-picker-btn[aria-expanded="true"] .asset-picker-caret {
+  transform: rotate(180deg);
+}
+
+.asset-picker {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  left: -8px;
+  width: 360px;
+  max-width: calc(100vw - 48px);
+  padding: 8px;
+  background: #11172e;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+
+.asset-picker[hidden] {
+  display: none;
+}
+
+.asset-picker input {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 6px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+}
+
+.asset-picker input:focus {
+  border-color: var(--accent);
+}
+
+.asset-picker ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.asset-picker .ap-item {
+  display: grid;
+  grid-template-columns: 1fr 64px 110px 64px;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.asset-picker .ap-item.active {
+  background: rgba(77, 212, 255, 0.1);
+}
+
+.asset-picker .ap-item.current .ap-symbol {
+  color: var(--accent);
+}
+
+.asset-picker .ap-item.current .ap-symbol::after {
+  content: " ●";
+  font-size: 9px;
+  vertical-align: middle;
+}
+
+.asset-picker .ap-symbol {
+  font-weight: 700;
+}
+
+.asset-picker .ap-pct,
+.asset-picker .ap-usdt,
+.asset-picker .ap-change {
+  text-align: right;
+  color: var(--muted);
+}
+
+.asset-picker .ap-change.pnl-pos {
+  color: #52ffa8;
+}
+
+.asset-picker .ap-change.pnl-neg {
+  color: #ff7272;
+}
+
+.asset-picker .ap-empty {
+  padding: 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .price-chart-info {
   margin: 0 0 12px;
   color: var(--muted);

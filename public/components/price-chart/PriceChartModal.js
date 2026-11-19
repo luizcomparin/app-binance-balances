@@ -9,6 +9,7 @@ import { on, POSITIONS_UPDATED } from "../../core/events.js";
 import { getKlines, KLINES_PAGE, loadMyOrders, loadOpenOrders, ordersOnChart } from "./chartData.js";
 import { createPriceChart } from "./chart/createChart.js";
 import { avgAfterBuys, initBuySimulator, setSimContext, updateSimAvailability } from "./buySimulator.js";
+import { initAssetPicker } from "./assetPicker.js";
 import {
   clampWindow,
   fitInterval,
@@ -24,6 +25,7 @@ const INTERVAL_STORAGE_KEY = "priceChartInterval";
 const PROJECTED_STORAGE_KEY = "priceChartProjectedAvg";
 
 let chart = null; // controlador do Lightweight Charts (criado uma vez no init)
+let picker = null; // seletor de moeda do título
 const view = {
   asset: null,
   range: "30d",
@@ -214,6 +216,9 @@ export function initPriceChartModal() {
 
   initBuySimulator();
 
+  // título "XRP / USDT ▾": troca de moeda sem fechar o modal
+  picker = initAssetPicker({ getCurrent: () => view.asset, onSelect: openPriceChart });
+
   const container = document.getElementById("priceChartContainer");
   const wrap = document.getElementById("price-chart-canvas-wrap");
   if (container && wrap && window.LightweightCharts) {
@@ -252,7 +257,10 @@ export function initPriceChartModal() {
   });
 
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closePriceChart();
+    if (e.key !== "Escape") return;
+    // com a lista de moedas aberta, o Esc fecha só a lista
+    if (picker?.isOpen()) picker.close();
+    else closePriceChart();
   });
 }
 
@@ -287,6 +295,7 @@ export function openPriceChart(asset) {
 }
 
 export function closePriceChart() {
+  picker?.close();
   const modal = document.getElementById("price-chart-modal");
   if (modal) modal.style.display = "none";
 }
