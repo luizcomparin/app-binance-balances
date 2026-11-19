@@ -3,6 +3,7 @@
   usdtBrlPrice: 0,
   positions: {},
   positionsTotals: null,
+  positionsLoading: false,
   orders: [],
   filteredOrders: [],
   orderSort: { key: null, asc: true },

@@ -10,15 +10,33 @@
         <button class="ghost" data-range="90d">90d</button>
         <button class="ghost" data-range="1y">1 ano</button>
         <button class="ghost" data-range="all">Tudo</button>
+        <form class="price-chart-custom" id="price-chart-custom">
+          <input type="number" id="price-chart-custom-value" min="1" max="9999" step="1" placeholder="Ex: 2" />
+          <select id="price-chart-custom-unit">
+            <option value="d">Dias</option>
+            <option value="m" selected>Meses</option>
+            <option value="y">Anos</option>
+          </select>
+          <button type="submit" class="ghost">Aplicar</button>
+        </form>
+        <div class="price-chart-mode" id="price-chart-mode">
+          <button class="ghost" data-mode="line" title="Linha">Linha</button>
+          <button class="ghost" data-mode="candle" title="Velas">Velas</button>
+        </div>
+        <label class="price-chart-sim-toggle" id="price-chart-sim-label">
+          <input type="checkbox" id="price-chart-sim" />
+          <span class="mini-spinner sim-spinner"></span>
+          <span id="price-chart-sim-text">Simular compra até o preço médio do mouse</span>
+        </label>
       </div>
     </div>
     <div class="modal-body price-chart-body">
-      <div id="price-chart-loading" class="inline-loading" hidden>
-        <span class="mini-spinner"></span>Carregando preços...
-      </div>
       <p id="price-chart-error" class="positions-status error" hidden></p>
-      <div class="price-chart-canvas">
+      <div class="price-chart-canvas" id="price-chart-canvas-wrap">
         <canvas id="priceChartCanvas"></canvas>
+        <div class="price-chart-overlay">
+          <span class="chart-spinner"></span>
+        </div>
       </div>
     </div>
   </div>

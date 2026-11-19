@@ -53,6 +53,8 @@ async function loadPositions() {
 
   const status = document.getElementById("positions-status");
   setPnlSummaryLoading(true);
+  state.positionsLoading = true;
+  window.dispatchEvent(new CustomEvent("positions:updated"));
 
   if (status) {
     status.hidden = true;
@@ -90,6 +92,8 @@ async function loadPositions() {
     .finally(() => {
       setPnlSummaryLoading(false);
       positionsRequest = null;
+      state.positionsLoading = false;
+      window.dispatchEvent(new CustomEvent("positions:updated"));
     });
 
   return positionsRequest;

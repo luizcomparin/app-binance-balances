@@ -71,7 +71,7 @@ function onStartup() {
    • http://localhost:${PORT}/orders            (ordens abertas agrupadas por ativo)
    • http://localhost:${PORT}/orders/:asset     (ordens abertas para ativo específico)
    • http://localhost:${PORT}/executed-orders   (ordens executadas)
-   • http://localhost:${PORT}/price-chart/:asset (gráfico de preço, ?range=7d|30d|90d|1y|all)
+   • http://localhost:${PORT}/price-chart/:asset (gráfico de preço, ?range=7d|30d|90d|1y|all ou <n>d|<n>m|<n>y)
    • http://localhost:${PORT}/site              (dashboard com HTML/CSS/JS)
   `);
 }
@@ -141,7 +141,7 @@ app.get("/executed-orders", async (req, res) => {
 	}
 });
 
-// Série de preços de uma moeda em USDT (?range=7d|30d|90d|1y|all)
+// Série de preços de uma moeda em USDT (?range=7d|30d|90d|1y|all ou <n>d|<n>m|<n>y)
 app.get("/price-chart/:asset", async (req, res) => {
 	const asset = String(req.params.asset).toUpperCase();
 	if (!/^[A-Z0-9]{1,20}$/.test(asset)) {
@@ -851,8 +851,34 @@ const CHART_RANGES = {
 	all: { interval: "1w", limit: 1000 },
 };
 
+// Período customizado: "<n>d" | "<n>m" | "<n>y" (dias, meses, anos).
+// Escolhe o menor intervalo de vela que mantém o gráfico em até ~500 pontos.
+const CUSTOM_RANGE_UNIT_DAYS = { d: 1, m: 30, y: 365 };
+const CUSTOM_RANGE_INTERVALS = [
+	{ interval: "1h", hours: 1 },
+	{ interval: "4h", hours: 4 },
+	{ interval: "1d", hours: 24 },
+	{ interval: "1w", hours: 24 * 7 },
+];
+
+function parseCustomRange(range) {
+	const m = /^(\d{1,4})([dmy])$/.exec(range);
+	if (!m) return null;
+	const days = Number(m[1]) * CUSTOM_RANGE_UNIT_DAYS[m[2]];
+	if (days < 1) return null;
+
+	const totalHours = days * 24;
+	const choice =
+		CUSTOM_RANGE_INTERVALS.find((c) => totalHours / c.hours <= 500) ||
+		CUSTOM_RANGE_INTERVALS.at(-1);
+	return {
+		interval: choice.interval,
+		limit: Math.min(1000, Math.ceil(totalHours / choice.hours)),
+	};
+}
+
 async function buildPriceChart(asset, range) {
-	const config = CHART_RANGES[range] || CHART_RANGES["30d"];
+	const config = CHART_RANGES[range] || parseCustomRange(range) || CHART_RANGES["30d"];
 	const prices = await getAllPrices();
 
 	let symbol = `${asset}USDT`;
@@ -874,8 +900,11 @@ async function buildPriceChart(asset, range) {
 			symbol,
 			interval: config.interval,
 			points: rows.map((k) => {
-				const close = Number(k[4]);
-				return { time: k[0], close: inverted ? (close ? 1 / close : 0) : close };
+				const [open, high, low, close] = [k[1], k[2], k[3], k[4]].map(Number);
+				if (!inverted) return { time: k[0], open, high, low, close };
+				// par invertido (USDT/X): 1/preço — máxima e mínima trocam de lugar
+				const inv = (v) => (v ? 1 / v : 0);
+				return { time: k[0], open: inv(open), high: inv(low), low: inv(high), close: inv(close) };
 			}),
 		};
 	});
