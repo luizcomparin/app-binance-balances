@@ -49,6 +49,12 @@
           <span class="mini-spinner sim-spinner"></span>
           <span id="price-chart-projected-text">Preço médio após compras abertas</span>
         </label>
+        <label class="price-chart-sim-toggle" id="price-chart-stats-label" title="Faixa de preço típica a partir da volatilidade do último ano (não é previsão)">
+          <input type="checkbox" id="price-chart-stats" />
+          <span>Faixa estatística em</span>
+          <input type="number" id="price-chart-stats-days" class="stats-days" min="1" max="365" value="30" />
+          <span>dias</span>
+        </label>
         <label class="price-chart-sim-toggle" id="price-chart-sim-label">
           <input type="checkbox" id="price-chart-sim" />
           <span class="mini-spinner sim-spinner"></span>
@@ -59,6 +65,7 @@
     <div class="modal-body price-chart-body">
       <p id="price-chart-error" class="positions-status error" hidden></p>
       <div class="price-chart-legend" id="price-chart-legend"></div>
+      <div class="price-chart-stats" id="price-chart-stats-box" hidden></div>
       <div class="price-chart-canvas" id="price-chart-canvas-wrap">
         <div id="priceChartContainer" class="price-chart-lwc"></div>
         <div class="price-chart-overlay">

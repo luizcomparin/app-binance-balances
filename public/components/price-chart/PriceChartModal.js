@@ -10,6 +10,7 @@ import { getKlines, KLINES_PAGE, loadMyOrders, loadOpenOrders, ordersOnChart } f
 import { createPriceChart } from "./chart/createChart.js";
 import { avgAfterBuys, initBuySimulator, setSimContext, updateSimAvailability } from "./buySimulator.js";
 import { initAssetPicker } from "./assetPicker.js";
+import { annualizedPct, dailyVolatility, priceBand, touchProbability } from "./volatility.js";
 import {
   clampWindow,
   fitInterval,
@@ -23,6 +24,8 @@ import {
 const MODE_STORAGE_KEY = "priceChartMode";
 const INTERVAL_STORAGE_KEY = "priceChartInterval";
 const PROJECTED_STORAGE_KEY = "priceChartProjectedAvg";
+const STATS_STORAGE_KEY = "priceChartStats";
+const STATS_DAYS_STORAGE_KEY = "priceChartStatsDays";
 
 let chart = null; // controlador do Lightweight Charts (criado uma vez no init)
 let picker = null; // seletor de moeda do título
@@ -37,7 +40,15 @@ const view = {
   mode: readStoredMode(),
   openOrders: null, // { buys, sells } da moeda aberta; null enquanto carrega
   showProjected: readStored(PROJECTED_STORAGE_KEY) === "1",
+  // faixa estatística: ligada?, horizonte em dias e volatilidade da moeda aberta
+  showStats: readStored(STATS_STORAGE_KEY) === "1",
+  statsDays: clampStatsDays(Number(readStored(STATS_DAYS_STORAGE_KEY)) || 30),
+  vol: null, // { sigmaDaily, days, price } | null (sem dados) | undefined (carregando)
 };
+
+function clampStatsDays(n) {
+  return Math.min(365, Math.max(1, Math.round(n)));
+}
 
 function readStored(key) {
   try {
@@ -127,8 +138,78 @@ function render(extra = {}) {
     orders: ordersOnChart(view.points, view.asset),
     openOrders: view.openOrders,
     projectedAvg: projectedAvg(),
+    statBand: statBand(),
     ...extra,
   });
+}
+
+// ---------------------------------------------------------------------------
+// faixa estatística (volatilidade histórica)
+// ---------------------------------------------------------------------------
+
+// linhas ±1σ no gráfico (só com a faixa ligada e a volatilidade calculada)
+function statBand() {
+  if (!view.showStats || !view.vol) return null;
+  return { ...priceBand(view.vol.price, view.vol.sigmaDaily, view.statsDays, 1), days: view.statsDays };
+}
+
+// volatilidade vem das velas diárias do último ano, independente do tamanho de vela na tela
+async function loadVolatility(asset) {
+  view.vol = undefined;
+  renderStats();
+  try {
+    const data = await getKlines(asset, "1d");
+    if (view.asset !== asset) return;
+    view.vol = dailyVolatility(data.points || []);
+  } catch {
+    if (view.asset !== asset) return;
+    view.vol = null;
+  }
+  renderStats();
+  render();
+}
+
+const pctText = (p) => (p === null ? "--" : p < 0.01 ? "< 1%" : p > 0.99 ? "> 99%" : `${Math.round(p * 100)}%`);
+
+function renderStats() {
+  const box = document.getElementById("price-chart-stats-box");
+  if (!box) return;
+  box.hidden = !view.showStats;
+  if (!view.showStats) return;
+
+  const disclaimer =
+    '<p class="stats-disclaimer">⚠ Estatística baseada em quanto a moeda oscilou no último ano, supondo que continue igual e sem tendência. <b>Não é previsão</b>: notícias e mudanças de mercado ignoram isso.</p>';
+
+  if (view.vol === undefined) {
+    box.innerHTML = '<span class="mini-spinner"></span> Calculando volatilidade...';
+    return;
+  }
+  if (!view.vol) {
+    box.innerHTML = `Sem histórico diário suficiente (mínimo de 30 dias) para calcular a faixa.${disclaimer}`;
+    return;
+  }
+
+  const { price, sigmaDaily } = view.vol;
+  const n = view.statsDays;
+  const typical = priceBand(price, sigmaDaily, n, 1);
+  const wide = priceBand(price, sigmaDaily, n, 1.96);
+  const pct = (v) => `${v >= price ? "+" : ""}${(((v - price) / price) * 100).toFixed(1).replace(".", ",")}%`;
+
+  const lines = [
+    `Volatilidade histórica (${view.vol.days} dias): <b>${annualizedPct(sigmaDaily).toFixed(0)}% ao ano</b> · ${(sigmaDaily * 100).toFixed(1).replace(".", ",")}% ao dia`,
+    `Em <b>${n} dia${n > 1 ? "s" : ""}</b>, faixa típica (~68% das vezes): <b>${formatPrice(typical.low)} a ${formatPrice(typical.high)}</b> <span class="muted">(${pct(typical.low)} / ${pct(typical.high)})</span>`,
+    `Faixa ampla (~95% das vezes): ${formatPrice(wide.low)} a ${formatPrice(wide.high)} <span class="muted">(${pct(wide.low)} / ${pct(wide.high)})</span>`,
+  ];
+
+  // chance de o preço tocar o preço médio (e o projetado, se ligado) dentro do horizonte
+  const avg = positionOf(view.asset).avg;
+  const proj = projectedAvg();
+  const touch = (label, target) =>
+    `Chance aproximada de tocar ${label} (${formatPrice(target)}) em ${n} dias: <b>${pctText(touchProbability(price, target, sigmaDaily, n))}</b>`;
+  if (avg) lines.push(touch("seu preço médio", avg));
+  if (proj) lines.push(touch("o médio após compras abertas", proj));
+
+  box.innerHTML = lines.map((l) => `<div>${l}</div>`).join("") + disclaimer;
 }
 
 // Arrastou até o começo dos dados: busca a página anterior de velas e coloca no início
@@ -212,6 +293,7 @@ export function initPriceChartModal() {
     if (!view.points || state.positionsLoading) return;
     render();
     renderInfo();
+    renderStats(); // chance de tocar o preço médio depende do preço médio
   });
 
   initBuySimulator();
@@ -232,6 +314,26 @@ export function initPriceChartModal() {
   projectedInput?.addEventListener("change", () => {
     view.showProjected = projectedInput.checked;
     writeStored(PROJECTED_STORAGE_KEY, view.showProjected ? "1" : "0");
+    render();
+    renderStats();
+  });
+
+  const statsInput = document.getElementById("price-chart-stats");
+  const statsDaysInput = document.getElementById("price-chart-stats-days");
+  if (statsInput) statsInput.checked = view.showStats;
+  if (statsDaysInput) statsDaysInput.value = view.statsDays;
+  statsInput?.addEventListener("change", () => {
+    view.showStats = statsInput.checked;
+    writeStored(STATS_STORAGE_KEY, view.showStats ? "1" : "0");
+    if (view.showStats && view.vol === null && view.asset) loadVolatility(view.asset);
+    renderStats();
+    render();
+  });
+  statsDaysInput?.addEventListener("change", () => {
+    view.statsDays = clampStatsDays(Number(statsDaysInput.value) || 30);
+    statsDaysInput.value = view.statsDays;
+    writeStored(STATS_DAYS_STORAGE_KEY, String(view.statsDays));
+    renderStats();
     render();
   });
 
@@ -268,6 +370,9 @@ export function openPriceChart(asset) {
   view.asset = asset;
   view.points = null;
   view.openOrders = null;
+  view.vol = null;
+  if (view.showStats) loadVolatility(asset);
+  else renderStats();
   if (!view.interval) view.interval = recommendedInterval(rangeDays(view.range));
   const modal = document.getElementById("price-chart-modal");
   if (modal) modal.style.display = "flex";
@@ -290,6 +395,7 @@ export function openPriceChart(asset) {
     if (view.asset !== asset) return;
     view.openOrders = openOrders;
     updateProjectedAvailability();
+    renderStats(); // o médio projetado depende das ordens abertas
     if (view.points && isOpen()) render();
   });
 }

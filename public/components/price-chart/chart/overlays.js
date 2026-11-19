@@ -10,6 +10,7 @@ export const COLORS = {
   down: "#ff7272",
   line: "#4dd4ff",
   avg: "rgba(247, 147, 26, 0.95)",
+  band: "rgba(155, 176, 214, 0.75)",
   projected: "rgba(196, 140, 255, 0.95)",
   openBuy: "rgba(82, 255, 168, 0.6)",
   openSell: "rgba(255, 114, 114, 0.6)",
@@ -27,10 +28,17 @@ function openOrderTitle(prefix, it) {
  * Recria as linhas de preço da série (remove as anteriores) e devolve as novas.
  * opts = { avg, projectedAvg, openOrders }   hidden = { openBuys, openSells }
  */
-export function drawPriceLines(series, previousLines, { avg, projectedAvg, openOrders }, hidden) {
+export function drawPriceLines(series, previousLines, { avg, projectedAvg, openOrders, statBand }, hidden) {
   for (const line of previousLines) series.removePriceLine(line);
   const lines = [];
   const add = (o) => lines.push(series.createPriceLine({ axisLabelVisible: true, ...o }));
+
+  // faixa estatística típica (±1σ) em N dias
+  if (statBand) {
+    const style = { color: COLORS.band, lineWidth: 1, lineStyle: LWC.LineStyle.SparseDotted };
+    add({ ...style, price: statBand.high, title: `Faixa ${statBand.days}d (alta)` });
+    add({ ...style, price: statBand.low, title: `Faixa ${statBand.days}d (baixa)` });
+  }
 
   if (avg) add({ price: avg, color: COLORS.avg, lineWidth: 2, lineStyle: LWC.LineStyle.Dashed, title: "Preço médio" });
   if (projectedAvg) {

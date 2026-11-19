@@ -8,6 +8,52 @@
   margin: 0 0 4px;
 }
 
+/* número de dias da faixa estatística, dentro do rótulo do checkbox */
+.price-chart-sim-toggle .stats-days {
+  width: 56px;
+  height: auto;
+  padding: 3px 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  accent-color: auto;
+  cursor: text;
+}
+
+/* quadro da faixa estatística (acima do gráfico) */
+.price-chart-stats {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  background: rgba(155, 176, 214, 0.06);
+  border: 1px solid rgba(155, 176, 214, 0.15);
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #e5ecff;
+}
+
+.price-chart-stats[hidden] {
+  display: none;
+}
+
+.price-chart-stats .mini-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-width: 2px;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+.price-chart-stats .stats-disclaimer {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 /* o cabeçalho fica acima do corpo (gráfico) para a lista de moedas abrir por cima dele */
 .price-chart-content .modal-header {
   position: relative;
