@@ -2,27 +2,21 @@
 import { state } from "../../core/state.js";
 import { formatPrice } from "../../core/format.js";
 import { getChartData, loadMyOrders, loadOpenOrders, ordersOnChart } from "./chartData.js";
-import { renderPriceChart } from "./chartRender.js";
-import {
-  avgAfterBuys,
-  buyTargetPlugin,
-  initBuySimulator,
-  isSimEnabled,
-  resetSimPointer,
-  setSimContext,
-  updateSimAvailability,
-} from "./buySimulator.js";
+import { createPriceChart } from "./chartRender.js";
+import { avgAfterBuys, initBuySimulator, setSimContext, updateSimAvailability } from "./buySimulator.js";
 
 const MODE_STORAGE_KEY = "priceChartMode";
 const PROJECTED_STORAGE_KEY = "priceChartProjectedAvg";
 
-let chart = null;
+let chart = null; // controlador do Lightweight Charts (criado uma vez no init)
 const view = {
   asset: null,
   range: "30d",
   requestId: 0,
   points: null,
   interval: null,
+  loadingOlder: false,
+  reachedStart: false, // já chegou na primeira vela da moeda
   mode: readStoredMode(),
   openOrders: null, // { buys, sells } da moeda aberta; null enquanto carrega
   showProjected: readStored(PROJECTED_STORAGE_KEY) === "1",
@@ -85,17 +79,10 @@ function isOpen() {
   return !!modal && modal.style.display !== "none";
 }
 
-function destroyChart() {
-  if (chart) {
-    chart.destroy();
-    chart = null;
-  }
-}
-
-function render() {
-  const canvas = document.getElementById("priceChartCanvas");
-  if (!canvas || !view.points) return;
-  chart = renderPriceChart(canvas, chart, {
+// extra = { reset } ao carregar um período novo, { prepended } ao receber histórico antigo
+function render(extra = {}) {
+  if (!chart || !view.points) return;
+  chart.update({
     asset: view.asset,
     points: view.points,
     interval: view.interval,
@@ -104,9 +91,36 @@ function render() {
     orders: ordersOnChart(view.points, view.asset),
     openOrders: view.openOrders,
     projectedAvg: projectedAvg(),
-    tooltipEnabled: !isSimEnabled(),
-    plugins: [buyTargetPlugin],
+    ...extra,
   });
+}
+
+// Arrastou até o começo dos dados: busca a página anterior de velas e coloca no início
+async function loadOlder() {
+  if (view.loadingOlder || view.reachedStart || !view.points?.length) return;
+  view.loadingOlder = true;
+  const { requestId, asset, range } = { requestId: view.requestId, asset: view.asset, range: view.range };
+  const wrap = document.getElementById("price-chart-canvas-wrap");
+  wrap?.classList.add("is-loading-older");
+  try {
+    const data = await getChartData(asset, range, view.points[0].time);
+    if (requestId !== view.requestId) return; // trocou de moeda/período no meio
+    const first = view.points[0].time;
+    const older = (data.points || []).filter((p) => p.time < first);
+    if (!older.length) {
+      view.reachedStart = true;
+      return;
+    }
+    view.points = [...older, ...view.points];
+    render({ prepended: older.length });
+  } catch {
+    // falhou: tenta de novo no próximo arrasto
+  } finally {
+    if (requestId === view.requestId) {
+      view.loadingOlder = false;
+      wrap?.classList.remove("is-loading-older");
+    }
+  }
 }
 
 function setMode(mode) {
@@ -147,7 +161,16 @@ export function initPriceChartModal() {
     renderInfo();
   });
 
-  initBuySimulator(() => chart);
+  initBuySimulator();
+
+  const container = document.getElementById("priceChartContainer");
+  const wrap = document.getElementById("price-chart-canvas-wrap");
+  if (container && wrap && window.LightweightCharts) {
+    chart = createPriceChart(
+      { container, wrap, legend: document.getElementById("price-chart-legend") },
+      { onNeedOlder: loadOlder }
+    );
+  }
 
   const projectedInput = document.getElementById("price-chart-projected");
   projectedInput?.addEventListener("change", () => {
@@ -187,8 +210,7 @@ export function openPriceChart(asset) {
 
   document.getElementById("price-chart-title").innerText = `${asset} / USDT`;
   setSimContext({ asset, lastPrice: null });
-  resetSimPointer();
-  destroyChart(); // não mostrar (esmaecido) o gráfico da moeda anterior
+  chart?.clear(); // não mostrar (esmaecido) o gráfico da moeda anterior
   const info = document.getElementById("price-chart-info");
   if (info) info.innerHTML = "";
   updateSimAvailability();
@@ -237,9 +259,12 @@ function renderInfo() {
 
 async function loadChart() {
   const requestId = ++view.requestId;
+  view.loadingOlder = false;
+  view.reachedStart = false;
   const wrap = document.getElementById("price-chart-canvas-wrap");
   const error = document.getElementById("price-chart-error");
   wrap?.classList.add("is-loading");
+  wrap?.classList.remove("is-loading-older");
   if (error) error.hidden = true;
 
   try {
@@ -250,11 +275,12 @@ async function loadChart() {
     view.interval = data.interval;
     setSimContext({ asset: view.asset, lastPrice: view.points.at(-1)?.close ?? null });
     updateSimAvailability();
-    render();
+    render({ reset: true });
     renderInfo();
   } catch (e) {
     if (requestId !== view.requestId) return;
-    destroyChart();
+    view.points = null;
+    chart?.clear();
     if (error) {
       error.hidden = false;
       error.textContent = `Não foi possível carregar o gráfico: ${e.message}`;

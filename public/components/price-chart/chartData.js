@@ -6,11 +6,12 @@ import { fetchPriceChart, fetchExecutedOrders, fetchOpenOrdersForAsset } from ".
 const CLIENT_CACHE_MS = 60 * 1000;
 const chartCache = new Map();
 
-export async function getChartData(asset, range) {
-  const key = `${asset}|${range}`;
+// before (ms, opcional): página de velas anteriores a esse instante
+export async function getChartData(asset, range, before = null) {
+  const key = `${asset}|${range}|${before || ""}`;
   const hit = chartCache.get(key);
   if (hit && Date.now() - hit.at < CLIENT_CACHE_MS) return hit.data;
-  const data = await fetchPriceChart(asset, range);
+  const data = await fetchPriceChart(asset, range, before);
   chartCache.set(key, { at: Date.now(), data });
   return data;
 }

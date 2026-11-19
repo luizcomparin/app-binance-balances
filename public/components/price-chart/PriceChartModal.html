@@ -37,10 +37,14 @@
     </div>
     <div class="modal-body price-chart-body">
       <p id="price-chart-error" class="positions-status error" hidden></p>
+      <div class="price-chart-legend" id="price-chart-legend"></div>
       <div class="price-chart-canvas" id="price-chart-canvas-wrap">
-        <canvas id="priceChartCanvas"></canvas>
+        <div id="priceChartContainer" class="price-chart-lwc"></div>
         <div class="price-chart-overlay">
           <span class="chart-spinner"></span>
+        </div>
+        <div class="price-chart-older">
+          <span class="mini-spinner"></span>Carregando histórico...
         </div>
       </div>
     </div>

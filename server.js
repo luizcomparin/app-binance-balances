@@ -148,7 +148,14 @@ app.get("/price-chart/:asset", async (req, res) => {
 		return res.status(400).json({ error: "Moeda inválida" });
 	}
 	try {
-		res.json(await buildPriceChart(asset, String(req.query.range || "30d")));
+		const before = Number(req.query.before);
+		res.json(
+			await buildPriceChart(
+				asset,
+				String(req.query.range || "30d"),
+				Number.isFinite(before) && before > 0 ? before : null
+			)
+		);
 	} catch (e) {
 		res.status(500).json({ error: e.toString() });
 	}
@@ -877,8 +884,14 @@ function parseCustomRange(range) {
 	};
 }
 
-async function buildPriceChart(asset, range) {
-	const config = CHART_RANGES[range] || parseCustomRange(range) || CHART_RANGES["30d"];
+// Página de velas anteriores (histórico carregado ao arrastar o gráfico para o passado)
+const OLDER_PAGE_LIMIT = 500;
+
+// before (ms, opcional): busca as velas que terminam antes desse instante, no mesmo intervalo do período
+async function buildPriceChart(asset, range, before = null) {
+	const base = CHART_RANGES[range] || parseCustomRange(range) || CHART_RANGES["30d"];
+	const config = before ? { interval: base.interval, limit: OLDER_PAGE_LIMIT } : base;
+	const endParam = before ? `&endTime=${before - 1}` : "";
 	const prices = await getAllPrices();
 
 	let symbol = `${asset}USDT`;
@@ -889,8 +902,8 @@ async function buildPriceChart(asset, range) {
 		inverted = true;
 	}
 
-	return cached(`chart:${symbol}:${config.interval}:${config.limit}`, 60 * 1000, async () => {
-		const url = `${BASE_URL}/api/v3/klines?symbol=${symbol}&interval=${config.interval}&limit=${config.limit}`;
+	return cached(`chart:${symbol}:${config.interval}:${config.limit}:${before || ""}`, 60 * 1000, async () => {
+		const url = `${BASE_URL}/api/v3/klines?symbol=${symbol}&interval=${config.interval}&limit=${config.limit}${endParam}`;
 		const res = await fetch(url);
 		if (!res.ok) throw new Error(await res.text());
 		const rows = await res.json();

@@ -121,7 +121,9 @@
 }
 
 /* gráfico esmaecido + spinner central enquanto carrega */
-.price-chart-canvas canvas {
+.price-chart-lwc {
+  position: absolute;
+  inset: 0;
   transition: opacity 0.2s ease;
 }
 
@@ -134,7 +136,7 @@
   pointer-events: none;
 }
 
-.price-chart-canvas.is-loading canvas {
+.price-chart-canvas.is-loading .price-chart-lwc {
   opacity: 0.25;
 }
 
@@ -159,6 +161,157 @@
 .price-chart-canvas {
   position: relative;
   height: 420px;
+}
+
+/* legenda com liga/desliga */
+.price-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  min-height: 30px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: #e5ecff;
+}
+
+.price-chart-legend .lg-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+}
+
+.price-chart-legend .lg-item.toggle {
+  cursor: pointer;
+}
+
+.price-chart-legend .lg-item.off {
+  opacity: 0.4;
+  text-decoration: line-through;
+}
+
+.price-chart-legend .sw {
+  display: inline-block;
+  width: 18px;
+  height: 0;
+  border-top: 2px dashed;
+}
+
+.price-chart-legend .sw-avg { border-color: rgba(247, 147, 26, 0.95); }
+.price-chart-legend .sw-projected { border-color: rgba(196, 140, 255, 0.95); }
+.price-chart-legend .sw-open-buy { border-top-style: dotted; border-color: #52ffa8; }
+.price-chart-legend .sw-open-sell { border-top-style: dotted; border-color: #ff7272; }
+
+.price-chart-legend .sw-buy,
+.price-chart-legend .sw-sell {
+  width: 10px;
+  height: 10px;
+  border: none;
+  border-radius: 50%;
+  background: #52ffa8;
+}
+
+.price-chart-legend .sw-sell {
+  background: #ff7272;
+}
+
+.price-chart-legend .lg-fit {
+  margin-left: auto;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+/* tooltip / caixa do simulador sobre o gráfico */
+.lwc-tooltip {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+  max-width: 360px;
+  padding: 10px 12px;
+  background: rgba(17, 23, 46, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  color: #e5ecff;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.lwc-tooltip .tt-title {
+  color: #4dd4ff;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.lwc-tooltip .tt-title.buy,
+.lwc-tooltip .buy {
+  color: #52ffa8;
+}
+
+.lwc-tooltip .tt-title.sell,
+.lwc-tooltip .sell {
+  color: #ff7272;
+}
+
+.lwc-tooltip .tt-sep {
+  height: 1px;
+  margin: 6px 0;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.lwc-tooltip.sim.ok { border-color: rgba(82, 255, 168, 0.6); }
+.lwc-tooltip.sim.unreachable,
+.lwc-tooltip.sim.none { border-color: rgba(255, 114, 114, 0.6); }
+.lwc-tooltip .tt-sim-title { font-weight: 700; }
+.lwc-tooltip.sim.ok .tt-sim-title + div { color: #52ffa8; font-weight: 700; }
+.lwc-tooltip.sim.unreachable .tt-sim-title + div,
+.lwc-tooltip.sim.none .tt-sim-title + div { color: #ff7272; font-weight: 700; }
+
+/* ordens abertas fora da área visível */
+.lwc-offscreen {
+  position: absolute;
+  z-index: 2;
+  left: 8px;
+  padding: 1px 6px;
+  background: rgba(11, 16, 36, 0.85);
+  border-radius: 4px;
+  color: #9bb0d6;
+  font-size: 11px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.lwc-offscreen.top { top: 6px; }
+/* acima do eixo de tempo e à direita do logo da TradingView */
+.lwc-offscreen.bottom { bottom: 36px; left: 48px; }
+.lwc-offscreen[hidden] { display: none; }
+
+/* carregando histórico mais antigo (arrastou para o passado) */
+.price-chart-older {
+  position: absolute;
+  z-index: 2;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  background: rgba(11, 16, 36, 0.85);
+  border-radius: 999px;
+  color: #9bb0d6;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.price-chart-older .mini-spinner {
+  width: 12px;
+  height: 12px;
+  border-width: 2px;
+}
+
+.price-chart-canvas.is-loading-older .price-chart-older {
+  display: inline-flex;
 }
 
 /* nome da moeda clicável na tabela de saldos */

@@ -26,8 +26,9 @@ export async function fetchExecutedOrders() {
   return getJson("/executed-orders");
 }
 
-export async function fetchPriceChart(asset, range) {
-  return getJson(`/price-chart/${encodeURIComponent(asset)}?range=${encodeURIComponent(range)}`);
+export async function fetchPriceChart(asset, range, before = null) {
+  const extra = before ? `&before=${before}` : "";
+  return getJson(`/price-chart/${encodeURIComponent(asset)}?range=${encodeURIComponent(range)}${extra}`);
 }
 
 export async function fetchOpenOrdersForAsset(asset) {
