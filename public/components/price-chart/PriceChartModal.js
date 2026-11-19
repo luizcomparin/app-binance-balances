@@ -1,4 +1,4 @@
-import { fetchPriceChart } from "../../api/binance.js";
+import { fetchPriceChart, fetchExecutedOrders } from "../../api/binance.js";
 import { state } from "../../core/state.js";
 import { formatPrice, formatQty } from "../../core/format.js";
 
@@ -27,6 +27,52 @@ async function getChartData(asset, range) {
   const data = await fetchPriceChart(asset, range);
   chartCache.set(key, { at: Date.now(), data });
   return data;
+}
+
+// Suas ordens executadas (todas as moedas) — uma requisição por minuto no máximo.
+// O servidor já tem o histórico de trades em cache (é o mesmo do cálculo do P&L).
+const myOrders = { at: 0, list: null, loading: null };
+
+function loadMyOrders() {
+  if (myOrders.list && Date.now() - myOrders.at < CLIENT_CACHE_MS) return Promise.resolve(myOrders.list);
+  if (myOrders.loading) return myOrders.loading;
+  myOrders.loading = fetchExecutedOrders()
+    .then((data) => {
+      myOrders.list = data.orders || [];
+      myOrders.at = Date.now();
+      return myOrders.list;
+    })
+    .catch(() => myOrders.list || [])
+    .finally(() => {
+      myOrders.loading = null;
+    });
+  return myOrders.loading;
+}
+
+// Encaixa cada ordem da moeda na vela/ponto do gráfico em que ela aconteceu
+function ordersOnChart(points, labels) {
+  if (!myOrders.list || !points.length) return { buys: [], sells: [] };
+  const buys = [];
+  const sells = [];
+  const first = points[0].time;
+  const step = points.length > 1 ? points[1].time - points[0].time : 0;
+  const last = points.at(-1).time + step;
+
+  for (const o of myOrders.list) {
+    if (o.baseAsset !== view.asset || !o.qty || o.time < first || o.time > last) continue;
+    // busca binária: última vela com time <= o.time
+    let lo = 0;
+    let hi = points.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (points[mid].time <= o.time) lo = mid;
+      else hi = mid - 1;
+    }
+    const priceUSDT = o.totalUSDT / o.qty;
+    // x = rótulo da vela (o eixo de categorias resolve número como posição no array, não como índice)
+    (o.side === "BUY" ? buys : sells).push({ x: labels[lo], idx: lo, y: priceUSDT, order: o });
+  }
+  return { buys, sells };
 }
 
 function readStoredMode() {
@@ -236,6 +282,13 @@ export function openPriceChart(asset) {
   updateSimAvailability();
   highlightRange();
   loadChart();
+
+  // ordens chegam em paralelo ao gráfico; se vierem depois, redesenha com os pontos
+  loadMyOrders().then(() => {
+    if (view.asset !== asset || !view.points) return;
+    const modal = document.getElementById("price-chart-modal");
+    if (modal && modal.style.display !== "none") renderChart(view.points, view.interval);
+  });
 }
 
 export function closePriceChart() {
@@ -378,6 +431,26 @@ function renderChart(points, interval) {
     });
   }
 
+  // suas compras (verde) e vendas (vermelho), no preço médio de execução da ordem
+  const { buys, sells } = ordersOnChart(points, labels);
+  const markerDataset = (label, data, color) => ({
+    type: "line",
+    label,
+    myOrders: true,
+    data,
+    showLine: false,
+    pointRadius: 5,
+    pointHoverRadius: 7,
+    pointBackgroundColor: color,
+    pointBorderColor: "#0b1024",
+    pointBorderWidth: 1.5,
+    backgroundColor: color,
+    borderColor: color,
+    order: -1, // por cima de tudo
+  });
+  if (buys.length) datasets.push(markerDataset("Suas compras", buys, "#52ffa8"));
+  if (sells.length) datasets.push(markerDataset("Suas vendas", sells, "#ff7272"));
+
   if (chart) chart.destroy();
 
   chart = new Chart(ctx, {
@@ -399,7 +472,7 @@ function renderChart(points, interval) {
         },
         tooltip: {
           enabled: !sim.enabled,
-          filter: (item) => !item.dataset.isWick,
+          filter: (item) => !item.dataset.isWick && !item.dataset.myOrders,
           backgroundColor: "#11172e",
           titleColor: "#4dd4ff",
           bodyColor: "#e5ecff",
@@ -407,6 +480,26 @@ function renderChart(points, interval) {
           borderWidth: 1,
           padding: 12,
           callbacks: {
+            // ordens suas que caíram nesta vela/ponto
+            afterBody: (items) => {
+              const idx = items[0]?.dataIndex;
+              if (idx === undefined) return [];
+              const lines = [];
+              for (const m of [...buys, ...sells].filter((m) => m.idx === idx)) {
+                const o = m.order;
+                const when = new Date(o.time).toLocaleString("pt-BR", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "2-digit",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                });
+                lines.push(
+                  `${o.side === "BUY" ? "● Compra" : "● Venda"} ${when}: ${formatQty(o.qty)} ${o.baseAsset} a ${formatPrice(m.y)} (${o.totalUSDT.toFixed(2).formatCurrency()} USDT)`
+                );
+              }
+              return lines.length ? ["", ...lines] : [];
+            },
             label: (context) => {
               const p = context.dataset.ohlc?.[context.dataIndex];
               if (p) {
