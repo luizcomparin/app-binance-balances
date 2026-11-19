@@ -91,6 +91,12 @@
   background: #ff7272;
 }
 
+.price-chart-legend .lg-note {
+  color: var(--muted);
+  font-size: 12px;
+  cursor: help;
+}
+
 .price-chart-legend .lg-fit {
   margin-left: auto;
   padding: 4px 10px;

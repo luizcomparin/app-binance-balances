@@ -2,7 +2,14 @@
 // e histórico sob demanda. Sobreposições, legenda e tooltip ficam nos módulos vizinhos.
 import { isSimEnabled, simBox } from "../buySimulator.js";
 import { formatAxisPrice, formatChartTime, fromChartTime, INTRADAY, priceFormatFor, toChartTime } from "./axis.js";
-import { buildMarkers, COLORS, drawPriceLines, offscreenSummary, visibleMyOrders } from "./overlays.js";
+import {
+  buildMarkers,
+  COLORS,
+  drawPriceLines,
+  markerSizeScale,
+  offscreenSummary,
+  visibleMyOrders,
+} from "./overlays.js";
 import { createLegend } from "./legend.js";
 import { candleTooltipHtml, createTooltip, ordersTooltipHtml, simTooltipHtml } from "./tooltip.js";
 
@@ -175,7 +182,8 @@ export function createPriceChart(els, handlers = {}) {
   // linhas de preço, marcadores e legenda (tudo que depende de opts/hidden)
   function drawOverlays() {
     s.priceLines = drawPriceLines(s.series, s.priceLines, s.opts, s.hidden);
-    s.markersApi.setMarkers(buildMarkers(visibleMyOrders(s.opts.orders, s.hidden), s.points, s.interval));
+    s.sizeOf = markerSizeScale(s.opts.orders);
+    s.markersApi.setMarkers(buildMarkers(visibleMyOrders(s.opts.orders, s.hidden), s.points, s.interval, s.sizeOf));
     renderLegend(s.opts, s.hidden);
   }
 
@@ -255,10 +263,10 @@ export function createPriceChart(els, handlers = {}) {
     const currentPrice = s.points.at(-1)?.close ?? null;
     const atCandle = visibleMyOrders(s.opts.orders, s.hidden).filter((m) => m.idx === idx);
 
-    // mouse em cima de um marcador → detalhes da(s) ordem(ns)
+    // mouse em cima de um marcador → detalhes da(s) ordem(ns); bolinhas maiores têm área maior
     const hovered = atCandle.filter((m) => {
       const y = s.series.priceToCoordinate(m.y);
-      return y !== null && Math.abs(y - param.point.y) <= 8;
+      return y !== null && Math.abs(y - param.point.y) <= 4 + 4 * (s.sizeOf?.(m) ?? 1);
     });
     if (hovered.length) return tooltip.show(param.point, ordersTooltipHtml(hovered, currentPrice));
 

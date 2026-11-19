@@ -24,6 +24,9 @@ export function createLegend(el, { onToggle, onFit }) {
     if (projectedAvg) items.push(item("sw-projected", `Médio após compras abertas: ${formatPrice(projectedAvg)}`));
     if (orders.buys.length) items.push(item("sw-buy", `Suas compras (${orders.buys.length})`, "myBuys"));
     if (orders.sells.length) items.push(item("sw-sell", `Suas vendas (${orders.sells.length})`, "mySells"));
+    if (orders.buys.length + orders.sells.length >= 4) {
+      items.push(`<span class="lg-note" title="Bolinhas maiores = ordens de maior valor em USDT (por faixa, comparando as ordens desta moeda)">● tamanho = valor</span>`);
+    }
     if (openOrders?.buys.length) items.push(item("sw-open-buy", `Compras abertas (${openOrders.buys.length})`, "openBuys"));
     if (openOrders?.sells.length) items.push(item("sw-open-sell", `Vendas abertas (${openOrders.sells.length})`, "openSells"));
     items.push(`<button type="button" class="ghost lg-fit" data-action="fit" title="Enquadrar todo o período carregado">Ajustar zoom</button>`);

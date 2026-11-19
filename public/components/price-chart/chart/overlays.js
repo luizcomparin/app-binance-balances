@@ -60,8 +60,25 @@ export function visibleMyOrders(orders, hidden) {
   return [...(hidden.myBuys ? [] : orders.buys), ...(hidden.mySells ? [] : orders.sells)];
 }
 
-// Marcadores (bolinhas) das suas ordens, no preço exato de execução
-export function buildMarkers(myOrders, points, interval) {
+// Tamanhos das bolinhas por faixa de valor (USDT) da ordem: do 1º ao 4º quartil
+const MARKER_SIZES = [0.6, 1, 1.6, 2.4];
+
+/**
+ * Escala de tamanho por valor da ordem, relativa às ordens desta moeda (compras e vendas juntas):
+ * os limites são os quartis dos totais em USDT, então a diferença aparece mesmo quando todas
+ * as ordens são pequenas. Com menos de 4 ordens, todas ficam com o tamanho padrão.
+ * Retorna (m) => size.
+ */
+export function markerSizeScale(orders) {
+  const totals = [...orders.buys, ...orders.sells].map((m) => m.order.totalUSDT).sort((a, b) => a - b);
+  if (totals.length < 4) return () => 1;
+  const q = (p) => totals[Math.min(totals.length - 1, Math.floor(p * totals.length))];
+  const limits = [q(0.25), q(0.5), q(0.75)];
+  return (m) => MARKER_SIZES[limits.filter((l) => m.order.totalUSDT >= l).length];
+}
+
+// Marcadores (bolinhas) das suas ordens, no preço exato de execução; tamanho = valor da ordem
+export function buildMarkers(myOrders, points, interval, sizeOf) {
   const markers = [];
   for (const m of myOrders) {
     const p = points[m.idx];
@@ -72,7 +89,7 @@ export function buildMarkers(myOrders, points, interval) {
       price: m.y,
       color: m.order.side === "BUY" ? COLORS.up : COLORS.down,
       shape: "circle",
-      size: 1,
+      size: sizeOf(m),
     });
   }
   return markers.sort((a, b) => a.time - b.time);
