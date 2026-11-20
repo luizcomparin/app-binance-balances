@@ -266,7 +266,24 @@
   pointer-events: none;
 }
 
-.lwc-offscreen.top { top: 6px; }
+/* barra do canto superior esquerdo: ordens acima + resumo (par · vela · período) */
+.lwc-topbar {
+  position: absolute;
+  z-index: 2;
+  top: 6px;
+  left: 8px;
+  display: flex;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.lwc-topbar .lwc-offscreen {
+  position: static;
+}
+
+.lwc-offscreen.summary {
+  color: #c9d6f2;
+}
 /* acima do eixo de tempo e à direita do logo da TradingView */
 .lwc-offscreen.bottom { bottom: 36px; left: 48px; }
 .lwc-offscreen[hidden] { display: none; }

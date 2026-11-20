@@ -18,6 +18,7 @@ import { fetchFuturesData, fetchLiquidationMap } from "../../api/binance.js";
 import { formatUsdShort } from "./chart/liquidationOverlay.js";
 import { FUTURES_HELP } from "./chart/futuresPanes.js";
 import { initOrderHistory, setHistoryAsset, showHistory } from "./orderHistoryTable.js";
+import { initTradeHistory, setTradesAsset, showTrades } from "./tradeHistoryTable.js";
 import { annualizedPct, dailyVolatility, priceBand, touchProbability } from "./volatility.js";
 import {
   clampWindow,
@@ -49,7 +50,7 @@ const LIQ_CACHE_MS = 2 * 60 * 1000;
 const FUT_STORAGE_KEY = "priceChartFutures";
 // período dos dados de futuros por tamanho de vela (a Binance tem 1h/4h/1d; S e M usam o diário)
 const FUT_PERIOD = { "1h": "1h", "4h": "4h" };
-const ORDERS_TAB_STORAGE_KEY = "priceChartOrdersTab"; // aba abaixo do gráfico: open | history
+const ORDERS_TAB_STORAGE_KEY = "priceChartOrdersTab"; // aba abaixo do gráfico: open | history | trades
 
 let chart = null; // controlador do Lightweight Charts (criado uma vez no init)
 let picker = null; // seletor de moeda do título
@@ -165,6 +166,21 @@ function updateProjectedAvailability() {
 // render
 // ---------------------------------------------------------------------------
 
+// resumo no canto do gráfico: "BTC/USDT · 4h · 30 dias"
+const INTERVAL_LABELS = { "1h": "1h", "4h": "4h", "1d": "Diário", "1w": "Semanal", "1M": "Mensal" };
+const RANGE_LABELS = { "7d": "7 dias", "30d": "30 dias", "90d": "90 dias", "6m": "6 meses", "1y": "1 ano", "2y": "2 anos", all: "Tudo" };
+
+function chartSummary() {
+  if (!view.asset) return "";
+  let range = RANGE_LABELS[view.range];
+  const custom = !range && /^(\d+)([dmy])$/.exec(view.range);
+  if (custom) {
+    const n = Number(custom[1]);
+    range = `${n} ${{ d: ["dia", "dias"], m: ["mês", "meses"], y: ["ano", "anos"] }[custom[2]][n === 1 ? 0 : 1]}`;
+  }
+  return [`${view.asset}/USDT`, INTERVAL_LABELS[view.interval] || view.interval, range].filter(Boolean).join(" · ");
+}
+
 // a aba do gráfico está na tela? (fora dela, o que mudar é redesenhado ao voltar)
 function isOpen() {
   return isTabActive(PANEL_TAB);
@@ -186,6 +202,7 @@ function render(extra = {}) {
     fixedAvg: view.showDca ? view.dca?.yourAvg ?? null : null,
     dcaAvg: view.showDca ? view.dca?.dcaAvg ?? null : null,
     indicators: getIndicators(),
+    summary: chartSummary(),
     liquidation: view.showLiq && view.liq?.available ? view.liq : null,
     futures: futuresForChart(),
     ...extra,
@@ -772,6 +789,7 @@ export function openPriceChart(asset) {
   updateProjectedAvailability();
   renderOrdersTable();
   setHistoryAsset(asset, ordersTab === "history");
+  setTradesAsset(asset, ordersTab === "trades");
   highlightRange();
   loadChart();
 
@@ -799,7 +817,7 @@ function renderOrdersTable() {
 // abas abaixo do gráfico: Ordens abertas | Histórico de ordens
 // ---------------------------------------------------------------------------
 
-let ordersTab = readStored(ORDERS_TAB_STORAGE_KEY) === "history" ? "history" : "open";
+let ordersTab = ["history", "trades"].includes(readStored(ORDERS_TAB_STORAGE_KEY)) ? readStored(ORDERS_TAB_STORAGE_KEY) : "open";
 
 function showOrdersTab(tab) {
   ordersTab = tab;
@@ -812,17 +830,27 @@ function showOrdersTab(tab) {
   document.querySelectorAll("#price-chart-orders .pco-pane").forEach((p) => {
     p.hidden = p.dataset.pcoPane !== tab;
   });
-  if (tab === "history") showHistory(); // carrega só quando a aba é aberta
+  // carregam só quando a aba é aberta
+  if (tab === "history") showHistory();
+  if (tab === "trades") showTrades();
 }
 
 function initOrdersTabs() {
   initOrderHistory({
     list: document.getElementById("pco-history"),
-    presets: document.querySelectorAll("#price-chart-orders [data-period]"),
+    presets: document.querySelectorAll("[data-pco-pane=\"history\"] [data-period]"),
     from: document.getElementById("pco-from"),
     to: document.getElementById("pco-to"),
     search: document.getElementById("pco-search"),
     reset: document.getElementById("pco-reset"),
+  });
+  initTradeHistory({
+    list: document.getElementById("pco-trades"),
+    presets: document.querySelectorAll("[data-pco-pane=\"trades\"] [data-period]"),
+    from: document.getElementById("pct-from"),
+    to: document.getElementById("pct-to"),
+    search: document.getElementById("pct-search"),
+    reset: document.getElementById("pct-reset"),
   });
   document.querySelectorAll("#price-chart-orders .pco-tab").forEach((b) => {
     b.addEventListener("click", () => showOrdersTab(b.dataset.pcoTab));

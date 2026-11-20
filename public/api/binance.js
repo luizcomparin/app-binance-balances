@@ -49,6 +49,11 @@ export async function fetchFuturesData(asset, period) {
   return getJson(`/futures-data/${encodeURIComponent(asset)}?period=${period}`);
 }
 
+// Histórico de trades (execuções) de uma moeda: { trades, errors }
+export async function fetchAssetTrades(asset) {
+  return getJson(`/trade-history/${encodeURIComponent(asset)}`);
+}
+
 export async function fetchOpenOrdersForAsset(asset) {
   const json = await getJson(`/orders/${encodeURIComponent(asset)}`);
   return Array.isArray(json) ? json : [];

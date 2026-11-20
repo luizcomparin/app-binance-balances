@@ -3,10 +3,9 @@
 import { fetchOrderHistory } from "../../api/binance.js";
 import { formatDateTime, formatPrice, formatQty } from "../../core/format.js";
 import { quoteAmount, triggerText, typeLabel } from "./openOrdersTable.js";
+import { createPeriodFilter } from "./periodFilter.js";
 
 const CACHE_MS = 60 * 1000;
-const DAY = 24 * 60 * 60 * 1000;
-const PRESET_DAYS = { "1d": 1, "7d": 7, "30d": 30, "90d": 90, all: Infinity };
 const DEFAULT_PRESET = "90d"; // como na Binance: 3 meses
 
 const STATUS_LABELS = {
@@ -29,9 +28,7 @@ const hist = {
   asset: null,
   orders: undefined, // lista | undefined (carregando/não carregado) | null (erro)
   cache: new Map(), // asset -> { at, orders }
-  preset: DEFAULT_PRESET, // null = datas escolhidas à mão
-  from: 0,
-  to: 0,
+  period: null, // filtro de período (periodFilter.js)
   sort: { key: "time", dir: -1 },
   expanded: new Set(),
 };
@@ -41,34 +38,6 @@ const statusLabel = (s) => STATUS_LABELS[s] || s;
 const orderKey = (o) => `${o.symbol}:${o.orderId}`;
 // sem nada executado e não "executada": cancelada/expirada sem execução → linha esmaecida
 const isEmpty = (o) => !o.executedQty && o.status !== "FILLED";
-
-// "2026-11-19" no fuso local
-function dateInputValue(ms) {
-  const d = new Date(ms);
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-function applyPreset(preset) {
-  hist.preset = preset;
-  hist.to = Date.now();
-  hist.from = preset === "all" ? 0 : hist.to - PRESET_DAYS[preset] * DAY;
-  syncFilters();
-}
-
-// depois de trocar o período: rola até o fim da página para a lista ficar à vista
-function scrollToEnd() {
-  requestAnimationFrame(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" }));
-}
-
-function syncFilters() {
-  const { els } = hist;
-  els.presets.forEach((b) => b.classList.toggle("active", b.dataset.period === hist.preset));
-  // "Tudo": a data inicial mostrada é a da ordem mais antiga (vazia enquanto carrega)
-  const oldest = Array.isArray(hist.orders) && hist.orders.length ? Math.min(...hist.orders.map((o) => o.time)) : null;
-  els.from.value = hist.from ? dateInputValue(hist.from) : oldest ? dateInputValue(oldest) : "";
-  els.to.value = dateInputValue(hist.to);
-}
 
 // ---------------------------------------------------------------------------
 // render
@@ -141,7 +110,7 @@ function headerHtml() {
 function render() {
   const el = hist.els?.list;
   if (!el) return;
-  if (hist.preset === "all") syncFilters();
+  hist.period?.dataChanged();
   if (hist.orders === undefined) {
     el.innerHTML = '<p class="pco-empty"><span class="mini-spinner"></span> Carregando histórico de ordens...</p>';
     return;
@@ -151,7 +120,7 @@ function render() {
     return;
   }
 
-  const inPeriod = hist.orders.filter((o) => o.time >= hist.from && o.time <= hist.to);
+  const inPeriod = hist.orders.filter((o) => hist.period.contains(o.time));
   if (!inPeriod.length) {
     el.innerHTML = `<p class="pco-empty">Nenhuma ordem de ${hist.asset} encerrada neste período.</p>`;
     return;
@@ -200,30 +169,10 @@ async function load(asset) {
 /** Liga filtros, ordenação e expansão. els = { pane, list, presets, from, to, search, reset } */
 export function initOrderHistory(els) {
   hist.els = els;
-  applyPreset(DEFAULT_PRESET);
-
-  els.presets.forEach((b) =>
-    b.addEventListener("click", () => {
-      applyPreset(b.dataset.period);
-      render();
-      scrollToEnd();
-    })
-  );
-  els.search.addEventListener("click", () => {
-    const from = els.from.value ? new Date(`${els.from.value}T00:00:00`).getTime() : NaN;
-    const to = els.to.value ? new Date(`${els.to.value}T23:59:59.999`).getTime() : NaN;
-    if (!Number.isFinite(from) || !Number.isFinite(to) || from > to) return;
-    hist.preset = null;
-    hist.from = from;
-    hist.to = to;
-    syncFilters();
-    render();
-    scrollToEnd();
-  });
-  els.reset.addEventListener("click", () => {
-    applyPreset(DEFAULT_PRESET);
-    render();
-    scrollToEnd();
+  hist.period = createPeriodFilter(els, {
+    defaultPreset: DEFAULT_PRESET,
+    oldest: () => (Array.isArray(hist.orders) && hist.orders.length ? Math.min(...hist.orders.map((o) => o.time)) : null),
+    onChange: render,
   });
 
   els.list.addEventListener("click", (e) => {
@@ -255,7 +204,6 @@ export function setHistoryAsset(asset, visible) {
 /** A aba ficou visível: carrega (ou usa o cache) da moeda atual. */
 export function showHistory() {
   if (!hist.asset) return;
-  // o "agora" dos períodos prontos avança enquanto a página fica aberta
-  if (hist.preset) applyPreset(hist.preset);
+  hist.period?.refresh();
   load(hist.asset);
 }

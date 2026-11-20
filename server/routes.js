@@ -6,6 +6,7 @@ import { buildOpenOrders, groupOrdersByAsset } from "./services/openOrders.js";
 import { buildExecutedOrders } from "./services/executedOrders.js";
 import { buildPriceChart, CHART_INTERVALS } from "./services/priceChart.js";
 import { buildOrderHistory } from "./services/orderHistory.js";
+import { buildAssetTrades } from "./services/assetTrades.js";
 import { buildLiquidationMap } from "./services/liquidationMap.js";
 import { buildFuturesData, FUTURES_PERIODS } from "./services/futuresData.js";
 
@@ -59,6 +60,13 @@ export function registerRoutes(app) {
 			return res.status(400).json({ error: "Moeda inválida" });
 		}
 		return handle(() => buildOrderHistory(asset))(req, res, next);
+	});
+
+	// Histórico de trades (execuções) de uma moeda, com taxa, maker/taker e total em USDT
+	app.get("/trade-history/:asset", (req, res, next) => {
+		const asset = String(req.params.asset).toUpperCase();
+		if (!/^[A-Z0-9]{1,20}$/.test(asset)) return res.status(400).json({ error: "Moeda inválida" });
+		return handle(() => buildAssetTrades(asset))(req, res, next);
 	});
 
 	// Mapa de liquidação estimado de uma moeda (futuros perpétuos: open interest + long/short, 30 dias)

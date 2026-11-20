@@ -745,6 +745,13 @@
   color: var(--muted);
 }
 
+/* nº da ordem (como o link sublinhado da Binance) */
+.price-chart-orders .pco-mono {
+  color: #c9d6f2;
+  text-decoration: underline dotted rgba(155, 176, 214, 0.5);
+  text-underline-offset: 3px;
+}
+
 .price-chart-orders .pco-tag {
   margin-left: 4px;
   padding: 1px 5px;

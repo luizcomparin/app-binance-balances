@@ -89,7 +89,14 @@ export function createPriceChart(els, handlers = {}) {
   offTop.className = "lwc-offscreen top";
   const offBottom = document.createElement("div");
   offBottom.className = "lwc-offscreen bottom";
-  wrap.append(offTop, offBottom);
+  // canto superior esquerdo: "↑ 7 vendas acima" + resumo do que está na tela (par · vela · período)
+  const summary = document.createElement("div");
+  summary.className = "lwc-offscreen summary";
+  summary.hidden = true;
+  const topBar = document.createElement("div");
+  topBar.className = "lwc-topbar";
+  topBar.append(offTop, summary);
+  wrap.append(topBar, offBottom);
 
   const renderLegend = createLegend(els.legend, {
     onToggle(key) {
@@ -467,6 +474,8 @@ export function createPriceChart(els, handlers = {}) {
 
       drawOverlays();
       drawIndicators();
+      summary.textContent = opts.summary || "";
+      summary.hidden = !opts.summary;
       liquidation.setData(opts.liquidation || null);
       // primeiro a altura final do gráfico, depois os painéis (as alturas deles partem dela)
       wrap.classList.toggle("with-futures", !!opts.futures);
@@ -499,6 +508,7 @@ export function createPriceChart(els, handlers = {}) {
       s.opts = null;
       if (els.legend) els.legend.innerHTML = "";
       offTop.hidden = offBottom.hidden = true;
+      summary.hidden = true;
       tooltip.hide();
     },
   };
