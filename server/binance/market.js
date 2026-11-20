@@ -73,7 +73,7 @@ export async function getSymbolInfo() {
 	const { symbols } = await publicGet("/api/v3/exchangeInfo");
 	const map = {};
 	for (const s of symbols) {
-		map[s.symbol] = { baseAsset: s.baseAsset, quoteAsset: s.quoteAsset };
+		map[s.symbol] = { baseAsset: s.baseAsset, quoteAsset: s.quoteAsset, status: s.status };
 	}
 
 	symbolInfoCache = map;

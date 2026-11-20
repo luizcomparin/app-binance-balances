@@ -25,12 +25,19 @@ export async function getAllOrders(symbol) {
 
 // Cache incremental de trades por símbolo: na 1ª vez baixa tudo (paginando por
 // fromId), depois só busca trades com id maior que o último conhecido.
+// Cada consulta pesa 20 e a carteira cruza centenas de pares, então o intervalo depende do par:
+//   - par que não negocia mais (delistado/pausado): consultado uma única vez;
+//   - par sem nenhum trade seu: a cada 30 min (é raro começar a negociar um par novo);
+//   - par com trades: a cada 5 min.
 const TRADES_TTL_MS = 5 * 60 * 1000;
+const EMPTY_TRADES_TTL_MS = 30 * 60 * 1000;
 const tradesCache = new Map(); // symbol -> { trades, lastSync }
 
-export async function getAllMyTrades(symbol) {
+export async function getAllMyTrades(symbol, { tradable = true } = {}) {
 	const entry = tradesCache.get(symbol) || { trades: [], lastSync: 0 };
-	if (Date.now() - entry.lastSync < TRADES_TTL_MS) return entry.trades;
+	if (entry.lastSync && !tradable) return entry.trades;
+	const ttl = entry.trades.length ? TRADES_TTL_MS : EMPTY_TRADES_TTL_MS;
+	if (Date.now() - entry.lastSync < ttl) return entry.trades;
 
 	let fromId = entry.trades.length ? entry.trades.at(-1).id + 1 : 0;
 

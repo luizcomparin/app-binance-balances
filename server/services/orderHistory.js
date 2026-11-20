@@ -19,7 +19,7 @@ export async function buildOrderHistory(asset) {
 	const errors = [];
 	await mapLimit(symbols, 4, async (symbol) => {
 		try {
-			const [list, trades] = await Promise.all([getAllOrders(symbol), getAllMyTrades(symbol)]);
+			const [list, trades] = await Promise.all([getAllOrders(symbol), getAllMyTrades(symbol, { tradable: symbolInfo[symbol]?.status === "TRADING" })]);
 			if (!list.length) return;
 
 			const fillsByOrder = new Map();

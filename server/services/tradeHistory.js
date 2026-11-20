@@ -100,7 +100,7 @@ async function fetchTradeHistory() {
 
 	await mapLimit(jobs, 4, async ({ asset, symbol }) => {
 		try {
-			const trades = await getAllMyTrades(symbol);
+			const trades = await getAllMyTrades(symbol, { tradable: symbolInfo[symbol]?.status === "TRADING" });
 			if (trades.length) (tradesByAsset[asset] ||= []).push(...trades);
 		} catch (err) {
 			// rate limit: aborta tudo em vez de martelar a API
