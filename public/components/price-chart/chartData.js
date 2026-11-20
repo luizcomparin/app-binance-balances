@@ -41,7 +41,8 @@ export function loadMyOrders() {
   return myOrders.loading;
 }
 
-// Ordens abertas por moeda, já convertidas para USDT: { buys, sells }, cada item = { priceUSDT, qty, order }
+// Ordens abertas por moeda, já convertidas para USDT: { buys, sells, all }, cada item de buys/sells =
+// { priceUSDT, qty, order }; all = lista crua de todas as ordens (null se a requisição falhou)
 const openOrdersCache = new Map();
 
 export async function loadOpenOrders(asset) {
@@ -49,7 +50,7 @@ export async function loadOpenOrders(asset) {
   if (hit && Date.now() - hit.at < CLIENT_CACHE_MS) return hit.data;
 
   const raw = await fetchOpenOrdersForAsset(asset).catch(() => null);
-  if (!raw) return hit?.data || { buys: [], sells: [] };
+  if (!raw) return hit?.data || { buys: [], sells: [], all: null };
 
   const buys = [];
   const sells = [];
@@ -60,7 +61,7 @@ export async function loadOpenOrders(asset) {
     const item = { priceUSDT: price * Number(o.quotePriceUSDT), qty, order: o };
     (o.side === "BUY" ? buys : sells).push(item);
   }
-  const data = { buys, sells };
+  const data = { buys, sells, all: raw };
   openOrdersCache.set(asset, { at: Date.now(), data });
   return data;
 }

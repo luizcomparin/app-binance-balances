@@ -12,6 +12,7 @@ import { createPriceChart } from "./chart/createChart.js";
 import { avgAfterBuys, initBuySimulator, setSimContext, updateSimAvailability } from "./buySimulator.js";
 import { initAssetPicker } from "./assetPicker.js";
 import { buysOf, dcaComparison } from "./dca.js";
+import { initOpenOrdersTable, renderOpenOrdersTable } from "./openOrdersTable.js";
 import { annualizedPct, dailyVolatility, priceBand, touchProbability } from "./volatility.js";
 import {
   clampWindow,
@@ -411,6 +412,7 @@ export function initPriceChartPanel() {
   });
 
   initBuySimulator();
+  initOpenOrdersTable(document.getElementById("price-chart-orders"));
 
   // título "XRP / USDT ▾": troca de moeda direto na aba
   picker = initAssetPicker({ getCurrent: () => view.asset, onSelect: openPriceChart });
@@ -529,6 +531,7 @@ export function openPriceChart(asset) {
   if (info) info.innerHTML = "";
   updateSimAvailability();
   updateProjectedAvailability();
+  renderOrdersTable();
   highlightRange();
   loadChart();
 
@@ -540,9 +543,16 @@ export function openPriceChart(asset) {
     if (view.asset !== asset) return;
     view.openOrders = openOrders;
     updateProjectedAvailability();
+    renderOrdersTable();
     renderStats(); // o médio projetado depende das ordens abertas
     if (view.points && isOpen()) render();
   });
+}
+
+// tabela de ordens abertas abaixo do gráfico (undefined = carregando)
+function renderOrdersTable() {
+  const orders = view.openOrders ? view.openOrders.all : undefined;
+  renderOpenOrdersTable(document.getElementById("price-chart-orders"), orders, view.asset);
 }
 
 function renderInfo() {
@@ -555,10 +565,10 @@ function renderInfo() {
   if (avg !== null) {
     const diff = ((lastPrice - avg) / avg) * 100;
     const cls = diff >= 0 ? "pnl-pos" : "pnl-neg";
-    parts.push(`Preço médio: <b>${formatPrice(avg)} USDT</b>`);
-    parts.push(`<span class="${cls}">${diff >= 0 ? "+" : ""}${diff.toFixed(2).formatCurrency()}% vs. preço médio</span>`);
+    parts.push(`Preço médio dinâmico: <b>${formatPrice(avg)} USDT</b>`);
+    parts.push(`<span class="${cls}">${diff >= 0 ? "+" : ""}${diff.toFixed(2).formatCurrency()}% vs. preço médio dinâmico</span>`);
   } else if (!Object.keys(state.positions || {}).length) {
-    parts.push("Preço médio ainda sendo calculado...");
+    parts.push("Preço médio dinâmico ainda sendo calculado...");
   }
   info.innerHTML = parts.join(" · ");
 }
