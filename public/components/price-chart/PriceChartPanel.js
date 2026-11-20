@@ -858,6 +858,21 @@ function initOrdersTabs() {
   showOrdersTab(ordersTab);
 }
 
+// Dicas dos rótulos do topo (hover)
+const INFO_HELP = {
+  avg: [
+    "Quanto você pagou, em média, pelas moedas que tem hoje (o mesmo usado no P&L).",
+    "• Cada compra entra na média pelo preço pago.",
+    "• Cada venda tira moedas pelo preço médio, sem mudar a média.",
+    "• Por isso compras feitas depois de vendas pesam mais. Se o saldo zera, a média recomeça.",
+  ].join("\n"),
+  diff: [
+    "Quanto o preço atual está acima ou abaixo do seu preço médio dinâmico.",
+    "• Positivo (verde): as moedas que você tem valem mais do que custaram.",
+    "• Negativo (vermelho): valem menos. Para empatar, o preço precisa voltar ao preço médio (ex.: -20% exige uma alta de +25%).",
+  ].join("\n"),
+};
+
 function renderInfo() {
   const info = document.getElementById("price-chart-info");
   if (!info || !view.points?.length) return;
@@ -867,15 +882,20 @@ function renderInfo() {
   // valores de 1 ou mais com 2 casas (78.086,17); abaixo de 1, dígitos significativos
   const big = (v) => (v >= 1 ? v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : formatPrice(v));
   const stat = (label, value) => `<div class="pc-stat"><span class="pc-label">${label}</span><span class="pc-stat-value">${value}</span></div>`;
+  const tip = (label, help) => `<span class="help-tip" data-tip="${help}">${label}</span>`;
+  const avgLabel = tip("Preço médio dinâmico", INFO_HELP.avg);
   const blocks = [stat("Preço atual", `${big(lastPrice)} <small>USDT</small>`)];
   if (avg !== null) {
     const diff = ((lastPrice - avg) / avg) * 100;
-    blocks.push(stat("Preço médio dinâmico", `${big(avg)} <small>USDT</small>`));
+    blocks.push(stat(avgLabel, `${big(avg)} <small>USDT</small>`));
     blocks.push(
-      stat("Vs. preço médio", `<span class="pc-pill ${diff >= 0 ? "pos" : "neg"}">${diff >= 0 ? "+" : ""}${diff.toFixed(2).formatCurrency()}%</span>`)
+      stat(
+        tip("Vs. preço médio", INFO_HELP.diff),
+        `<span class="pc-pill ${diff >= 0 ? "pos" : "neg"}">${diff >= 0 ? "+" : ""}${diff.toFixed(2).formatCurrency()}%</span>`
+      )
     );
   } else if (!Object.keys(state.positions || {}).length) {
-    blocks.push(stat("Preço médio dinâmico", `<span class="pc-stat-pending"><span class="mini-spinner"></span> calculando...</span>`));
+    blocks.push(stat(avgLabel, `<span class="pc-stat-pending"><span class="mini-spinner"></span> calculando...</span>`));
   }
   info.innerHTML = blocks.join("");
 }
