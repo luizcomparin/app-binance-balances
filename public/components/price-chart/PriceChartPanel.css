@@ -183,6 +183,38 @@
   color: #e5ecff;
 }
 
+/* Bollinger: rótulo "BB" e desvios padrão */
+.price-chart-mas .pcm-kind {
+  padding: 0 4px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: help;
+}
+
+.price-chart-mas .pcm-mult-wrap {
+  display: inline-flex;
+  align-items: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.price-chart-mas .pcm-mult {
+  width: 40px;
+  text-align: right;
+  padding: 3px 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: #e5ecff;
+  font: inherit;
+  font-size: 13px;
+}
+
+.price-chart-mas .pcm-mult:hover,
+.price-chart-mas .pcm-mult:focus {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
 .price-chart-mas .pcm-add {
   padding: 4px 10px;
   font-size: 13px;

@@ -13,6 +13,7 @@ import {
 } from "./overlays.js";
 import { createLegend } from "./legend.js";
 import { maColor, maLabel, movingAverage } from "./movingAverage.js";
+import { BandFill, bollinger } from "./bollinger.js";
 import { candleTooltipHtml, createTooltip, lineHelpTooltipHtml, ordersTooltipHtml, simTooltipHtml } from "./tooltip.js";
 
 const LWC = window.LightweightCharts;
@@ -23,7 +24,7 @@ const LWC = window.LightweightCharts;
  *
  * update(opts): opts = { asset, points, interval, mode, avg, orders: { buys, sells },
  *                        openOrders: { buys, sells } | null, projectedAvg, fixedAvg, dcaAvg, window, prepended,
- *                        movingAverages: [{ id, period, type: "SMA"|"EMA", color, visible }] }
+ *                        indicators: [{ id, kind: "ma"|"bb", period, type?, mult?, color, opacity, visible }] }
  *   window: { fromMs, toMs } → mostra essa janela de tempo (novo período/moeda/vela); null → tudo
  *   prepended: n → n velas antigas foram adicionadas no início (mantém a posição da tela)
  */
@@ -43,7 +44,7 @@ export function createPriceChart(els, handlers = {}) {
     opts: null,
     hidden: { myBuys: false, mySells: false, openBuys: false, openSells: false },
     priceFormat: null, // formato do eixo (as médias móveis usam o mesmo)
-    mas: new Map(), // médias móveis: id -> { series, points, key, values }
+    inds: new Map(), // indicadores: id -> { series: [...], fill?, points, key, times, values }
   };
 
   const chart = LWC.createChart(container, {
@@ -112,7 +113,7 @@ export function createPriceChart(els, handlers = {}) {
   function ensureSeries(mode) {
     if (s.series && s.mode === mode) return false;
     if (s.series) chart.removeSeries(s.series);
-    removeMovingAverages(); // recriadas depois, para ficarem por cima da nova série
+    removeIndicators(); // recriados depois, para ficarem por cima da nova série
 
     s.series =
       mode === "candle"
@@ -187,48 +188,91 @@ export function createPriceChart(els, handlers = {}) {
   }
 
   // ---------------------------------------------------------------------------
-  // médias móveis: uma série de linha por média visível
+  // indicadores: média móvel = 1 linha; Bollinger = 3 linhas (superior, média, inferior) + preenchimento
   // ---------------------------------------------------------------------------
 
-  function removeMovingAverages() {
-    for (const ma of s.mas.values()) chart.removeSeries(ma.series);
-    s.mas.clear();
+  const lineOptions = { lineWidth: 2, priceLineVisible: false, crosshairMarkerVisible: false };
+
+  function removeIndicator(ind) {
+    if (ind.fill) ind.series[0].detachPrimitive(ind.fill);
+    for (const series of ind.series) chart.removeSeries(series);
   }
 
-  function drawMovingAverages() {
-    const visible = (s.opts.movingAverages || []).filter((m) => m.visible);
-    const ids = new Set(visible.map((m) => m.id));
-    for (const [id, ma] of s.mas) {
-      if (ids.has(id)) continue;
-      chart.removeSeries(ma.series);
-      s.mas.delete(id);
+  function removeIndicators() {
+    for (const ind of s.inds.values()) removeIndicator(ind);
+    s.inds.clear();
+  }
+
+  function createIndicator(m) {
+    if (m.kind === "bb") {
+      const ind = {
+        series: [
+          chart.addSeries(LWC.LineSeries, { ...lineOptions, lineWidth: 1, lineStyle: LWC.LineStyle.Dashed }), // média
+          chart.addSeries(LWC.LineSeries, { ...lineOptions, lineWidth: 1 }), // superior
+          chart.addSeries(LWC.LineSeries, { ...lineOptions, lineWidth: 1 }), // inferior
+        ],
+        fill: new BandFill(),
+      };
+      ind.series[0].attachPrimitive(ind.fill);
+      return ind;
     }
+    return { series: [chart.addSeries(LWC.LineSeries, lineOptions)] };
+  }
+
+  // linha com ponto vazio onde ainda não há valor (aquecimento), para manter o alinhamento com as velas
+  function lineData(times, values) {
+    return times.map((time, i) => (values[i] === null ? { time } : { time, value: values[i] }));
+  }
+
+  function drawIndicators() {
+    const visible = (s.opts.indicators || []).filter((m) => m.visible);
+    const ids = new Set(visible.map((m) => m.id));
+    for (const [id, ind] of s.inds) {
+      if (ids.has(id)) continue;
+      removeIndicator(ind);
+      s.inds.delete(id);
+    }
+    const priceFormat = s.priceFormat ? { priceFormat: s.priceFormat } : {};
     for (const m of visible) {
-      let ma = s.mas.get(m.id);
-      if (!ma) {
-        ma = {
-          series: chart.addSeries(LWC.LineSeries, {
-            lineWidth: 2,
-            priceLineVisible: false,
-            crosshairMarkerVisible: false,
-          }),
-        };
-        s.mas.set(m.id, ma);
+      let ind = s.inds.get(m.id);
+      if (!ind) {
+        ind = createIndicator(m);
+        s.inds.set(m.id, ind);
       }
-      ma.series.applyOptions({ color: maColor(m), title: maLabel(m), ...(s.priceFormat ? { priceFormat: s.priceFormat } : {}) });
-      // recalcula só quando mudam as velas, o período ou o tipo
-      const key = `${m.type}|${m.period}|${s.interval}`;
-      if (ma.points === s.points && ma.key === key) continue;
-      ma.points = s.points;
-      ma.key = key;
-      ma.values = movingAverage(s.points, m.period, m.type);
-      // sem valor ainda (aquecimento): ponto vazio, para manter o alinhamento com as velas
-      ma.series.setData(
-        s.points.map((p, i) => {
-          const time = toChartTime(p.time, s.interval);
-          return ma.values[i] === null ? { time } : { time, value: ma.values[i] };
-        })
-      );
+      const color = maColor(m);
+      if (m.kind === "bb") {
+        const [basis, upper, lower] = ind.series;
+        basis.applyOptions({ color, title: `BB ${m.period} ${String(m.mult).replace(".", ",")}`, ...priceFormat });
+        upper.applyOptions({ color, ...priceFormat });
+        lower.applyOptions({ color, ...priceFormat });
+      } else {
+        ind.series[0].applyOptions({ color, title: maLabel(m), ...priceFormat });
+      }
+
+      // recalcula só quando mudam as velas ou os parâmetros; a cor do preenchimento muda sempre
+      const key = m.kind === "bb" ? `bb|${m.period}|${m.mult}|${s.interval}` : `${m.type}|${m.period}|${s.interval}`;
+      const fillColor = maColor({ color: m.color, opacity: m.opacity * 0.12 });
+      if (ind.points === s.points && ind.key === key) {
+        if (ind.fill && ind.fillColor !== fillColor) {
+          ind.fillColor = fillColor;
+          ind.fill.setData(ind.times, ind.values.upper, ind.values.lower, fillColor);
+        }
+        continue;
+      }
+      ind.points = s.points;
+      ind.key = key;
+      ind.times = s.points.map((p) => toChartTime(p.time, s.interval));
+      if (m.kind === "bb") {
+        ind.values = bollinger(s.points, m.period, m.mult);
+        ind.series[0].setData(lineData(ind.times, ind.values.basis));
+        ind.series[1].setData(lineData(ind.times, ind.values.upper));
+        ind.series[2].setData(lineData(ind.times, ind.values.lower));
+        ind.fillColor = fillColor;
+        ind.fill.setData(ind.times, ind.values.upper, ind.values.lower, fillColor);
+      } else {
+        ind.values = movingAverage(s.points, m.period, m.type);
+        ind.series[0].setData(lineData(ind.times, ind.values));
+      }
     }
   }
 
@@ -368,7 +412,7 @@ export function createPriceChart(els, handlers = {}) {
       else if (opts.window !== undefined) showWindow(opts.window);
 
       drawOverlays();
-      drawMovingAverages();
+      drawIndicators();
       scheduleOffscreen();
     },
 
@@ -389,7 +433,7 @@ export function createPriceChart(els, handlers = {}) {
         s.markersApi?.setMarkers([]);
         s.series.setData([]);
       }
-      removeMovingAverages();
+      removeIndicators();
       s.points = null;
       s.opts = null;
       if (els.legend) els.legend.innerHTML = "";

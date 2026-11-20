@@ -13,7 +13,7 @@ import { avgAfterBuys, initBuySimulator, setSimContext, updateSimAvailability } 
 import { initAssetPicker } from "./assetPicker.js";
 import { buysOf, dcaComparison } from "./dca.js";
 import { initOpenOrdersTable, renderOpenOrdersTable } from "./openOrdersTable.js";
-import { getMovingAverages, initMovingAverageControls } from "./movingAverageControls.js";
+import { getIndicators, initIndicatorControls } from "./indicatorControls.js";
 import { initOrderHistory, setHistoryAsset, showHistory } from "./orderHistoryTable.js";
 import { annualizedPct, dailyVolatility, priceBand, touchProbability } from "./volatility.js";
 import {
@@ -171,7 +171,7 @@ function render(extra = {}) {
     statBand: statBand(),
     fixedAvg: view.showDca ? view.dca?.yourAvg ?? null : null,
     dcaAvg: view.showDca ? view.dca?.dcaAvg ?? null : null,
-    movingAverages: getMovingAverages(),
+    indicators: getIndicators(),
     ...extra,
   });
 }
@@ -358,7 +358,7 @@ async function loadOlder() {
 
 // maior período entre as médias visíveis (0 = nenhuma)
 function maxMaPeriod() {
-  return Math.max(0, ...getMovingAverages().filter((m) => m.visible).map((m) => m.period));
+  return Math.max(0, ...getIndicators().filter((m) => m.visible).map((m) => m.period));
 }
 
 // Média nova/maior: se não há velas suficientes antes do que está na tela, busca a página anterior
@@ -436,7 +436,7 @@ export function initPriceChartPanel() {
   });
 
   initBuySimulator();
-  initMovingAverageControls(document.getElementById("price-chart-mas"), {
+  initIndicatorControls(document.getElementById("price-chart-mas"), {
     onChange() {
       render();
       ensureWarmup();
