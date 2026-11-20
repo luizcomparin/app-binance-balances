@@ -14,8 +14,9 @@ import { initAssetPicker } from "./assetPicker.js";
 import { buysOf, dcaComparison } from "./dca.js";
 import { initOpenOrdersTable, renderOpenOrdersTable } from "./openOrdersTable.js";
 import { getIndicators, initIndicatorControls } from "./indicatorControls.js";
-import { fetchLiquidationMap } from "../../api/binance.js";
+import { fetchFuturesData, fetchLiquidationMap } from "../../api/binance.js";
 import { formatUsdShort } from "./chart/liquidationOverlay.js";
+import { FUTURES_HELP } from "./chart/futuresPanes.js";
 import { initOrderHistory, setHistoryAsset, showHistory } from "./orderHistoryTable.js";
 import { annualizedPct, dailyVolatility, priceBand, touchProbability } from "./volatility.js";
 import {
@@ -45,6 +46,9 @@ const STATS_DAYS_STORAGE_KEY = "priceChartStatsDays";
 const DCA_STORAGE_KEY = "priceChartDca";
 const LIQ_STORAGE_KEY = "priceChartLiquidation";
 const LIQ_CACHE_MS = 2 * 60 * 1000;
+const FUT_STORAGE_KEY = "priceChartFutures";
+// período dos dados de futuros por tamanho de vela (a Binance tem 1h/4h/1d; S e M usam o diário)
+const FUT_PERIOD = { "1h": "1h", "4h": "4h" };
 const ORDERS_TAB_STORAGE_KEY = "priceChartOrdersTab"; // aba abaixo do gráfico: open | history
 
 let chart = null; // controlador do Lightweight Charts (criado uma vez no init)
@@ -70,6 +74,9 @@ const view = {
   // mapa de liquidação estimado: ligado? e dados da moeda aberta
   showLiq: readStored(LIQ_STORAGE_KEY) === "1",
   liq: null, // resposta de /liquidation-map | null (não carregado/erro) | undefined (carregando)
+  // painéis de futuros: ligados? e dados (por moeda + período)
+  showFut: readStored(FUT_STORAGE_KEY) === "1",
+  fut: null, // { key, data } | { key, data: null (erro) } | { key, loading: true }
 };
 
 function clampStatsDays(n) {
@@ -180,6 +187,7 @@ function render(extra = {}) {
     dcaAvg: view.showDca ? view.dca?.dcaAvg ?? null : null,
     indicators: getIndicators(),
     liquidation: view.showLiq && view.liq?.available ? view.liq : null,
+    futures: futuresForChart(),
     ...extra,
   });
 }
@@ -337,6 +345,63 @@ function renderDca() {
 }
 
 // ---------------------------------------------------------------------------
+// painéis de futuros: open interest, long/short e funding (abaixo do gráfico)
+// ---------------------------------------------------------------------------
+
+const futCache = new Map(); // "ASSET|período" -> { at, data }
+const futKey = () => `${view.asset}|${FUT_PERIOD[view.interval] || "1d"}`;
+
+// dados prontos para o gráfico (ou null); se faltam para a moeda/período atual, começa a carregar
+function futuresForChart() {
+  if (!view.showFut || !view.asset) return null;
+  if (view.fut?.key !== futKey()) {
+    loadFutures();
+    return null;
+  }
+  return view.fut.data?.available ? view.fut.data : null;
+}
+
+async function loadFutures() {
+  const key = futKey();
+  const [asset, period] = key.split("|");
+  const hit = futCache.get(key);
+  if (hit && Date.now() - hit.at < LIQ_CACHE_MS) {
+    view.fut = { key, data: hit.data };
+    updateFuturesAvailability();
+    return;
+  }
+  view.fut = { key, loading: true };
+  updateFuturesAvailability();
+  let data = null;
+  try {
+    data = await fetchFuturesData(asset, period);
+    futCache.set(key, { at: Date.now(), data });
+  } catch {}
+  if (futKey() !== key) return; // trocou de moeda/vela no meio
+  view.fut = { key, data };
+  updateFuturesAvailability();
+  render();
+}
+
+// checkbox: spinner enquanto carrega; aviso quando a moeda não tem contrato perpétuo
+function updateFuturesAvailability() {
+  const label = document.getElementById("price-chart-fut-label");
+  const text = document.getElementById("price-chart-fut-text");
+  if (!label || !text) return;
+  const loading = view.showFut && !!view.fut?.loading;
+  const unavailable = view.showFut && view.fut && !view.fut.loading && !view.fut.data?.available;
+  label.classList.toggle("is-loading", loading);
+  label.classList.toggle("disabled", unavailable);
+  text.textContent = loading
+    ? "Carregando dados de futuros..."
+    : unavailable
+      ? view.fut.data?.reason === "no-perpetual"
+        ? `Dados de futuros: ${view.asset} não tem contrato perpétuo`
+        : "Dados de futuros indisponíveis"
+      : "Dados de futuros (OI, long/short, funding)";
+}
+
+// ---------------------------------------------------------------------------
 // mapa de liquidação estimado (futuros: open interest + long/short)
 // ---------------------------------------------------------------------------
 
@@ -371,7 +436,7 @@ function renderLiq() {
 
   const d = view.liq;
   const disclaimer =
-    '<p class="stats-disclaimer">⚠ <b>Estimativa, não dado real.</b> Ninguém publica onde estão as posições alavancadas: o modelo deduz isso pela variação do open interest hora a hora, pela razão long/short e supondo alavancagens de 5x a 100x. Use como região provável, não como nível exato.</p>';
+    `<p class="stats-disclaimer">⚠ <b>Estimativa, não dado real.</b> Ninguém publica onde estão as posições alavancadas: o modelo deduz isso pela variação do <span class="help-tip" data-tip="${FUTURES_HELP.oi}">open interest</span> hora a hora, pela razão long/short e supondo alavancagens de 5x a 100x. Use como região provável, não como nível exato.</p>`;
   if (d === undefined) {
     box.innerHTML = '<span class="mini-spinner"></span> Calculando mapa de liquidação (30 dias de futuros)...';
     return;
@@ -413,7 +478,10 @@ function renderLiq() {
       `Até ±10% do preço: ≈ ${formatUsdShort(shortsAbove)} em shorts acima · ≈ ${formatUsdShort(longsBelow)} em longs abaixo${side ? ` → mais liquidez <b>${side}</b> (o preço costuma ser atraído para onde há mais liquidações)` : ""}`
     );
   }
-  lines.push(`Contas compradas: ${pctTxt(d.ratios.globalLongAccount)} · Top traders (posição) comprados: ${pctTxt(d.ratios.topLongPosition)}`);
+  const tip = (text, help) => `<span class="help-tip" data-tip="${help}">${text}</span>`;
+  lines.push(
+    `${tip("Contas compradas", FUTURES_HELP.ls)}: ${pctTxt(d.ratios.globalLongAccount)} · ${tip("Top traders (posição) comprados", FUTURES_HELP.ls)}: ${pctTxt(d.ratios.topLongPosition)}`
+  );
   box.innerHTML = lines.map((l) => `<div>${l}</div>`).join("") + disclaimer;
 }
 
@@ -572,6 +640,15 @@ export function initPriceChartPanel() {
     statsDaysInput.value = view.statsDays;
     writeStored(STATS_DAYS_STORAGE_KEY, String(view.statsDays));
     renderStats();
+    render();
+  });
+
+  const futInput = document.getElementById("price-chart-fut");
+  if (futInput) futInput.checked = view.showFut;
+  futInput?.addEventListener("change", () => {
+    view.showFut = futInput.checked;
+    writeStored(FUT_STORAGE_KEY, view.showFut ? "1" : "0");
+    updateFuturesAvailability();
     render();
   });
 

@@ -7,6 +7,7 @@ import { buildExecutedOrders } from "./services/executedOrders.js";
 import { buildPriceChart, CHART_INTERVALS } from "./services/priceChart.js";
 import { buildOrderHistory } from "./services/orderHistory.js";
 import { buildLiquidationMap } from "./services/liquidationMap.js";
+import { buildFuturesData, FUTURES_PERIODS } from "./services/futuresData.js";
 
 // Envolve o handler: responde o JSON retornado ou { error } com status 500
 const handle = (fn) => async (req, res) => {
@@ -67,6 +68,15 @@ export function registerRoutes(app) {
 			return res.status(400).json({ error: "Moeda inválida" });
 		}
 		return handle(() => buildLiquidationMap(asset))(req, res, next);
+	});
+
+	// Dados de futuros de uma moeda: open interest, long/short e funding (?period=1h|4h|1d)
+	app.get("/futures-data/:asset", (req, res, next) => {
+		const asset = String(req.params.asset).toUpperCase();
+		const period = String(req.query.period || "1d");
+		if (!/^[A-Z0-9]{1,20}$/.test(asset)) return res.status(400).json({ error: "Moeda inválida" });
+		if (!FUTURES_PERIODS.has(period)) return res.status(400).json({ error: "Período inválido" });
+		return handle(() => buildFuturesData(asset, period))(req, res, next);
 	});
 
 	// Ordens executadas (agrupadas a partir dos trades)

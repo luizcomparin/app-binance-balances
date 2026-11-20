@@ -15,6 +15,7 @@ import { createLegend } from "./legend.js";
 import { maColor, maLabel, movingAverage } from "./movingAverage.js";
 import { BandFill, bollinger } from "./bollinger.js";
 import { LiquidationOverlay } from "./liquidationOverlay.js";
+import { createFuturesPanes } from "./futuresPanes.js";
 import { candleTooltipHtml, createTooltip, lineHelpTooltipHtml, ordersTooltipHtml, simTooltipHtml } from "./tooltip.js";
 
 const LWC = window.LightweightCharts;
@@ -26,7 +27,8 @@ const LWC = window.LightweightCharts;
  * update(opts): opts = { asset, points, interval, mode, avg, orders: { buys, sells },
  *                        openOrders: { buys, sells } | null, projectedAvg, fixedAvg, dcaAvg, window, prepended,
  *                        indicators: [{ id, kind: "ma"|"bb", period, type?, mult?, color, opacity, visible }],
- *                        liquidation: resposta de /liquidation-map | null }
+ *                        liquidation: resposta de /liquidation-map | null,
+ *                        futures: resposta de /futures-data | null (painéis de OI, long/short e funding) }
  *   window: { fromMs, toMs } → mostra essa janela de tempo (novo período/moeda/vela); null → tudo
  *   prepended: n → n velas antigas foram adicionadas no início (mantém a posição da tela)
  */
@@ -57,6 +59,8 @@ export function createPriceChart(els, handlers = {}) {
       fontFamily: "Manrope, sans-serif",
       fontSize: 11,
       attributionLogo: true,
+      // painéis de futuros abaixo do preço
+      panes: { separatorColor: "rgba(255, 255, 255, 0.08)", separatorHoverColor: "rgba(77, 212, 255, 0.25)", enableResize: true },
     },
     grid: {
       vertLines: { color: "rgba(255, 255, 255, 0.04)" },
@@ -68,7 +72,6 @@ export function createPriceChart(els, handlers = {}) {
     timeScale: { borderColor: "rgba(255, 255, 255, 0.08)", rightOffset: 4 },
     localization: {
       locale: "pt-BR",
-      priceFormatter: (p) => formatAxisPrice(p, s.precision),
       timeFormatter: (t) => formatChartTime(t, INTRADAY.has(s.interval)),
     },
   });
@@ -77,6 +80,9 @@ export function createPriceChart(els, handlers = {}) {
 
   // mapa de liquidação estimado (anexado à série principal; reanexado quando ela é recriada)
   const liquidation = new LiquidationOverlay(timeToX);
+
+  // painéis de open interest, long/short e funding (mesmo eixo de tempo)
+  const futures = createFuturesPanes(chart, wrap);
 
   // resumo das ordens abertas fora da faixa de preço visível
   const offTop = document.createElement("div");
@@ -117,7 +123,9 @@ export function createPriceChart(els, handlers = {}) {
 
   function ensureSeries(mode) {
     if (s.series && s.mode === mode) return false;
-    if (s.series) chart.removeSeries(s.series);
+    // a série antiga só sai depois que a nova existe: se o painel de preço ficasse vazio, a biblioteca
+    // o removeria e os painéis de futuros subiriam de posição
+    const old = s.series;
     removeIndicators(); // recriados depois, para ficarem por cima da nova série
 
     s.series =
@@ -137,6 +145,10 @@ export function createPriceChart(els, handlers = {}) {
             lineWidth: 2,
             autoscaleInfoProvider,
           });
+    if (old) {
+      old.detachPrimitive(liquidation);
+      chart.removeSeries(old);
+    }
     s.markersApi = LWC.createSeriesMarkers(s.series, []);
     s.series.attachPrimitive(liquidation);
     s.priceLines = [];
@@ -203,8 +215,10 @@ export function createPriceChart(els, handlers = {}) {
       s.timeIndex.set(time, i);
       return candle ? { time, open: p.open, high: p.high, low: p.low, close: p.close } : { time, value: p.close };
     });
-    const priceFormat = priceFormatFor(s.points.at(-1)?.close);
-    s.precision = priceFormat.precision;
+    // formato por série (e não global): os painéis de futuros têm formatos próprios (B/M, %, funding)
+    const base = priceFormatFor(s.points.at(-1)?.close);
+    const priceFormat = { type: "custom", minMove: base.minMove, precision: base.precision, formatter: (p) => formatAxisPrice(p, base.precision) };
+    s.precision = base.precision;
     s.priceFormat = priceFormat;
     s.series.applyOptions({ priceFormat });
     s.series.setData(data);
@@ -333,6 +347,9 @@ export function createPriceChart(els, handlers = {}) {
     );
     offTop.textContent = above;
     offBottom.textContent = below;
+    // embaixo do painel de preço (com os painéis de futuros, o fim do gráfico fica mais abaixo)
+    offBottom.style.top = `${height - 24}px`;
+    offBottom.style.bottom = "auto";
     offTop.hidden = !above;
     offBottom.hidden = !below;
   }
@@ -390,7 +407,9 @@ export function createPriceChart(els, handlers = {}) {
 
   chart.subscribeCrosshairMove((param) => {
     scheduleOffscreen();
+    futures.crosshair(param.point && param.logical !== undefined ? Math.round(param.logical) : null);
     if (!s.series || !s.points || !param.point || param.time === undefined) return tooltip.hide();
+    if (param.paneIndex) return tooltip.hide(); // mouse nos painéis de futuros: só os títulos mostram os valores
 
     if (isSimEnabled()) {
       const price = s.series.coordinateToPrice(param.point.y);
@@ -444,6 +463,9 @@ export function createPriceChart(els, handlers = {}) {
       drawOverlays();
       drawIndicators();
       liquidation.setData(opts.liquidation || null);
+      // primeiro a altura final do gráfico, depois os painéis (as alturas deles partem dela)
+      wrap.classList.toggle("with-futures", !!opts.futures);
+      futures.update(s.points, s.interval, opts.futures || null);
       scheduleOffscreen();
     },
 
@@ -466,6 +488,8 @@ export function createPriceChart(els, handlers = {}) {
       }
       removeIndicators();
       liquidation.setData(null);
+      futures.remove();
+      wrap.classList.remove("with-futures");
       s.points = null;
       s.opts = null;
       if (els.legend) els.legend.innerHTML = "";

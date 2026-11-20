@@ -52,3 +52,25 @@ export async function getPerpetualFor(asset) {
 	}
 	return null;
 }
+
+// ---- Séries /futures/data/* (open interest, long/short): no máximo 500 por requisição e só 30 dias ----
+const DATA_PAGE = 500;
+
+/**
+ * Últimos `count` pontos de uma série /futures/data/* no período (5m, 15m, 30m, 1h, 2h, 4h, 6h, 12h, 1d),
+ * paginando para trás com endTime. Ordem de tempo, sem duplicados.
+ */
+export async function futuresDataSeries(path, symbol, period, count) {
+	const out = [];
+	let endTime = Date.now();
+	while (out.length < count) {
+		const limit = Math.min(DATA_PAGE, count - out.length);
+		const page = await fapiGet(`${path}?symbol=${symbol}&period=${period}&limit=${limit}&endTime=${endTime}`);
+		if (!page.length) break;
+		out.unshift(...page);
+		if (page.length < limit) break;
+		endTime = page[0].timestamp - 1;
+	}
+	const seen = new Set();
+	return out.filter((r) => !seen.has(r.timestamp) && seen.add(r.timestamp)).sort((a, b) => a.timestamp - b.timestamp);
+}

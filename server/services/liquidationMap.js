@@ -12,11 +12,10 @@
 //   5. O preço passou pelo nível (máxima/mínima da hora) → aquelas posições foram liquidadas: some.
 // O que sobra são as regiões onde ainda haveria liquidações em cascata. É estimativa, não dado real.
 import { cached } from "../lib/cache.js";
-import { fapiGet, getPerpetualFor } from "../binance/futures.js";
+import { fapiGet, futuresDataSeries, getPerpetualFor } from "../binance/futures.js";
 
 const HOUR = 60 * 60 * 1000;
 const HOURS = 30 * 24; // a Binance só guarda 30 dias de open interest/long-short
-const PAGE = 500; // máximo por requisição nos endpoints /futures/data
 const CACHE_MS = 5 * 60 * 1000;
 
 // alavancagem → fatia das posições novas (suposição do modelo)
@@ -33,22 +32,8 @@ const BUCKET_PCT = 0.0025; // níveis agrupados em faixas de 0,25% do preço atu
 const SEGMENT_CHANGE = 0.25;
 const MIN_SEGMENT_SHARE = 0.003; // trechos menores que 0,3% do maior não são enviados
 
-// Série /futures/data/* das últimas HOURS horas (paginando para trás com endTime)
-async function hourlySeries(path, symbol) {
-	const out = [];
-	let endTime = Date.now();
-	while (out.length < HOURS) {
-		const limit = Math.min(PAGE, HOURS - out.length);
-		const page = await fapiGet(`${path}?symbol=${symbol}&period=1h&limit=${limit}&endTime=${endTime}`);
-		if (!page.length) break;
-		out.unshift(...page);
-		if (page.length < limit) break;
-		endTime = page[0].timestamp - 1;
-	}
-	// sem duplicados, em ordem de tempo
-	const seen = new Set();
-	return out.filter((r) => !seen.has(r.timestamp) && seen.add(r.timestamp)).sort((a, b) => a.timestamp - b.timestamp);
-}
+// Série /futures/data/* das últimas HOURS horas
+const hourlySeries = (path, symbol) => futuresDataSeries(path, symbol, "1h", HOURS);
 
 // valor mais recente com timestamp <= t (séries vêm ordenadas)
 function lookup(series, field) {

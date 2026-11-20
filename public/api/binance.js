@@ -44,6 +44,11 @@ export async function fetchLiquidationMap(asset) {
   return getJson(`/liquidation-map/${encodeURIComponent(asset)}`);
 }
 
+// Dados de futuros (open interest, long/short, funding) no período 1h|4h|1d
+export async function fetchFuturesData(asset, period) {
+  return getJson(`/futures-data/${encodeURIComponent(asset)}?period=${period}`);
+}
+
 export async function fetchOpenOrdersForAsset(asset) {
   const json = await getJson(`/orders/${encodeURIComponent(asset)}`);
   return Array.isArray(json) ? json : [];
