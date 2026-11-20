@@ -205,12 +205,6 @@
   cursor: help;
 }
 
-.price-chart-legend .lg-fit {
-  margin-left: auto;
-  padding: 4px 10px;
-  font-size: 12px;
-}
-
 /* tooltip / caixa do simulador sobre o gráfico */
 .lwc-tooltip {
   position: absolute;

@@ -37,7 +37,6 @@ export function createLegend(el, { onToggle, onFit }) {
     }
     if (openOrders?.buys.length) items.push(item("sw-open-buy", `Compras abertas (${openOrders.buys.length})`, "openBuys"));
     if (openOrders?.sells.length) items.push(item("sw-open-sell", `Vendas abertas (${openOrders.sells.length})`, "openSells"));
-    items.push(`<button type="button" class="ghost lg-fit" data-action="fit" title="Enquadrar todo o período carregado">Ajustar zoom</button>`);
     el.innerHTML = items.join("");
   };
 }

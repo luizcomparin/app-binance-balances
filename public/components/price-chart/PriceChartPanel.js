@@ -396,9 +396,9 @@ function updateFuturesAvailability() {
     ? "Carregando dados de futuros..."
     : unavailable
       ? view.fut.data?.reason === "no-perpetual"
-        ? `Dados de futuros: ${view.asset} não tem contrato perpétuo`
+        ? `Dados de futuros: ${view.asset} sem contrato perpétuo`
         : "Dados de futuros indisponíveis"
-      : "Dados de futuros (OI, long/short, funding)";
+      : "Dados de futuros";
 }
 
 // ---------------------------------------------------------------------------
@@ -569,12 +569,18 @@ function highlightRange() {
     btn.classList.toggle("active", btn.dataset.range === view.range);
   });
   const isCustom = !document.querySelector(`#price-chart-ranges button[data-range="${view.range}"]`);
-  document.getElementById("price-chart-custom")?.classList.toggle("active", isCustom);
-  // período customizado salvo (ex.: "3m"): mostra o valor no formulário
+  document.getElementById("price-chart-custom-btn")?.classList.toggle("active", isCustom);
+  // período customizado salvo (ex.: "3m"): mostra o valor no formulário e no botão ("3 meses")
   const custom = isCustom && /^(\d+)([dmy])$/.exec(view.range);
+  const label = document.getElementById("price-chart-custom-label");
   if (custom) {
     document.getElementById("price-chart-custom-value").value = custom[1];
     document.getElementById("price-chart-custom-unit").value = custom[2];
+    const n = Number(custom[1]);
+    const unit = { d: ["dia", "dias"], m: ["mês", "meses"], y: ["ano", "anos"] }[custom[2]];
+    if (label) label.textContent = `${n} ${unit[n === 1 ? 0 : 1]}`;
+  } else if (label) {
+    label.textContent = "Personalizado";
   }
 }
 
@@ -690,8 +696,29 @@ export function initPriceChartPanel() {
     const n = parseInt(document.getElementById("price-chart-custom-value").value, 10);
     const unit = document.getElementById("price-chart-custom-unit").value;
     if (!Number.isInteger(n) || n < 1 || n > 9999) return;
+    setCustomOpen(false);
     selectRange(`${n}${unit}`);
   });
+
+  // "Personalizado": abre/fecha o formulário; clique fora ou Esc fecha
+  const customBtn = document.getElementById("price-chart-custom-btn");
+  const customForm = document.getElementById("price-chart-custom");
+  function setCustomOpen(open) {
+    if (!customForm || !customBtn) return;
+    customForm.hidden = !open;
+    customBtn.setAttribute("aria-expanded", String(open));
+    if (open) document.getElementById("price-chart-custom-value")?.focus();
+  }
+  customBtn?.addEventListener("click", () => setCustomOpen(customForm.hidden));
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest("#price-chart-custom-wrap")) setCustomOpen(false);
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") setCustomOpen(false);
+  });
+
+  // "Ajustar zoom" (topo da aba): enquadra todo o período carregado
+  document.getElementById("price-chart-fit")?.addEventListener("click", () => chart?.fit());
 
   // Esc fecha a lista de moedas (se aberta)
   document.addEventListener("keydown", (e) => {
@@ -809,16 +836,20 @@ function renderInfo() {
 
   const lastPrice = view.points.at(-1).close;
   const avg = state.positions?.[view.asset]?.avgBuyPriceUSDT ?? null;
-  const parts = [`Preço atual: <b>${formatPrice(lastPrice)} USDT</b>`];
+  // valores de 1 ou mais com 2 casas (78.086,17); abaixo de 1, dígitos significativos
+  const big = (v) => (v >= 1 ? v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : formatPrice(v));
+  const stat = (label, value) => `<div class="pc-stat"><span class="pc-label">${label}</span><span class="pc-stat-value">${value}</span></div>`;
+  const blocks = [stat("Preço atual", `${big(lastPrice)} <small>USDT</small>`)];
   if (avg !== null) {
     const diff = ((lastPrice - avg) / avg) * 100;
-    const cls = diff >= 0 ? "pnl-pos" : "pnl-neg";
-    parts.push(`Preço médio dinâmico: <b>${formatPrice(avg)} USDT</b>`);
-    parts.push(`<span class="${cls}">${diff >= 0 ? "+" : ""}${diff.toFixed(2).formatCurrency()}% vs. preço médio dinâmico</span>`);
+    blocks.push(stat("Preço médio dinâmico", `${big(avg)} <small>USDT</small>`));
+    blocks.push(
+      stat("Vs. preço médio", `<span class="pc-pill ${diff >= 0 ? "pos" : "neg"}">${diff >= 0 ? "+" : ""}${diff.toFixed(2).formatCurrency()}%</span>`)
+    );
   } else if (!Object.keys(state.positions || {}).length) {
-    parts.push("Preço médio dinâmico ainda sendo calculado...");
+    blocks.push(stat("Preço médio dinâmico", `<span class="pc-stat-pending"><span class="mini-spinner"></span> calculando...</span>`));
   }
-  info.innerHTML = parts.join(" · ");
+  info.innerHTML = blocks.join("");
 }
 
 // ---------------------------------------------------------------------------

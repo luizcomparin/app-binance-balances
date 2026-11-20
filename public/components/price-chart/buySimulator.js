@@ -84,7 +84,7 @@ export function updateSimAvailability() {
   label.classList.toggle("disabled", !loading && !ok);
   label.title = ok || loading ? "" : "Disponível apenas para moedas com preço médio calculado";
   if (text) {
-    text.textContent = loading ? "Calculando preço médio..." : "Simular compra até o preço médio do mouse";
+    text.textContent = loading ? "Calculando preço médio..." : "Simular compra até o preço médio";
   }
   if (!ok && input.checked) {
     input.checked = false;

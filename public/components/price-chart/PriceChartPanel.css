@@ -1,82 +1,425 @@
 /* aba "Gráfico de preço" */
-.price-chart-header h2 {
-  margin: 0 0 4px;
-}
 
-/* o cabeçalho fica acima do gráfico para a lista de moedas abrir por cima dele */
+/* o cabeçalho fica acima do gráfico para as listas/menus abrirem por cima dele */
 .price-chart-header {
   position: relative;
   z-index: 30;
-  padding-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: 16px;
   margin-bottom: 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.price-chart-toggles {
+.price-chart-header h2 {
+  margin: 0;
+}
+
+/* números sem setinhas de aumentar/diminuir (economiza espaço) */
+.price-chart-header input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.price-chart-header input[type="number"]::-webkit-inner-spin-button,
+.price-chart-header input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* rótulo pequeno de grupo (Tipo, Intervalo, Camadas...) */
+.pc-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* topo: moeda à esquerda, ajustar zoom à direita */
+.pc-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* botão pequeno com borda (Ajustar zoom, Personalizado, Aplicar) */
+.pc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: #e5ecff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pc-btn:hover {
+  background: rgba(255, 255, 255, 0.07);
+  transform: none;
+}
+
+.pc-btn.active {
+  border-color: var(--accent);
+  background: rgba(77, 212, 255, 0.1);
+  color: var(--accent);
+}
+
+.pc-btn-accent {
+  justify-content: center;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.pc-caret {
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+/* preço atual, preço médio e diferença */
+.pc-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px 40px;
+  min-height: 52px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.pc-stat-value {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  color: #f2f6ff;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.pc-stat-value small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pc-stat-pending {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.pc-stat-pending .mini-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-width: 2px;
+  vertical-align: middle;
+}
+
+/* diferença vs. preço médio em pílula colorida */
+.pc-pill {
+  padding: 3px 12px;
+  border: 1px solid;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.pc-pill.neg {
+  background: rgba(255, 114, 114, 0.12);
+  border-color: rgba(255, 114, 114, 0.4);
+  color: #ff7272;
+}
+
+.pc-pill.pos {
+  background: rgba(82, 255, 168, 0.12);
+  border-color: rgba(82, 255, 168, 0.4);
+  color: #52ffa8;
+}
+
+/* tipo, intervalo e período lado a lado */
+.pc-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px 24px;
+}
+
+.pc-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 22px;
-  margin-top: 12px;
+  gap: 8px;
 }
 
-/* nas opções, os checkboxes ficam lado a lado à esquerda */
-.price-chart-toggles .price-chart-sim-toggle {
-  margin-left: 0;
+/* grupo de botões colados (controle segmentado) */
+.pc-seg {
+  display: inline-flex;
+  padding: 2px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9px;
 }
 
-/* médias móveis: uma "pílula" por média (cor, SMA/EMA, período, ocultar, remover) */
+.pc-seg button {
+  padding: 6px 12px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: #c9d6f2;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pc-seg button:hover {
+  color: #fff;
+  transform: none;
+}
+
+.pc-seg button.active {
+  background: rgba(77, 212, 255, 0.12);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* período personalizado: botão + formulário em menu */
+.pc-custom {
+  position: relative;
+}
+
+.pc-pop {
+  position: absolute;
+  z-index: 25;
+  top: calc(100% + 6px);
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 210px;
+  padding: 12px;
+  background: #11172e;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+
+.pc-pop[hidden] {
+  display: none;
+}
+
+.pc-pop .pc-label {
+  margin: 0;
+}
+
+.pc-pop-row {
+  display: flex;
+  gap: 6px;
+}
+
+.price-chart-custom input,
+.price-chart-custom select {
+  min-width: 0;
+  padding: 7px 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+}
+
+.price-chart-custom input {
+  width: 64px;
+}
+
+.price-chart-custom select {
+  flex: 1;
+}
+
+.price-chart-custom select option {
+  background: #11172e;
+}
+
+/* camadas: checkboxes em pílulas */
+.pc-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  color: #c9d6f2;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.pc-chip:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.pc-chip:has(> input[type="checkbox"]:checked) {
+  background: rgba(77, 212, 255, 0.1);
+  border-color: rgba(77, 212, 255, 0.55);
+  color: #e5ecff;
+}
+
+.pc-chip input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* "em [30] dias" da faixa estatística: só com a camada ligada */
+.pc-chip-extra {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.pc-chip:has(> input[type="checkbox"]:checked) .pc-chip-extra {
+  display: inline-flex;
+}
+
+.pc-chip .stats-days {
+  width: 42px;
+  padding: 2px 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  color: #e5ecff;
+  font: inherit;
+  font-size: 12px;
+  text-align: center;
+  cursor: text;
+}
+
+/* desabilitada / carregando (spinner no lugar do checkbox) */
+.price-chart-sim-toggle.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.price-chart-sim-toggle .sim-spinner {
+  display: none;
+  width: 15px;
+  height: 15px;
+  border-width: 2px;
+}
+
+.price-chart-sim-toggle.is-loading {
+  cursor: progress;
+}
+
+.price-chart-sim-toggle.is-loading > input[type="checkbox"] {
+  display: none;
+}
+
+.price-chart-sim-toggle.is-loading .sim-spinner {
+  display: inline-block;
+}
+
+/* indicadores: pílulas compactas (cor + nome; clique no nome edita) */
 .price-chart-mas {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin-top: 12px;
-  font-size: 14px;
-}
-
-.price-chart-mas .pcm-label {
-  margin-right: 4px;
-  color: var(--muted);
-}
-
-.price-chart-mas .pcm-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 4px 3px 6px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-}
-
-.price-chart-mas .pcm-item.off > :not(.pcm-eye):not(.pcm-remove):not(.pcm-pop) {
-  opacity: 0.4;
 }
 
 .price-chart-mas .pcm-item {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px 2px 2px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
 }
 
-/* bolinha da cor (xadrez atrás para a transparência aparecer) */
-.price-chart-mas .pcm-swatch {
-  width: 20px;
-  height: 20px;
-  padding: 0;
+.price-chart-mas .pcm-item.off .pcm-edit {
+  opacity: 0.45;
+}
+
+.price-chart-mas .pcm-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  background: none;
   border: none;
-  border-radius: 50%;
-  background: repeating-conic-gradient(#8a93a8 0 25%, #e5ecff 0 50%) 0 0 / 8px 8px;
-  overflow: hidden;
+  border-radius: 6px;
+  color: #e5ecff;
+  font: inherit;
+  font-size: 13px;
   cursor: pointer;
 }
 
-.price-chart-mas .pcm-swatch i {
-  display: block;
-  width: 100%;
-  height: 100%;
+.price-chart-mas .pcm-edit:hover {
+  background: rgba(255, 255, 255, 0.06);
+  transform: none;
 }
 
-/* painel de cor + opacidade */
+/* bolinha da cor */
+.price-chart-mas .pcm-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15);
+}
+
+.price-chart-mas .pcm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.price-chart-mas .pcm-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e5ecff;
+  transform: none;
+}
+
+.price-chart-mas .pcm-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* painel de edição do indicador */
 .price-chart-mas .pcm-pop {
   position: absolute;
   z-index: 25;
@@ -85,8 +428,8 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  width: 220px;
-  padding: 10px;
+  width: 260px;
+  padding: 12px;
   background: #11172e;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
@@ -97,14 +440,35 @@
   display: none;
 }
 
-.price-chart-mas .pcm-color {
-  width: 100%;
-  height: 32px;
-  padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
-  background: none;
-  cursor: pointer;
+.price-chart-mas .pcm-pop-title {
+  color: #e5ecff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.price-chart-mas .pcm-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.price-chart-mas .pcm-field input,
+.price-chart-mas .pcm-field select {
+  width: 150px;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 7px;
+  color: #e5ecff;
+  font: inherit;
+  font-size: 13px;
+}
+
+.price-chart-mas .pcm-field select option {
+  background: #11172e;
 }
 
 .price-chart-mas .pcm-opacity-row {
@@ -128,6 +492,16 @@
   font-weight: 600;
 }
 
+.price-chart-mas .pcm-color {
+  width: 100%;
+  height: 30px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+}
+
 .price-chart-mas .pcm-color::-webkit-color-swatch-wrapper {
   padding: 0;
 }
@@ -137,102 +511,66 @@
   border-radius: 5px;
 }
 
-.price-chart-mas .pcm-type,
-.price-chart-mas .pcm-period {
-  padding: 3px 4px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  color: inherit;
-  font: inherit;
-  font-size: 13px;
+/* "+ Adicionar" e o menu */
+.price-chart-mas .pcm-add-wrap {
+  position: relative;
 }
 
-.price-chart-mas .pcm-type:hover,
-.price-chart-mas .pcm-period:hover,
-.price-chart-mas .pcm-period:focus {
-  border-color: rgba(255, 255, 255, 0.15);
-}
-
-.price-chart-mas .pcm-type option {
-  background: #11172e;
-}
-
-.price-chart-mas .pcm-period {
-  width: 56px;
-}
-
-.price-chart-mas .pcm-btn {
+.price-chart-mas .pcm-add-btn {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  background: none;
-  border: none;
-  border-radius: 6px;
-  color: var(--muted);
-  font-size: 16px;
-  line-height: 1;
+  gap: 6px;
+  padding: 7px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: #e5ecff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
 }
 
-.price-chart-mas .pcm-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #e5ecff;
+.price-chart-mas .pcm-add-btn:hover {
+  background: rgba(255, 255, 255, 0.07);
+  transform: none;
 }
 
-/* Bollinger: rótulo "BB" e desvios padrão */
-.price-chart-mas .pcm-kind {
-  padding: 0 4px;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: help;
-}
-
-.price-chart-mas .pcm-mult-wrap {
-  display: inline-flex;
-  align-items: center;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.price-chart-mas .pcm-mult {
-  width: 40px;
-  text-align: right;
-  padding: 3px 4px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  color: #e5ecff;
-  font: inherit;
-  font-size: 13px;
-}
-
-.price-chart-mas .pcm-mult:hover,
-.price-chart-mas .pcm-mult:focus {
-  border-color: rgba(255, 255, 255, 0.15);
-}
-
-.price-chart-mas .pcm-add {
-  padding: 4px 10px;
-  font-size: 13px;
-}
-
-/* número de dias da faixa estatística, dentro do rótulo do checkbox */
-.price-chart-sim-toggle .stats-days {
-  width: 56px;
-  height: auto;
-  padding: 3px 6px;
-  background: rgba(255, 255, 255, 0.04);
+.price-chart-mas .pcm-menu {
+  position: absolute;
+  z-index: 25;
+  top: calc(100% + 6px);
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 190px;
+  padding: 6px;
+  background: #11172e;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
-  color: inherit;
+  border-radius: 10px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+
+.price-chart-mas .pcm-menu[hidden] {
+  display: none;
+}
+
+.price-chart-mas .pcm-menu button {
+  padding: 8px 10px;
+  background: none;
+  border: none;
+  border-radius: 7px;
+  color: #e5ecff;
   font: inherit;
   font-size: 13px;
-  accent-color: auto;
-  cursor: text;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.price-chart-mas .pcm-menu button:hover {
+  background: rgba(77, 212, 255, 0.1);
+  transform: none;
 }
 
 /* ordens da moeda abaixo do gráfico: abas Ordens abertas | Histórico de ordens */
@@ -594,141 +932,4 @@
   padding: 10px;
   color: var(--muted);
   font-size: 13px;
-}
-
-.price-chart-info {
-  margin: 0 0 12px;
-  color: var(--muted);
-  font-size: 14px;
-}
-
-.price-chart-ranges {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.price-chart-custom {
-  display: inline-flex;
-  align-items: stretch;
-  gap: 6px;
-  padding: 3px;
-  border: 1px solid transparent;
-  border-radius: 12px;
-}
-
-.price-chart-custom.active {
-  border-color: var(--accent);
-}
-
-.price-chart-custom input,
-.price-chart-custom select {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  color: inherit;
-  font: inherit;
-  font-size: 14px;
-  padding: 0 10px;
-}
-
-.price-chart-custom input {
-  width: 70px;
-}
-
-.price-chart-custom select option {
-  background: #11172e;
-}
-
-.price-chart-mode {
-  display: inline-flex;
-}
-
-.price-chart-mode button:first-child {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
-}
-
-.price-chart-mode button:last-child {
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
-  margin-left: -1px;
-}
-
-/* grupo de 5 botões (tamanho da vela): os do meio sem cantos arredondados */
-.price-chart-interval button:not(:first-child):not(:last-child) {
-  border-radius: 0;
-}
-
-.price-chart-interval button:not(:first-child) {
-  margin-left: -1px;
-}
-
-.price-chart-interval button {
-  min-width: 44px;
-}
-
-.price-chart-sep {
-  width: 1px;
-  align-self: stretch;
-  margin: 4px 4px;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.price-chart-mode button.active {
-  border-color: var(--accent);
-  color: var(--accent);
-  position: relative;
-}
-
-.price-chart-sim-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: auto;
-  color: var(--muted);
-  font-size: 14px;
-  cursor: pointer;
-  user-select: none;
-}
-
-.price-chart-sim-toggle + .price-chart-sim-toggle {
-  margin-left: 14px;
-}
-
-.price-chart-sim-toggle input {
-  accent-color: var(--accent);
-  width: 16px;
-  height: 16px;
-  cursor: pointer;
-}
-
-.price-chart-sim-toggle.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* enquanto o preço médio é calculado: spinner no lugar do checkbox */
-.price-chart-sim-toggle .sim-spinner {
-  display: none;
-  width: 16px;
-  height: 16px;
-  border-width: 2px;
-}
-
-.price-chart-sim-toggle.is-loading {
-  cursor: progress;
-}
-
-.price-chart-sim-toggle.is-loading input {
-  display: none;
-}
-
-.price-chart-sim-toggle.is-loading .sim-spinner {
-  display: inline-block;
-}
-
-.price-chart-ranges button.active {
-  border-color: var(--accent);
-  color: var(--accent);
 }

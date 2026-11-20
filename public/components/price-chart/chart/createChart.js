@@ -98,12 +98,15 @@ export function createPriceChart(els, handlers = {}) {
       drawOverlays();
       updateOffscreen();
     },
-    onFit() {
-      lastFrom = null;
-      chart.timeScale().fitContent();
-      chart.priceScale("right").applyOptions({ autoScale: true });
-    },
+    onFit: fit,
   });
+
+  // enquadra todo o período carregado e volta a escala de preço para automática
+  function fit() {
+    lastFrom = null;
+    chart.timeScale().fitContent();
+    chart.priceScale("right").applyOptions({ autoScale: true });
+  }
 
   // ---------------------------------------------------------------------------
   // séries e dados
@@ -444,6 +447,8 @@ export function createPriceChart(els, handlers = {}) {
   // ---------------------------------------------------------------------------
 
   return {
+    fit,
+
     update(opts) {
       s.opts = opts;
       const recreated = ensureSeries(opts.mode);

@@ -78,9 +78,24 @@ const newId = (kind) => `${kind}${Date.now().toString(36)}${Math.random().toStri
 // render
 // ---------------------------------------------------------------------------
 
-function swatchHtml(m) {
-  return `<button type="button" class="pcm-swatch" title="Cor e opacidade"><i style="background:${maColor(m)}"></i></button>
-    <div class="pcm-pop" hidden>
+// "SMA 20" / "EMA 50" / "BB 20 · 2σ"
+function labelOf(m) {
+  return m.kind === "bb" ? `BB ${m.period} · ${String(m.mult).replace(".", ",")}σ` : `${m.type} ${m.period}`;
+}
+
+// painel de edição (abre ao clicar no nome): parâmetros, opacidade e cor
+function editorHtml(m) {
+  const period = `<label class="pcm-field"><span>Período</span><input type="number" class="pcm-period" min="${MIN_PERIOD}" max="${MAX_PERIOD}" step="1" value="${m.period}" title="Quantidade de velas" /></label>`;
+  const params =
+    m.kind === "bb"
+      ? `${period}<label class="pcm-field" title="Largura das bandas, em desvios padrão"><span>Desvios (σ)</span><input type="number" class="pcm-mult" min="${MIN_MULT}" max="${MAX_MULT}" step="0.1" value="${m.mult}" /></label>`
+      : `<label class="pcm-field"><span>Tipo</span><select class="pcm-type" title="Simples (SMA) ou exponencial (EMA)">
+          <option value="SMA"${m.type === "SMA" ? " selected" : ""}>SMA (simples)</option>
+          <option value="EMA"${m.type === "EMA" ? " selected" : ""}>EMA (exponencial)</option>
+        </select></label>${period}`;
+  return `<div class="pcm-pop" hidden>
+      <span class="pcm-pop-title">${m.kind === "bb" ? "Bandas de Bollinger" : "Média móvel"}</span>
+      ${params}
       <label class="pcm-opacity-row">
         <span>Opacidade</span>
         <input type="range" class="pcm-opacity" min="5" max="100" step="5" value="${Math.round(m.opacity * 100)}" />
@@ -90,37 +105,26 @@ function swatchHtml(m) {
     </div>`;
 }
 
-function paramsHtml(m) {
-  const period = `<input type="number" class="pcm-period" min="${MIN_PERIOD}" max="${MAX_PERIOD}" step="1" value="${m.period}" title="Período (quantidade de velas)" />`;
-  if (m.kind === "bb") {
-    return `<span class="pcm-kind" title="Bandas de Bollinger: média de ${m.period} velas ± ${String(m.mult).replace(".", ",")} desvios padrão">BB</span>
-      ${period}
-      <label class="pcm-mult-wrap" title="Largura das bandas, em desvios padrão">
-        <input type="number" class="pcm-mult" min="${MIN_MULT}" max="${MAX_MULT}" step="0.1" value="${m.mult}" /><span>σ</span>
-      </label>`;
-  }
-  return `<select class="pcm-type" title="Tipo: simples (SMA) ou exponencial (EMA)">
-      <option value="SMA"${m.type === "SMA" ? " selected" : ""}>SMA</option>
-      <option value="EMA"${m.type === "EMA" ? " selected" : ""}>EMA</option>
-    </select>
-    ${period}`;
-}
-
 function render() {
   if (!el) return;
   const items = list
     .map(
       (m) => `<div class="pcm-item${m.visible ? "" : " off"}" data-id="${m.id}">
-        ${swatchHtml(m)}
-        ${paramsHtml(m)}
+        <button type="button" class="pcm-edit" title="Editar"><i class="pcm-dot" style="background:${maColor(m)}"></i><b class="pcm-name">${labelOf(m)}</b></button>
+        ${editorHtml(m)}
         <button type="button" class="pcm-btn pcm-eye" title="${m.visible ? "Ocultar" : "Exibir"}">${m.visible ? EYE : EYE_OFF}</button>
         <button type="button" class="pcm-btn pcm-remove" title="Remover">×</button>
       </div>`
     )
     .join("");
-  el.innerHTML = `<span class="pcm-label">Indicadores</span>${items}
-    <button type="button" class="ghost pcm-add" data-kind="ma">+ Média móvel</button>
-    <button type="button" class="ghost pcm-add" data-kind="bb">+ Bollinger</button>`;
+  el.innerHTML = `${items}
+    <div class="pcm-add-wrap">
+      <button type="button" class="pcm-add-btn" aria-haspopup="true">+ Adicionar <span class="pc-caret">▾</span></button>
+      <div class="pcm-menu" hidden>
+        <button type="button" class="pcm-add" data-kind="ma">Média móvel</button>
+        <button type="button" class="pcm-add" data-kind="bb">Bandas de Bollinger</button>
+      </div>
+    </div>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -156,10 +160,11 @@ function add(kind) {
   save();
   render();
   onChange();
+  [...el.querySelectorAll(".pcm-item")].at(-1)?.querySelector(".pcm-pop")?.removeAttribute("hidden");
 }
 
 function closePopovers() {
-  el?.querySelectorAll(".pcm-pop").forEach((p) => (p.hidden = true));
+  el?.querySelectorAll(".pcm-pop, .pcm-menu").forEach((p) => (p.hidden = true));
 }
 
 /** Liga os controles ao elemento. handlers.onChange() é chamado a cada mudança. */
@@ -171,7 +176,18 @@ export function initIndicatorControls(container, handlers = {}) {
 
   el.addEventListener("click", (e) => {
     const addBtn = e.target.closest(".pcm-add");
-    if (addBtn) return add(addBtn.dataset.kind);
+    if (addBtn) {
+      closePopovers();
+      return add(addBtn.dataset.kind);
+    }
+    // "+ Adicionar": abre/fecha o menu (Média móvel / Bandas de Bollinger)
+    if (e.target.closest(".pcm-add-btn")) {
+      const menu = el.querySelector(".pcm-menu");
+      const open = menu.hidden;
+      closePopovers();
+      menu.hidden = !open;
+      return;
+    }
     const item = e.target.closest(".pcm-item");
     if (!item) return;
     const id = item.dataset.id;
@@ -187,8 +203,8 @@ export function initIndicatorControls(container, handlers = {}) {
       }
       return;
     }
-    // bolinha de cor: abre/fecha o painel de cor + opacidade (só um aberto por vez)
-    if (e.target.closest(".pcm-swatch")) {
+    // nome do indicador: abre/fecha o painel de edição (só um aberto por vez)
+    if (e.target.closest(".pcm-edit")) {
       const pop = item.querySelector(".pcm-pop");
       const open = pop.hidden;
       closePopovers();
@@ -218,7 +234,7 @@ export function initIndicatorControls(container, handlers = {}) {
       item.querySelector(".pcm-opacity-value").textContent = `${e.target.value}%`;
     } else return;
     const m = list.find((x) => x.id === item.dataset.id);
-    if (m) item.querySelector(".pcm-swatch i").style.background = maColor(m);
+    if (m) item.querySelector(".pcm-dot").style.background = maColor(m);
   });
 
   // o seletor de cor fechou por outro caminho (clicou fora da barra, Esc): o próximo clique abre.
@@ -233,7 +249,7 @@ export function initIndicatorControls(container, handlers = {}) {
 
   // clique fora ou Esc fecha o painel de cor
   document.addEventListener("click", (e) => {
-    if (!e.target.closest(".pcm-swatch, .pcm-pop")) closePopovers();
+    if (!e.target.closest(".pcm-edit, .pcm-pop, .pcm-add-wrap")) closePopovers();
   });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") closePopovers();
@@ -255,5 +271,8 @@ export function initIndicatorControls(container, handlers = {}) {
       e.target.value = mult;
       update(id, { mult });
     }
+    // o nome da pílula acompanha tipo/período/desvios
+    const m = list.find((x) => x.id === id);
+    if (m) item.querySelector(".pcm-name").textContent = labelOf(m);
   });
 }
