@@ -145,6 +145,16 @@
   color: #52ffa8;
 }
 
+/* "-20,45% / +25,72%": cada parte na sua cor */
+.pc-pill .pnl-pos { color: #52ffa8; }
+.pc-pill .pnl-neg { color: #ff7272; }
+
+.pc-pill-sep {
+  margin: 0 6px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
 /* tipo, intervalo e período lado a lado */
 .pc-controls {
   display: flex;

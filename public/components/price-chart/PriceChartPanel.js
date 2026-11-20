@@ -867,9 +867,13 @@ const INFO_HELP = {
     "• Por isso compras feitas depois de vendas pesam mais. Se o saldo zera, a média recomeça.",
   ].join("\n"),
   diff: [
-    "Quanto o preço atual está acima ou abaixo do seu preço médio dinâmico.",
+    "1º valor: quanto o preço atual está acima ou abaixo do seu preço médio dinâmico.",
     "• Positivo (verde): as moedas que você tem valem mais do que custaram.",
-    "• Negativo (vermelho): valem menos. Para empatar, o preço precisa voltar ao preço médio (ex.: -20% exige uma alta de +25%).",
+    "• Negativo (vermelho): valem menos.",
+    "",
+    "2º valor: quanto o preço precisa andar para voltar ao preço médio.",
+    "• No prejuízo, a alta necessária para empatar (ex.: -20% exige +25%).",
+    "• No lucro, a queda que zeraria o lucro (ex.: +25% some com -20%).",
   ].join("\n"),
 };
 
@@ -888,10 +892,13 @@ function renderInfo() {
   if (avg !== null) {
     const diff = ((lastPrice - avg) / avg) * 100;
     blocks.push(stat(avgLabel, `${big(avg)} <small>USDT</small>`));
+    // quanto o preço precisa andar para voltar ao preço médio (no prejuízo: alta; no lucro: queda)
+    const back = (avg / lastPrice - 1) * 100;
+    const pct = (v) => `<span class="${v >= 0 ? "pnl-pos" : "pnl-neg"}">${v >= 0 ? "+" : ""}${v.toFixed(2).formatCurrency()}%</span>`;
     blocks.push(
       stat(
         tip("Vs. preço médio", INFO_HELP.diff),
-        `<span class="pc-pill ${diff >= 0 ? "pos" : "neg"}">${diff >= 0 ? "+" : ""}${diff.toFixed(2).formatCurrency()}%</span>`
+        `<span class="pc-pill ${diff >= 0 ? "pos" : "neg"}">${pct(diff)}<span class="pc-pill-sep">/</span>${pct(back)}</span>`
       )
     );
   } else if (!Object.keys(state.positions || {}).length) {
