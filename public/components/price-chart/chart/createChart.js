@@ -14,6 +14,7 @@ import {
 import { createLegend } from "./legend.js";
 import { maColor, maLabel, movingAverage } from "./movingAverage.js";
 import { BandFill, bollinger } from "./bollinger.js";
+import { LiquidationOverlay } from "./liquidationOverlay.js";
 import { candleTooltipHtml, createTooltip, lineHelpTooltipHtml, ordersTooltipHtml, simTooltipHtml } from "./tooltip.js";
 
 const LWC = window.LightweightCharts;
@@ -24,7 +25,8 @@ const LWC = window.LightweightCharts;
  *
  * update(opts): opts = { asset, points, interval, mode, avg, orders: { buys, sells },
  *                        openOrders: { buys, sells } | null, projectedAvg, fixedAvg, dcaAvg, window, prepended,
- *                        indicators: [{ id, kind: "ma"|"bb", period, type?, mult?, color, opacity, visible }] }
+ *                        indicators: [{ id, kind: "ma"|"bb", period, type?, mult?, color, opacity, visible }],
+ *                        liquidation: resposta de /liquidation-map | null }
  *   window: { fromMs, toMs } → mostra essa janela de tempo (novo período/moeda/vela); null → tudo
  *   prepended: n → n velas antigas foram adicionadas no início (mantém a posição da tela)
  */
@@ -72,6 +74,9 @@ export function createPriceChart(els, handlers = {}) {
   });
 
   const tooltip = createTooltip(wrap, container);
+
+  // mapa de liquidação estimado (anexado à série principal; reanexado quando ela é recriada)
+  const liquidation = new LiquidationOverlay(timeToX);
 
   // resumo das ordens abertas fora da faixa de preço visível
   const offTop = document.createElement("div");
@@ -133,9 +138,34 @@ export function createPriceChart(els, handlers = {}) {
             autoscaleInfoProvider,
           });
     s.markersApi = LWC.createSeriesMarkers(s.series, []);
+    s.series.attachPrimitive(liquidation);
     s.priceLines = [];
     s.mode = mode;
     return true;
+  }
+
+  // Instante (ms) → x no eixo de tempo, interpolando dentro da vela (o mapa de liquidação é por hora,
+  // mas o gráfico pode estar em velas diárias). Antes da primeira vela → null.
+  function timeToX(ms) {
+    const pts = s.points;
+    if (!pts?.length || ms < pts[0].time) return null;
+    let lo = 0;
+    let hi = pts.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (pts[mid].time <= ms) lo = mid;
+      else hi = mid - 1;
+    }
+    const step = lo + 1 < pts.length ? pts[lo + 1].time - pts[lo].time : lo > 0 ? pts[lo].time - pts[lo - 1].time : 1;
+    const frac = Math.min(1, Math.max(0, (ms - pts[lo].time) / step));
+    // logicalToCoordinate só aceita índices inteiros (com fração devolve null): interpola entre velas
+    const ts = chart.timeScale();
+    const x = ts.logicalToCoordinate(lo);
+    if (x === null) return null;
+    const next = ts.logicalToCoordinate(lo + 1);
+    const prev = lo > 0 ? ts.logicalToCoordinate(lo - 1) : null;
+    const spacing = next !== null ? next - x : prev !== null ? x - prev : 0;
+    return x + (frac - 0.5) * spacing;
   }
 
   // Mostra a janela [fromMs, toMs] (toMs null = até a última vela); fromMs <= início dos dados = tudo
@@ -413,6 +443,7 @@ export function createPriceChart(els, handlers = {}) {
 
       drawOverlays();
       drawIndicators();
+      liquidation.setData(opts.liquidation || null);
       scheduleOffscreen();
     },
 
@@ -434,6 +465,7 @@ export function createPriceChart(els, handlers = {}) {
         s.series.setData([]);
       }
       removeIndicators();
+      liquidation.setData(null);
       s.points = null;
       s.opts = null;
       if (els.legend) els.legend.innerHTML = "";

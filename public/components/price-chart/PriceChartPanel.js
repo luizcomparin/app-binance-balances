@@ -14,6 +14,8 @@ import { initAssetPicker } from "./assetPicker.js";
 import { buysOf, dcaComparison } from "./dca.js";
 import { initOpenOrdersTable, renderOpenOrdersTable } from "./openOrdersTable.js";
 import { getIndicators, initIndicatorControls } from "./indicatorControls.js";
+import { fetchLiquidationMap } from "../../api/binance.js";
+import { formatUsdShort } from "./chart/liquidationOverlay.js";
 import { initOrderHistory, setHistoryAsset, showHistory } from "./orderHistoryTable.js";
 import { annualizedPct, dailyVolatility, priceBand, touchProbability } from "./volatility.js";
 import {
@@ -41,6 +43,8 @@ const DEFAULT_ASSET = "BTC"; // sem última moeda vista
 const PANEL_TAB = "price-chart";
 const STATS_DAYS_STORAGE_KEY = "priceChartStatsDays";
 const DCA_STORAGE_KEY = "priceChartDca";
+const LIQ_STORAGE_KEY = "priceChartLiquidation";
+const LIQ_CACHE_MS = 2 * 60 * 1000;
 const ORDERS_TAB_STORAGE_KEY = "priceChartOrdersTab"; // aba abaixo do gráfico: open | history
 
 let chart = null; // controlador do Lightweight Charts (criado uma vez no init)
@@ -63,6 +67,9 @@ const view = {
   // comparação com compra mensal fixa: ligada? e resultado da moeda aberta
   showDca: readStored(DCA_STORAGE_KEY) === "1",
   dca: null, // resultado de dcaComparison | { empty } | null (não calculado/erro) | undefined (carregando)
+  // mapa de liquidação estimado: ligado? e dados da moeda aberta
+  showLiq: readStored(LIQ_STORAGE_KEY) === "1",
+  liq: null, // resposta de /liquidation-map | null (não carregado/erro) | undefined (carregando)
 };
 
 function clampStatsDays(n) {
@@ -172,6 +179,7 @@ function render(extra = {}) {
     fixedAvg: view.showDca ? view.dca?.yourAvg ?? null : null,
     dcaAvg: view.showDca ? view.dca?.dcaAvg ?? null : null,
     indicators: getIndicators(),
+    liquidation: view.showLiq && view.liq?.available ? view.liq : null,
     ...extra,
   });
 }
@@ -324,6 +332,87 @@ function renderDca() {
     `Preço médio fixo (todas as suas compras): <b>${formatPrice(d.yourAvg)}</b> · Médio mensal fixo: <b>${formatPrice(d.dcaAvg)}</b>`,
     `${verdict} → você comprou <b>${qty(d.qty)} ${view.asset}</b> vs. ${qty(d.dcaQty)} ${view.asset} no automático`,
   ].map((l) => `<div>${l}</div>`).join("") + note;
+}
+
+// ---------------------------------------------------------------------------
+// mapa de liquidação estimado (futuros: open interest + long/short)
+// ---------------------------------------------------------------------------
+
+const liqCache = new Map(); // asset -> { at, data }
+
+async function loadLiquidation(asset) {
+  const hit = liqCache.get(asset);
+  if (hit && Date.now() - hit.at < LIQ_CACHE_MS) {
+    view.liq = hit.data;
+  } else {
+    view.liq = undefined;
+    renderLiq();
+    try {
+      const data = await fetchLiquidationMap(asset);
+      liqCache.set(asset, { at: Date.now(), data });
+      if (view.asset !== asset) return;
+      view.liq = data;
+    } catch {
+      if (view.asset !== asset) return;
+      view.liq = null;
+    }
+  }
+  renderLiq();
+  render();
+}
+
+function renderLiq() {
+  const box = document.getElementById("price-chart-liq-box");
+  if (!box) return;
+  box.hidden = !view.showLiq;
+  if (!view.showLiq) return;
+
+  const d = view.liq;
+  const disclaimer =
+    '<p class="stats-disclaimer">⚠ <b>Estimativa, não dado real.</b> Ninguém publica onde estão as posições alavancadas: o modelo deduz isso pela variação do open interest hora a hora, pela razão long/short e supondo alavancagens de 5x a 100x. Use como região provável, não como nível exato.</p>';
+  if (d === undefined) {
+    box.innerHTML = '<span class="mini-spinner"></span> Calculando mapa de liquidação (30 dias de futuros)...';
+    return;
+  }
+  if (d === null) {
+    box.innerHTML = "Não foi possível carregar o mapa de liquidação (API de futuros da Binance).";
+    return;
+  }
+  if (!d.available) {
+    box.innerHTML =
+      d.reason === "no-perpetual"
+        ? `Mapa indisponível: ${view.asset} não tem contrato perpétuo em USDT na Binance Futures.`
+        : "Mapa indisponível: sem histórico de open interest para este contrato.";
+    return;
+  }
+
+  const pct = (p) => `${p >= d.price ? "+" : ""}${(((p - d.price) / d.price) * 100).toFixed(1).replace(".", ",")}%`;
+  // níveis são faixas de 0,25%: 5 dígitos significativos bastam (65.828 em vez de 65.827,6745)
+  const lvlPrice = (p) => formatPrice(Number(p.toPrecision(5)));
+  const near = (l) => Math.abs(l.price / d.price - 1) <= 0.1;
+  const above = d.levels.filter((l) => l.price > d.price && near(l));
+  const below = d.levels.filter((l) => l.price < d.price && near(l));
+  const sum = (list, k) => list.reduce((a, l) => a + l[k], 0);
+  const top = (list, k) => [...list].sort((a, b) => b[k] - a[k])[0];
+  const topShort = top(above, "short");
+  const topLong = top(below, "long");
+  const shortsAbove = sum(above, "short");
+  const longsBelow = sum(below, "long");
+  const pctTxt = (v) => (v === null || v === undefined ? "--" : `${Math.round(v * 100)}%`);
+
+  const lines = [
+    `Contrato <b>${d.symbol}</b>${d.multiplier > 1 ? ` (preços convertidos para 1 ${view.asset})` : ""} · últimos 30 dias · cada faixa é um nível de liquidação estimado (de roxo apagado a amarelo forte = mais dinheiro) e some quando o preço passa por ele. Barras à direita: o que ainda está pendente.`,
+  ];
+  if (topShort) lines.push(`Maior concentração acima (vendidos/shorts): <b>${lvlPrice(topShort.price)}</b> <span class="muted">(${pct(topShort.price)})</span> · ≈ ${formatUsdShort(topShort.short)} USDT`);
+  if (topLong) lines.push(`Maior concentração abaixo (comprados/longs): <b>${lvlPrice(topLong.price)}</b> <span class="muted">(${pct(topLong.price)})</span> · ≈ ${formatUsdShort(topLong.long)} USDT`);
+  if (shortsAbove || longsBelow) {
+    const side = shortsAbove > longsBelow * 1.2 ? "acima" : longsBelow > shortsAbove * 1.2 ? "abaixo" : null;
+    lines.push(
+      `Até ±10% do preço: ≈ ${formatUsdShort(shortsAbove)} em shorts acima · ≈ ${formatUsdShort(longsBelow)} em longs abaixo${side ? ` → mais liquidez <b>${side}</b> (o preço costuma ser atraído para onde há mais liquidações)` : ""}`
+    );
+  }
+  lines.push(`Contas compradas: ${pctTxt(d.ratios.globalLongAccount)} · Top traders (posição) comprados: ${pctTxt(d.ratios.topLongPosition)}`);
+  box.innerHTML = lines.map((l) => `<div>${l}</div>`).join("") + disclaimer;
 }
 
 // Arrastou até o começo dos dados: busca a página anterior de velas e coloca no início
@@ -484,6 +573,16 @@ export function initPriceChartPanel() {
     render();
   });
 
+  const liqInput = document.getElementById("price-chart-liq");
+  if (liqInput) liqInput.checked = view.showLiq;
+  liqInput?.addEventListener("change", () => {
+    view.showLiq = liqInput.checked;
+    writeStored(LIQ_STORAGE_KEY, view.showLiq ? "1" : "0");
+    if (view.showLiq && view.liq === null && view.asset) loadLiquidation(view.asset);
+    renderLiq();
+    render();
+  });
+
   const dcaInput = document.getElementById("price-chart-dca");
   if (dcaInput) dcaInput.checked = view.showDca;
   dcaInput?.addEventListener("change", () => {
@@ -553,6 +652,9 @@ export function openPriceChart(asset) {
   view.dca = null;
   if (view.showDca) loadDca(asset);
   else renderDca();
+  view.liq = null;
+  if (view.showLiq) loadLiquidation(asset);
+  else renderLiq();
   if (!view.interval) view.interval = recommendedInterval(rangeDays(view.range));
 
   document.getElementById("price-chart-title").innerText = `${asset} / USDT`;

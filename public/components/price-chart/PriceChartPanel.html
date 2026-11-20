@@ -60,6 +60,10 @@
         <input type="checkbox" id="price-chart-dca" />
         <span>Comparar com compra mensal fixa</span>
       </label>
+      <label class="price-chart-sim-toggle" id="price-chart-liq-label" title="Regiões onde posições alavancadas dos futuros seriam liquidadas, estimadas a partir do open interest e da razão long/short dos últimos 30 dias (não é dado real)">
+        <input type="checkbox" id="price-chart-liq" />
+        <span>Mapa de liquidação (estimado)</span>
+      </label>
       <label class="price-chart-sim-toggle" id="price-chart-sim-label">
         <input type="checkbox" id="price-chart-sim" />
         <span class="mini-spinner sim-spinner"></span>
@@ -73,6 +77,7 @@
     <div class="price-chart-legend" id="price-chart-legend"></div>
     <div class="price-chart-stats" id="price-chart-stats-box" hidden></div>
     <div class="price-chart-stats" id="price-chart-dca-box" hidden></div>
+    <div class="price-chart-stats" id="price-chart-liq-box" hidden></div>
     <div class="price-chart-canvas" id="price-chart-canvas-wrap">
       <div id="priceChartContainer" class="price-chart-lwc"></div>
       <div class="price-chart-overlay">

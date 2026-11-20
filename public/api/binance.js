@@ -39,6 +39,11 @@ export async function fetchOrderHistory(asset) {
   return getJson(`/order-history/${encodeURIComponent(asset)}`);
 }
 
+// Mapa de liquidação estimado (futuros perpétuos): { available, levels, segments, ratios, ... }
+export async function fetchLiquidationMap(asset) {
+  return getJson(`/liquidation-map/${encodeURIComponent(asset)}`);
+}
+
 export async function fetchOpenOrdersForAsset(asset) {
   const json = await getJson(`/orders/${encodeURIComponent(asset)}`);
   return Array.isArray(json) ? json : [];
