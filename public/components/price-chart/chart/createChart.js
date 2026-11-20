@@ -12,6 +12,7 @@ import {
   visibleMyOrders,
 } from "./overlays.js";
 import { createLegend } from "./legend.js";
+import { maColor, maLabel, movingAverage } from "./movingAverage.js";
 import { candleTooltipHtml, createTooltip, lineHelpTooltipHtml, ordersTooltipHtml, simTooltipHtml } from "./tooltip.js";
 
 const LWC = window.LightweightCharts;
@@ -21,7 +22,8 @@ const LWC = window.LightweightCharts;
  * els = { container, wrap, legend }   handlers = { onNeedOlder }
  *
  * update(opts): opts = { asset, points, interval, mode, avg, orders: { buys, sells },
- *                        openOrders: { buys, sells } | null, projectedAvg, fixedAvg, dcaAvg, window, prepended }
+ *                        openOrders: { buys, sells } | null, projectedAvg, fixedAvg, dcaAvg, window, prepended,
+ *                        movingAverages: [{ id, period, type: "SMA"|"EMA", color, visible }] }
  *   window: { fromMs, toMs } → mostra essa janela de tempo (novo período/moeda/vela); null → tudo
  *   prepended: n → n velas antigas foram adicionadas no início (mantém a posição da tela)
  */
@@ -40,6 +42,8 @@ export function createPriceChart(els, handlers = {}) {
     timeVisible: null, // eixo de tempo mostrando horas (velas intradiárias)
     opts: null,
     hidden: { myBuys: false, mySells: false, openBuys: false, openSells: false },
+    priceFormat: null, // formato do eixo (as médias móveis usam o mesmo)
+    mas: new Map(), // médias móveis: id -> { series, points, key, values }
   };
 
   const chart = LWC.createChart(container, {
@@ -108,6 +112,7 @@ export function createPriceChart(els, handlers = {}) {
   function ensureSeries(mode) {
     if (s.series && s.mode === mode) return false;
     if (s.series) chart.removeSeries(s.series);
+    removeMovingAverages(); // recriadas depois, para ficarem por cima da nova série
 
     s.series =
       mode === "candle"
@@ -169,6 +174,7 @@ export function createPriceChart(els, handlers = {}) {
     });
     const priceFormat = priceFormatFor(s.points.at(-1)?.close);
     s.precision = priceFormat.precision;
+    s.priceFormat = priceFormat;
     s.series.applyOptions({ priceFormat });
     s.series.setData(data);
 
@@ -177,6 +183,52 @@ export function createPriceChart(els, handlers = {}) {
       chart.timeScale().setVisibleLogicalRange({ from: range.from + prepended, to: range.to + prepended });
     } else if (win !== undefined) {
       showWindow(win);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // médias móveis: uma série de linha por média visível
+  // ---------------------------------------------------------------------------
+
+  function removeMovingAverages() {
+    for (const ma of s.mas.values()) chart.removeSeries(ma.series);
+    s.mas.clear();
+  }
+
+  function drawMovingAverages() {
+    const visible = (s.opts.movingAverages || []).filter((m) => m.visible);
+    const ids = new Set(visible.map((m) => m.id));
+    for (const [id, ma] of s.mas) {
+      if (ids.has(id)) continue;
+      chart.removeSeries(ma.series);
+      s.mas.delete(id);
+    }
+    for (const m of visible) {
+      let ma = s.mas.get(m.id);
+      if (!ma) {
+        ma = {
+          series: chart.addSeries(LWC.LineSeries, {
+            lineWidth: 2,
+            priceLineVisible: false,
+            crosshairMarkerVisible: false,
+          }),
+        };
+        s.mas.set(m.id, ma);
+      }
+      ma.series.applyOptions({ color: maColor(m), title: maLabel(m), ...(s.priceFormat ? { priceFormat: s.priceFormat } : {}) });
+      // recalcula só quando mudam as velas, o período ou o tipo
+      const key = `${m.type}|${m.period}|${s.interval}`;
+      if (ma.points === s.points && ma.key === key) continue;
+      ma.points = s.points;
+      ma.key = key;
+      ma.values = movingAverage(s.points, m.period, m.type);
+      // sem valor ainda (aquecimento): ponto vazio, para manter o alinhamento com as velas
+      ma.series.setData(
+        s.points.map((p, i) => {
+          const time = toChartTime(p.time, s.interval);
+          return ma.values[i] === null ? { time } : { time, value: ma.values[i] };
+        })
+      );
     }
   }
 
@@ -316,6 +368,7 @@ export function createPriceChart(els, handlers = {}) {
       else if (opts.window !== undefined) showWindow(opts.window);
 
       drawOverlays();
+      drawMovingAverages();
       scheduleOffscreen();
     },
 
@@ -336,6 +389,7 @@ export function createPriceChart(els, handlers = {}) {
         s.markersApi?.setMarkers([]);
         s.series.setData([]);
       }
+      removeMovingAverages();
       s.points = null;
       s.opts = null;
       if (els.legend) els.legend.innerHTML = "";

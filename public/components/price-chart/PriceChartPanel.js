@@ -13,11 +13,13 @@ import { avgAfterBuys, initBuySimulator, setSimContext, updateSimAvailability } 
 import { initAssetPicker } from "./assetPicker.js";
 import { buysOf, dcaComparison } from "./dca.js";
 import { initOpenOrdersTable, renderOpenOrdersTable } from "./openOrdersTable.js";
+import { getMovingAverages, initMovingAverageControls } from "./movingAverageControls.js";
 import { initOrderHistory, setHistoryAsset, showHistory } from "./orderHistoryTable.js";
 import { annualizedPct, dailyVolatility, priceBand, touchProbability } from "./volatility.js";
 import {
   clampWindow,
   fitInterval,
+  INTERVAL_MS,
   MAX_CANDLES,
   rangeDays,
   rangeWindow,
@@ -169,6 +171,7 @@ function render(extra = {}) {
     statBand: statBand(),
     fixedAvg: view.showDca ? view.dca?.yourAvg ?? null : null,
     dcaAvg: view.showDca ? view.dca?.dcaAvg ?? null : null,
+    movingAverages: getMovingAverages(),
     ...extra,
   });
 }
@@ -349,6 +352,25 @@ async function loadOlder() {
   }
 }
 
+// ---------------------------------------------------------------------------
+// médias móveis: velas de "aquecimento" antes da janela visível
+// ---------------------------------------------------------------------------
+
+// maior período entre as médias visíveis (0 = nenhuma)
+function maxMaPeriod() {
+  return Math.max(0, ...getMovingAverages().filter((m) => m.visible).map((m) => m.period));
+}
+
+// Média nova/maior: se não há velas suficientes antes do que está na tela, busca a página anterior
+function ensureWarmup() {
+  const period = maxMaPeriod();
+  if (!period || view.reachedStart || !view.points?.length) return;
+  const win = chart?.getVisibleWindow();
+  if (!win) return;
+  const before = view.points.filter((p) => p.time < win.fromMs).length;
+  if (before < period) loadOlder();
+}
+
 function setMode(mode) {
   view.mode = mode;
   writeStored(MODE_STORAGE_KEY, mode);
@@ -414,6 +436,12 @@ export function initPriceChartPanel() {
   });
 
   initBuySimulator();
+  initMovingAverageControls(document.getElementById("price-chart-mas"), {
+    onChange() {
+      render();
+      ensureWarmup();
+    },
+  });
   initOpenOrdersTable(document.getElementById("pco-open"));
   initOrdersTabs();
 
@@ -659,7 +687,9 @@ async function loadChart({ keepWindow = false } = {}) {
         reachedStart = true; // veio menos que uma página: é o começo do histórico da moeda
         break;
       }
-      if (points[0].time <= win.fromMs || points.length >= MAX_CANDLES) break;
+      // além da janela, busca as velas que as médias móveis precisam para já começar preenchidas
+      const warmup = maxMaPeriod();
+      if (points[0].time <= win.fromMs - warmup * INTERVAL_MS[interval] || points.length >= MAX_CANDLES + warmup) break;
       before = points[0].time;
     }
 
