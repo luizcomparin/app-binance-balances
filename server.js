@@ -45,6 +45,13 @@ app.get("/site", (req, res) => {
 	res.sendFile(path.join(PUBLIC_DIR, "index.html"));
 });
 
+// Abas do dashboard na URL (/site/grafico-de-preco, /site/saldos...): também servem o index.html,
+// e o front abre a aba correspondente
+app.get("/site/:page", (req, res, next) => {
+	if (!/^[a-z0-9-]+$/.test(req.params.page)) return next();
+	res.sendFile(path.join(PUBLIC_DIR, "index.html"));
+});
+
 registerRoutes(app);
 
 app.listen(PORT, () => {

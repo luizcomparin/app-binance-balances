@@ -21,8 +21,6 @@ async function boot() {
   showLoading();
   await initAppShell();
 
-  initTabs();
-
   window.loadOrders = loadOrders;
   window.applyOrderFilters = applyOrderFilters;
   window.sortOrders = sortOrders;
@@ -43,6 +41,9 @@ async function boot() {
   initOrderSimulation();
   initExecutedOrdersPanel();
   initPriceChartPanel();
+
+  // por último: a aba da URL já encontra todos os componentes ouvindo TAB_CHANGED
+  initTabs();
 
   Promise.all([loadBalances(), loadOrders()]).finally(() => hideLoading());
 }
