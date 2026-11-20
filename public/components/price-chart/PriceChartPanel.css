@@ -431,9 +431,9 @@
   margin-right: 6px;
 }
 
-/* quadro da faixa estatística (acima do gráfico) */
+/* quadros informativos abaixo do gráfico (faixa estatística, compra mensal fixa, mapa de liquidação) */
 .price-chart-stats {
-  margin: 0 0 10px;
+  margin: 10px 0 0;
   padding: 10px 12px;
   background: rgba(155, 176, 214, 0.06);
   border: 1px solid rgba(155, 176, 214, 0.15);

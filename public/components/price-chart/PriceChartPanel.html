@@ -75,9 +75,6 @@
   <div class="price-chart-body">
     <p id="price-chart-error" class="positions-status error" hidden></p>
     <div class="price-chart-legend" id="price-chart-legend"></div>
-    <div class="price-chart-stats" id="price-chart-stats-box" hidden></div>
-    <div class="price-chart-stats" id="price-chart-dca-box" hidden></div>
-    <div class="price-chart-stats" id="price-chart-liq-box" hidden></div>
     <div class="price-chart-canvas" id="price-chart-canvas-wrap">
       <div id="priceChartContainer" class="price-chart-lwc"></div>
       <div class="price-chart-overlay">
@@ -86,6 +83,12 @@
       <div class="price-chart-older">
         <span class="mini-spinner"></span>Carregando histórico...
       </div>
+    </div>
+    <!-- quadros informativos (faixa estatística, compra mensal fixa, mapa de liquidação): abaixo do gráfico -->
+    <div class="price-chart-info-boxes">
+      <div class="price-chart-stats" id="price-chart-stats-box" hidden></div>
+      <div class="price-chart-stats" id="price-chart-dca-box" hidden></div>
+      <div class="price-chart-stats" id="price-chart-liq-box" hidden></div>
     </div>
   </div>
   <div class="price-chart-orders" id="price-chart-orders">

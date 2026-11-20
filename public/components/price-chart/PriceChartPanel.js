@@ -235,11 +235,13 @@ function renderStats() {
   const typical = priceBand(price, sigmaDaily, n, 1);
   const wide = priceBand(price, sigmaDaily, n, 1.96);
   const pct = (v) => `${v >= price ? "+" : ""}${(((v - price) / price) * 100).toFixed(1).replace(".", ",")}%`;
+  // faixa é aproximada: 5 dígitos significativos bastam (54.546 em vez de 54.545,8121)
+  const band = (v) => formatPrice(Number(v.toPrecision(5)));
 
   const lines = [
     `Volatilidade histórica (${view.vol.days} dias): <b>${annualizedPct(sigmaDaily).toFixed(0)}% ao ano</b> · ${(sigmaDaily * 100).toFixed(1).replace(".", ",")}% ao dia`,
-    `Em <b>${n} dia${n > 1 ? "s" : ""}</b>, faixa típica (~68% das vezes): <b>${formatPrice(typical.low)} a ${formatPrice(typical.high)}</b> <span class="muted">(${pct(typical.low)} / ${pct(typical.high)})</span>`,
-    `Faixa ampla (~95% das vezes): ${formatPrice(wide.low)} a ${formatPrice(wide.high)} <span class="muted">(${pct(wide.low)} / ${pct(wide.high)})</span>`,
+    `Em <b>${n} dia${n > 1 ? "s" : ""}</b>, faixa típica (~68% das vezes): <b>${band(typical.low)} a ${band(typical.high)}</b> <span class="muted">(${pct(typical.low)} / ${pct(typical.high)})</span>`,
+    `Faixa ampla (~95% das vezes): ${band(wide.low)} a ${band(wide.high)} <span class="muted">(${pct(wide.low)} / ${pct(wide.high)})</span>`,
   ];
 
   // chance de o preço tocar o preço médio (e o projetado, se ligado) dentro do horizonte
