@@ -17,9 +17,32 @@ const COLORS = {
 
 // Dicas (hover no título de cada painel)
 export const FUTURES_HELP = {
-  oi: "Open interest: valor total dos contratos em aberto nos futuros. Leia junto com o preço: preço ↑ + OI ↑ = dinheiro novo entrando comprado (alta com força); preço ↓ + OI ↑ = dinheiro novo entrando vendido (queda com força); preço ↑ + OI ↓ = shorts fechando ou sendo liquidados (short squeeze, alta sem dinheiro novo, costuma perder fôlego); preço ↓ + OI ↓ = longs desistindo ou sendo liquidados (capitulação, às vezes perto de fundo). Quedas bruscas de OI marcam ondas de liquidação.",
-  ls: "Long/Short: % de comprados. Contas = todas as contas (sentimento do varejo); Top traders = posição dos maiores traders. Lê-se como sentimento, de forma contrária: maioria muito comprada = combustível para liquidações de longs (e vice-versa). Quando os dois divergem (varejo comprado enquanto os grandes reduzem), é sinal de alerta.",
-  funding: "Taxa de funding: pagamento periódico (em geral a cada 8h) entre comprados e vendidos para manter o preço do futuro perto do spot. Positiva = comprados pagam (mercado alavancado comprado demais); negativa = vendidos pagam (excesso de vendidos, possível short squeeze). O normal fica perto de +0,01% por cobrança; extremos costumam anteceder reversões.",
+  oi: [
+    "Valor total dos contratos em aberto nos futuros.",
+    "",
+    "Leia junto com o preço:",
+    "• Preço ↑ + OI ↑: dinheiro novo entrando comprado (alta com força).",
+    "• Preço ↓ + OI ↑: dinheiro novo entrando vendido (queda com força).",
+    "• Preço ↑ + OI ↓: shorts fechando ou sendo liquidados (short squeeze, alta sem dinheiro novo, costuma perder fôlego).",
+    "• Preço ↓ + OI ↓: longs desistindo ou sendo liquidados (capitulação, às vezes perto de fundo).",
+    "",
+    "Quedas bruscas de OI marcam ondas de liquidação.",
+  ].join("\n"),
+  ls: [
+    "% de comprados entre:",
+    "• Contas: todas as contas (em geral, o varejo).",
+    "• Top traders: os maiores traders, pesando o tamanho da posição.",
+    "",
+    "Como ler:",
+    "• Varejo muito comprado (75% ou mais) é sinal de alerta: há muitos longs para serem liquidados se o preço cair.",
+    "• Top traders bem menos comprados que o varejo: os grandes não estão acompanhando a euforia.",
+  ].join("\n"),
+  funding: [
+    "Taxa que um lado paga ao outro a cada 8h.",
+    "• Positiva: quem está comprado paga → muita gente apostando na alta.",
+    "• Negativa: quem está vendido paga → muita gente apostando na queda.",
+    "• Normal: perto de +0,01%. Valores muito acima ou abaixo costumam aparecer perto de viradas.",
+  ].join("\n"),
 };
 
 const pct = (v, digits = 1) => `${(v * 100).toFixed(digits).replace(".", ",")}%`;
