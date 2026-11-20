@@ -5,6 +5,7 @@ import { buildPositions } from "./services/positions.js";
 import { buildOpenOrders, groupOrdersByAsset } from "./services/openOrders.js";
 import { buildExecutedOrders } from "./services/executedOrders.js";
 import { buildPriceChart, CHART_INTERVALS } from "./services/priceChart.js";
+import { buildOrderHistory } from "./services/orderHistory.js";
 
 // Envolve o handler: responde o JSON retornado ou { error } com status 500
 const handle = (fn) => async (req, res) => {
@@ -48,6 +49,15 @@ export function registerRoutes(app) {
 			return grouped[asset] || [];
 		})
 	);
+
+	// Histórico de ordens de uma moeda (executadas, canceladas, expiradas), com as execuções de cada uma
+	app.get("/order-history/:asset", (req, res, next) => {
+		const asset = String(req.params.asset).toUpperCase();
+		if (!/^[A-Z0-9]{1,20}$/.test(asset)) {
+			return res.status(400).json({ error: "Moeda inválida" });
+		}
+		return handle(() => buildOrderHistory(asset))(req, res, next);
+	});
 
 	// Ordens executadas (agrupadas a partir dos trades)
 	app.get("/executed-orders", handle(() => buildExecutedOrders()));

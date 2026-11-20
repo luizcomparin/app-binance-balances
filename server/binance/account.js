@@ -17,6 +17,12 @@ export async function getOpenOrders() {
 	return cached("openOrders", SHORT_CACHE_MS, () => signedGet("/api/v3/openOrders"));
 }
 
+// Últimas 1000 ordens de um símbolo, de qualquer status (executadas, canceladas, expiradas, abertas)
+const ALL_ORDERS_TTL_MS = 60 * 1000;
+export async function getAllOrders(symbol) {
+	return cached(`allOrders:${symbol}`, ALL_ORDERS_TTL_MS, () => signedGet("/api/v3/allOrders", { symbol, limit: 1000 }));
+}
+
 // Cache incremental de trades por símbolo: na 1ª vez baixa tudo (paginando por
 // fromId), depois só busca trades com id maior que o último conhecido.
 const TRADES_TTL_MS = 5 * 60 * 1000;

@@ -82,6 +82,32 @@
       </div>
     </div>
   </div>
-  <div class="price-chart-orders" id="price-chart-orders"></div>
+  <div class="price-chart-orders" id="price-chart-orders">
+    <div class="pco-tabs" role="tablist">
+      <button type="button" class="pco-tab active" data-pco-tab="open" role="tab">Ordens abertas <span class="muted" id="pco-open-count"></span></button>
+      <button type="button" class="pco-tab" data-pco-tab="history" role="tab">Histórico de ordens</button>
+    </div>
+    <div class="pco-pane" data-pco-pane="open" id="pco-open"></div>
+    <div class="pco-pane" data-pco-pane="history" hidden>
+      <div class="pco-filters">
+        <div class="pco-presets">
+          <button type="button" class="ghost" data-period="1d">1 dia</button>
+          <button type="button" class="ghost" data-period="7d">1 semana</button>
+          <button type="button" class="ghost" data-period="30d">1 mês</button>
+          <button type="button" class="ghost" data-period="90d">3 meses</button>
+          <button type="button" class="ghost" data-period="all">Tudo</button>
+        </div>
+        <label class="pco-dates">
+          <span class="muted">Período</span>
+          <input type="date" id="pco-from" />
+          <span class="muted">→</span>
+          <input type="date" id="pco-to" />
+        </label>
+        <button type="button" class="ghost" id="pco-search">Buscar</button>
+        <button type="button" class="ghost" id="pco-reset">Limpar</button>
+      </div>
+      <div id="pco-history"></div>
+    </div>
+  </div>
   </div>
 </section>

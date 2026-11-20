@@ -40,14 +40,151 @@
   cursor: text;
 }
 
-/* ordens abertas da moeda (abaixo do gráfico) */
+/* ordens da moeda abaixo do gráfico: abas Ordens abertas | Histórico de ordens */
 .price-chart-orders {
   margin-top: 22px;
 }
 
-.price-chart-orders .pco-title {
-  margin: 0 0 10px;
+.pco-tabs {
+  display: flex;
+  gap: 22px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.pco-tab {
+  position: relative;
+  padding: 8px 0 10px;
+  background: none;
+  border: none;
+  border-radius: 0;
+  color: var(--muted);
+  font: inherit;
   font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pco-tab:hover {
+  color: #e5ecff;
+}
+
+.pco-tab.active {
+  color: #e5ecff;
+}
+
+/* traço curto sob a aba ativa, como na Binance */
+.pco-tab.active::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -1px;
+  width: 22px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+  transform: translateX(-50%);
+}
+
+.pco-pane[hidden] {
+  display: none;
+}
+
+.pco-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin-bottom: 12px;
+}
+
+.pco-presets {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.pco-presets button.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.pco-dates {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 6px;
+  font-size: 14px;
+}
+
+.pco-dates input {
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  color-scheme: dark;
+}
+
+/* histórico: linha expansível com as execuções da ordem */
+.price-chart-orders .pco-row {
+  cursor: pointer;
+}
+
+.price-chart-orders .pco-expand {
+  width: 18px;
+  padding-right: 0;
+}
+
+.price-chart-orders .pco-caret {
+  display: inline-block;
+  font-size: 14px;
+  color: var(--muted);
+  transition: transform 0.15s ease;
+}
+
+.price-chart-orders .pco-row.open .pco-caret {
+  transform: rotate(180deg);
+}
+
+/* cancelada/expirada sem nada executado */
+.price-chart-orders .pco-row.pco-dim td,
+.price-chart-orders .pco-row.pco-dim td.buy,
+.price-chart-orders .pco-row.pco-dim td.sell {
+  opacity: 0.4;
+}
+
+.price-chart-orders .pco-detail > td {
+  padding: 10px 14px 14px 44px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.price-chart-orders .pco-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  margin-bottom: 8px;
+  color: var(--muted);
+}
+
+.price-chart-orders .pco-fills {
+  width: auto;
+  background: transparent;
+}
+
+.price-chart-orders .pco-fills th,
+.price-chart-orders .pco-fills td {
+  padding: 6px 18px 6px 0;
+  border-bottom: none;
+  font-size: 12px;
+}
+
+.price-chart-orders .pco-fills thead th {
+  position: static;
+  box-shadow: none;
+  background: transparent;
+  cursor: default;
 }
 
 .price-chart-orders .pco-table {
@@ -56,9 +193,15 @@
 
 .price-chart-orders th,
 .price-chart-orders td {
-  padding: 10px 12px;
+  padding: 10px 8px;
   font-size: 13px;
   white-space: nowrap;
+}
+
+/* cabeçalhos longos quebram linha para as colunas caberem sem rolagem lateral */
+.price-chart-orders thead th {
+  white-space: normal;
+  vertical-align: bottom;
 }
 
 .price-chart-orders th.pco-nosort {

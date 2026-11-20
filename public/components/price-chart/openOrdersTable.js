@@ -1,4 +1,4 @@
-// Seção "Ordens abertas" abaixo do gráfico: as ordens em aberto da moeda, no estilo da tabela da Binance.
+// Aba "Ordens abertas" abaixo do gráfico: as ordens em aberto da moeda, no estilo da tabela da Binance.
 import { formatDateTime, formatPrice, formatQty } from "../../core/format.js";
 
 const TYPE_LABELS = {
@@ -22,13 +22,13 @@ const SORTS = {
 const sort = { key: "time", dir: -1 }; // padrão: mais recentes primeiro
 let last = { el: null, orders: null, asset: null };
 
-const typeLabel = (type) => TYPE_LABELS[type] || String(type || "--").replace(/_/g, " ");
+export const typeLabel = (type) => TYPE_LABELS[type] || String(type || "--").replace(/_/g, " ");
 const priceOf = (o) => Number(o.price) || 0;
 const isStable = (quote) => ["USDT", "FDUSD", "USDC", "BRL"].includes(quote);
 const dash = '<span class="muted">–</span>';
 
 // "Último preço <= 0,119": stop loss dispara contra o lado da ordem, take profit a favor
-function triggerText(o) {
+export function triggerText(o) {
   const stop = Number(o.stopPrice);
   if (!stop) return dash;
   const isStop = String(o.type).startsWith("STOP_LOSS");
@@ -36,7 +36,7 @@ function triggerText(o) {
   return `Último preço ${down ? "&lt;=" : "&gt;="} ${formatPrice(stop)}`;
 }
 
-function quoteAmount(v, quote) {
+export function quoteAmount(v, quote) {
   return `${isStable(quote) ? v.toFixed(2).formatCurrency() : formatPrice(v)} ${quote}`;
 }
 
@@ -77,13 +77,14 @@ function headerHtml() {
 }
 
 /**
- * Desenha a seção em `el`. orders: lista crua de /orders/:asset (com baseAsset/quoteAsset),
- * undefined = carregando, null = erro.
+ * Desenha a tabela em `el` e o total no rótulo da aba (`countEl`). orders: lista crua de
+ * /orders/:asset (com baseAsset/quoteAsset), undefined = carregando, null = erro.
  */
-export function renderOpenOrdersTable(el, orders, asset) {
+export function renderOpenOrdersTable(el, orders, asset, countEl) {
   if (!el) return;
-  last = { el, orders, asset };
-  const title = `<h3 class="pco-title">Ordens abertas${Array.isArray(orders) ? ` <span class="muted">(${orders.length})</span>` : ""}</h3>`;
+  last = { el, orders, asset, countEl };
+  if (countEl) countEl.textContent = Array.isArray(orders) ? `(${orders.length})` : "";
+  const title = "";
 
   if (orders === undefined) {
     el.innerHTML = `${title}<p class="pco-empty"><span class="mini-spinner"></span> Carregando ordens abertas...</p>`;
@@ -117,6 +118,6 @@ export function initOpenOrdersTable(el) {
     if (!key) return;
     sort.dir = sort.key === key ? -sort.dir : key === "time" ? -1 : 1;
     sort.key = key;
-    if (last.el) renderOpenOrdersTable(last.el, last.orders, last.asset);
+    if (last.el) renderOpenOrdersTable(last.el, last.orders, last.asset, last.countEl);
   });
 }

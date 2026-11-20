@@ -13,6 +13,7 @@ import { avgAfterBuys, initBuySimulator, setSimContext, updateSimAvailability } 
 import { initAssetPicker } from "./assetPicker.js";
 import { buysOf, dcaComparison } from "./dca.js";
 import { initOpenOrdersTable, renderOpenOrdersTable } from "./openOrdersTable.js";
+import { initOrderHistory, setHistoryAsset, showHistory } from "./orderHistoryTable.js";
 import { annualizedPct, dailyVolatility, priceBand, touchProbability } from "./volatility.js";
 import {
   clampWindow,
@@ -38,6 +39,7 @@ const DEFAULT_ASSET = "BTC"; // sem última moeda vista
 const PANEL_TAB = "price-chart";
 const STATS_DAYS_STORAGE_KEY = "priceChartStatsDays";
 const DCA_STORAGE_KEY = "priceChartDca";
+const ORDERS_TAB_STORAGE_KEY = "priceChartOrdersTab"; // aba abaixo do gráfico: open | history
 
 let chart = null; // controlador do Lightweight Charts (criado uma vez no init)
 let picker = null; // seletor de moeda do título
@@ -412,7 +414,8 @@ export function initPriceChartPanel() {
   });
 
   initBuySimulator();
-  initOpenOrdersTable(document.getElementById("price-chart-orders"));
+  initOpenOrdersTable(document.getElementById("pco-open"));
+  initOrdersTabs();
 
   // título "XRP / USDT ▾": troca de moeda direto na aba
   picker = initAssetPicker({ getCurrent: () => view.asset, onSelect: openPriceChart });
@@ -532,6 +535,7 @@ export function openPriceChart(asset) {
   updateSimAvailability();
   updateProjectedAvailability();
   renderOrdersTable();
+  setHistoryAsset(asset, ordersTab === "history");
   highlightRange();
   loadChart();
 
@@ -552,7 +556,42 @@ export function openPriceChart(asset) {
 // tabela de ordens abertas abaixo do gráfico (undefined = carregando)
 function renderOrdersTable() {
   const orders = view.openOrders ? view.openOrders.all : undefined;
-  renderOpenOrdersTable(document.getElementById("price-chart-orders"), orders, view.asset);
+  renderOpenOrdersTable(document.getElementById("pco-open"), orders, view.asset, document.getElementById("pco-open-count"));
+}
+
+// ---------------------------------------------------------------------------
+// abas abaixo do gráfico: Ordens abertas | Histórico de ordens
+// ---------------------------------------------------------------------------
+
+let ordersTab = readStored(ORDERS_TAB_STORAGE_KEY) === "history" ? "history" : "open";
+
+function showOrdersTab(tab) {
+  ordersTab = tab;
+  writeStored(ORDERS_TAB_STORAGE_KEY, tab);
+  document.querySelectorAll("#price-chart-orders .pco-tab").forEach((b) => {
+    const active = b.dataset.pcoTab === tab;
+    b.classList.toggle("active", active);
+    b.setAttribute("aria-selected", String(active));
+  });
+  document.querySelectorAll("#price-chart-orders .pco-pane").forEach((p) => {
+    p.hidden = p.dataset.pcoPane !== tab;
+  });
+  if (tab === "history") showHistory(); // carrega só quando a aba é aberta
+}
+
+function initOrdersTabs() {
+  initOrderHistory({
+    list: document.getElementById("pco-history"),
+    presets: document.querySelectorAll("#price-chart-orders [data-period]"),
+    from: document.getElementById("pco-from"),
+    to: document.getElementById("pco-to"),
+    search: document.getElementById("pco-search"),
+    reset: document.getElementById("pco-reset"),
+  });
+  document.querySelectorAll("#price-chart-orders .pco-tab").forEach((b) => {
+    b.addEventListener("click", () => showOrdersTab(b.dataset.pcoTab));
+  });
+  showOrdersTab(ordersTab);
 }
 
 function renderInfo() {

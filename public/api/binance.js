@@ -34,6 +34,11 @@ export async function fetchKlines(asset, interval, { before = null, limit = 1000
   );
 }
 
+// Histórico de ordens de uma moeda: { orders, errors } (ordens encerradas, com as execuções)
+export async function fetchOrderHistory(asset) {
+  return getJson(`/order-history/${encodeURIComponent(asset)}`);
+}
+
 export async function fetchOpenOrdersForAsset(asset) {
   const json = await getJson(`/orders/${encodeURIComponent(asset)}`);
   return Array.isArray(json) ? json : [];

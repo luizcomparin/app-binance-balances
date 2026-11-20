@@ -7,7 +7,7 @@ import { publicGet } from "../binance/client.js";
 import { getAllPrices, getPriceInUSDT, getSymbolInfo, resolveSymbol } from "../binance/market.js";
 
 // Moedas de cotação em que procuramos trades de cada ativo
-const PNL_QUOTES = ["USDT", "FDUSD", "USDC", "BUSD", "BRL", "BTC", "ETH", "BNB"];
+export const PNL_QUOTES = ["USDT", "FDUSD", "USDC", "BUSD", "BRL", "BTC", "ETH", "BNB"];
 // Cotações tratadas como 1:1 com USDT no histórico
 export const USD_STABLES = new Set(["USDT", "FDUSD", "USDC", "BUSD"]);
 // Ativos para os quais não faz sentido calcular P&L
