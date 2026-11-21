@@ -16,6 +16,7 @@ import { maColor, maLabel, movingAverage } from "./movingAverage.js";
 import { BandFill, bollinger } from "./bollinger.js";
 import { LiquidationOverlay } from "./liquidationOverlay.js";
 import { createFuturesPanes } from "./futuresPanes.js";
+import { createMeasureTool } from "./measureTool.js";
 import { candleTooltipHtml, createTooltip, lineHelpTooltipHtml, ordersTooltipHtml, simTooltipHtml } from "./tooltip.js";
 
 const LWC = window.LightweightCharts;
@@ -84,6 +85,13 @@ export function createPriceChart(els, handlers = {}) {
 
   // painéis de volume, open interest, long/short e funding (mesmo eixo de tempo)
   const futures = createFuturesPanes(chart, wrap);
+
+  // régua de medição (Shift + clique); anexada à série principal, como o mapa de liquidação
+  const measure = createMeasureTool(chart, {
+    getSeries: () => s.series,
+    getPoints: () => s.points,
+    getInterval: () => s.interval,
+  });
 
   // resumo das ordens abertas fora da faixa de preço visível
   const offTop = document.createElement("div");
@@ -158,10 +166,12 @@ export function createPriceChart(els, handlers = {}) {
           });
     if (old) {
       old.detachPrimitive(liquidation);
+      old.detachPrimitive(measure.primitive);
       chart.removeSeries(old);
     }
     s.markersApi = LWC.createSeriesMarkers(s.series, []);
     s.series.attachPrimitive(liquidation);
+    s.series.attachPrimitive(measure.primitive);
     s.priceLines = [];
     s.mode = mode;
     return true;
@@ -420,6 +430,7 @@ export function createPriceChart(els, handlers = {}) {
   chart.subscribeCrosshairMove((param) => {
     scheduleOffscreen();
     futures.crosshair(param.point && param.logical !== undefined ? Math.round(param.logical) : null);
+    if (measure.move(param)) return tooltip.hide(); // medindo: o fim da régua segue o mouse
     if (!s.series || !s.points || !param.point || param.time === undefined) return tooltip.hide();
     if (param.paneIndex) return tooltip.hide(); // mouse nos painéis de futuros: só os títulos mostram os valores
 
@@ -463,6 +474,7 @@ export function createPriceChart(els, handlers = {}) {
       const recreated = ensureSeries(opts.mode);
       const dataChanged = recreated || opts.points !== s.points;
       s.points = opts.points;
+      if (s.interval && opts.interval !== s.interval) measure.clear(); // outra vela: a medida não vale mais
       s.interval = opts.interval;
       // só mexe nas opções do eixo de tempo quando mudam (mudar provoca reajuste de layout)
       const timeVisible = INTRADAY.has(opts.interval);
@@ -506,6 +518,7 @@ export function createPriceChart(els, handlers = {}) {
       }
       removeIndicators();
       liquidation.setData(null);
+      measure.clear();
       futures.remove();
       wrap.style.setProperty("--sub-panes", 0);
       s.points = null;
