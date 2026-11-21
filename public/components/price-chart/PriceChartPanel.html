@@ -116,14 +116,19 @@
   </div>
   <div class="price-chart-body">
     <p id="price-chart-error" class="positions-status error" hidden></p>
-    <!-- legenda e "Ajustar zoom" logo acima do gráfico -->
+    <!-- legenda, "Ajustar zoom" e lista de moedas logo acima do gráfico -->
     <div class="price-chart-legend-row">
       <div class="price-chart-legend" id="price-chart-legend"></div>
       <button type="button" class="pc-btn" id="price-chart-fit" title="Enquadrar todo o período carregado">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
         Ajustar zoom
       </button>
+      <button type="button" class="pc-btn pc-icon-btn" id="price-chart-watchlist-btn" title="Lista de moedas" aria-label="Lista de moedas" aria-expanded="false" aria-controls="price-chart-watchlist">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg>
+      </button>
     </div>
+    <!-- gráfico e, à direita, a lista de moedas (watchlist) -->
+    <div class="price-chart-main">
     <div class="price-chart-canvas" id="price-chart-canvas-wrap">
       <div id="priceChartContainer" class="price-chart-lwc"></div>
       <div class="price-chart-overlay">
@@ -132,6 +137,11 @@
       <div class="price-chart-older">
         <span class="mini-spinner"></span>Carregando histórico...
       </div>
+    </div>
+    <aside class="pc-watchlist" id="price-chart-watchlist" hidden>
+      <div class="wl-head"><span>Símbolo</span><span>Preço</span><span>Var%</span></div>
+      <ul class="wl-list" id="price-chart-watchlist-list"></ul>
+    </aside>
     </div>
     <!-- quadros informativos (faixa estatística, compra mensal fixa, mapa de liquidação): abaixo do gráfico;
          data-title = título do quadro (mostrado pelo CSS, o JS só troca o conteúdo) -->

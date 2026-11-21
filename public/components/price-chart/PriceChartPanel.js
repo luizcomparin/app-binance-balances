@@ -5,12 +5,13 @@
 //   - período (7d, 30d, ..., Tudo, customizado): mostra essa janela e escolhe a vela recomendada.
 import { state } from "../../core/state.js";
 import { formatPrice } from "../../core/format.js";
-import { on, POSITIONS_UPDATED, TAB_CHANGED } from "../../core/events.js";
+import { BALANCES_UPDATED, on, POSITIONS_UPDATED, TAB_CHANGED } from "../../core/events.js";
 import { isTabActive, showTab } from "../tabs/Tabs.js";
 import { getKlines, KLINES_PAGE, loadMyOrders, loadOpenOrders, ordersOnChart } from "./chartData.js";
 import { createPriceChart } from "./chart/createChart.js";
 import { avgAfterBuys, initBuySimulator, setSimContext, updateSimAvailability } from "./buySimulator.js";
 import { initAssetPicker } from "./assetPicker.js";
+import { initWatchlist } from "./watchlist.js";
 import { buysOf, dcaComparison } from "./dca.js";
 import { initOpenOrdersTable, renderOpenOrdersTable } from "./openOrdersTable.js";
 import { getIndicators, initIndicatorControls } from "./indicatorControls.js";
@@ -54,6 +55,7 @@ const ORDERS_TAB_STORAGE_KEY = "priceChartOrdersTab"; // aba abaixo do gráfico:
 
 let chart = null; // controlador do Lightweight Charts (criado uma vez no init)
 let picker = null; // seletor de moeda do título
+let watchlist = null; // lista de moedas ao lado do gráfico
 const view = {
   asset: null,
   range: readStoredRange(),
@@ -629,6 +631,9 @@ export function initPriceChartPanel() {
 
   // título "XRP / USDT ▾": troca de moeda direto na aba
   picker = initAssetPicker({ getCurrent: () => view.asset, onSelect: openPriceChart });
+  // lista de moedas à direita do gráfico (atualiza com os saldos)
+  watchlist = initWatchlist({ getCurrent: () => view.asset, onSelect: openPriceChart });
+  on(BALANCES_UPDATED, () => watchlist.refresh());
 
   const container = document.getElementById("priceChartContainer");
   const wrap = document.getElementById("price-chart-canvas-wrap");
@@ -781,6 +786,7 @@ export function openPriceChart(asset) {
   if (!view.interval) view.interval = recommendedInterval(rangeDays(view.range));
 
   document.getElementById("price-chart-title").innerText = `${asset} / USDT`;
+  watchlist?.refresh(); // destaca a moeda aberta
   setSimContext({ asset, lastPrice: null });
   chart?.clear(); // não mostrar (esmaecido) o gráfico da moeda anterior
   const info = document.getElementById("price-chart-info");
