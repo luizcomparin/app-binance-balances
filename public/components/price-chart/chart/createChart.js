@@ -26,7 +26,8 @@ const LWC = window.LightweightCharts;
  *
  * update(opts): opts = { asset, points, interval, mode, avg, orders: { buys, sells },
  *                        openOrders: { buys, sells } | null, projectedAvg, fixedAvg, dcaAvg, window, prepended,
- *                        indicators: [{ id, kind: "ma"|"bb", period, type?, mult?, color, opacity, visible }],
+ *                        indicators: [{ id, kind: "ma"|"bb"|"vma", period, type?, mult?, color, opacity, visible }],
+ *                        ("vma" = média do volume, desenhada no painel de volume)
  *                        liquidation: resposta de /liquidation-map | null,
  *                        futures: resposta de /futures-data | null (painéis de OI, long/short e funding) }
  *   window: { fromMs, toMs } → mostra essa janela de tempo (novo período/moeda/vela); null → tudo
@@ -279,7 +280,8 @@ export function createPriceChart(els, handlers = {}) {
   }
 
   function drawIndicators() {
-    const visible = (s.opts.indicators || []).filter((m) => m.visible);
+    // médias do volume ficam no painel de volume (futuresPanes)
+    const visible = (s.opts.indicators || []).filter((m) => m.visible && m.kind !== "vma");
     const ids = new Set(visible.map((m) => m.id));
     for (const [id, ind] of s.inds) {
       if (ids.has(id)) continue;
@@ -481,6 +483,7 @@ export function createPriceChart(els, handlers = {}) {
       // (1 painel de volume sempre que há velas + 3 de futuros quando há dados)
       wrap.style.setProperty("--sub-panes", (s.points?.length ? 1 : 0) + (opts.futures ? 3 : 0));
       futures.update(s.points, s.interval, opts.futures || null);
+      futures.setVolumeAverages((opts.indicators || []).filter((m) => m.kind === "vma" && m.visible));
       scheduleOffscreen();
     },
 

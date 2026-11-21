@@ -1,7 +1,9 @@
-// Controles dos indicadores (linha "Indicadores" do cabeçalho): médias móveis e Bandas de Bollinger.
+// Controles dos indicadores (linha "Indicadores" do cabeçalho): médias móveis (do preço e do volume)
+// e Bandas de Bollinger.
 // Dá para adicionar vários; cada um tem cor (com opacidade), parâmetros, ocultar/exibir e remover.
 // A lista fica salva no navegador.
 //   média móvel:  { kind: "ma", period, type: "SMA"|"EMA", color, opacity, visible }
+//   média do volume (desenhada no painel de volume): { kind: "vma", period, type, color, opacity, visible }
 //   Bollinger:    { kind: "bb", period, mult (desvios padrão), color, opacity, visible }
 import { maColor } from "./chart/movingAverage.js";
 
@@ -41,7 +43,7 @@ function clampOpacity(v) {
 function normalize(m) {
   const base = {
     id: m.id,
-    kind: m.kind === "bb" ? "bb" : "ma",
+    kind: ["bb", "vma"].includes(m.kind) ? m.kind : "ma",
     period: clampPeriod(m.period),
     color: /^#[0-9a-f]{6}$/i.test(m.color) ? m.color : PALETTE[0],
     opacity: clampOpacity(m.opacity ?? 1),
@@ -78,10 +80,13 @@ const newId = (kind) => `${kind}${Date.now().toString(36)}${Math.random().toStri
 // render
 // ---------------------------------------------------------------------------
 
-// "SMA 20" / "EMA 50" / "BB 20 · 2σ"
+// "SMA 20" / "EMA 50" / "BB 20 · 2σ" / "Vol SMA 20"
 function labelOf(m) {
-  return m.kind === "bb" ? `BB ${m.period} · ${String(m.mult).replace(".", ",")}σ` : `${m.type} ${m.period}`;
+  if (m.kind === "bb") return `BB ${m.period} · ${String(m.mult).replace(".", ",")}σ`;
+  return `${m.kind === "vma" ? "Vol " : ""}${m.type} ${m.period}`;
 }
+
+const POP_TITLE = { ma: "Média móvel", vma: "Média móvel do volume", bb: "Bandas de Bollinger" };
 
 // painel de edição (abre ao clicar no nome): parâmetros, opacidade e cor
 function editorHtml(m) {
@@ -94,7 +99,7 @@ function editorHtml(m) {
           <option value="EMA"${m.type === "EMA" ? " selected" : ""}>EMA (exponencial)</option>
         </select></label>${period}`;
   return `<div class="pcm-pop" hidden>
-      <span class="pcm-pop-title">${m.kind === "bb" ? "Bandas de Bollinger" : "Média móvel"}</span>
+      <span class="pcm-pop-title">${POP_TITLE[m.kind]}</span>
       ${params}
       <label class="pcm-opacity-row">
         <span>Opacidade</span>
@@ -123,6 +128,7 @@ function render() {
       <div class="pcm-menu" hidden>
         <button type="button" class="pcm-add" data-kind="ma">Média móvel</button>
         <button type="button" class="pcm-add" data-kind="bb">Bandas de Bollinger</button>
+        <button type="button" class="pcm-add" data-kind="vma">Média móvel do volume</button>
       </div>
     </div>`;
 }
@@ -140,6 +146,10 @@ function update(id, changes) {
 function add(kind) {
   if (kind === "bb") {
     list = [...list, { id: newId("bb"), kind: "bb", period: 20, mult: 2, color: BB_COLOR, opacity: 1, visible: true }];
+  } else if (kind === "vma") {
+    const usedColors = new Set(list.map((m) => m.color));
+    const color = PALETTE.find((c) => !usedColors.has(c)) || PALETTE[0];
+    list = [...list, { id: newId("vma"), kind: "vma", period: 20, type: "SMA", color, opacity: 1, visible: true }];
   } else {
     const mas = list.filter((m) => m.kind === "ma");
     const used = new Set(mas.map((m) => m.period));
@@ -180,7 +190,7 @@ export function initIndicatorControls(container, handlers = {}) {
       closePopovers();
       return add(addBtn.dataset.kind);
     }
-    // "+ Adicionar": abre/fecha o menu (Média móvel / Bandas de Bollinger)
+    // "+ Adicionar": abre/fecha o menu (Média móvel / Bandas de Bollinger / Média móvel do volume)
     if (e.target.closest(".pcm-add-btn")) {
       const menu = el.querySelector(".pcm-menu");
       const open = menu.hidden;

@@ -4,6 +4,7 @@
 // Os de futuros vêm em períodos próprios (1h/4h/1d e funding a cada 8h) e são encaixados nas velas do gráfico.
 import { formatUsdShort } from "./liquidationOverlay.js";
 import { toChartTime } from "./axis.js";
+import { movingAverage, maColor, maLabel } from "./movingAverage.js";
 
 const LWC = window.LightweightCharts;
 const PANE_HEIGHT = 96;
@@ -120,7 +121,8 @@ function alignToBars(points, rows, get, mode) {
 
 export function createFuturesPanes(chart, wrap) {
   // vol = série de volume (painel 1); series = séries de futuros (painéis 2 a 4, só com dados de futuros)
-  const st = { vol: null, series: null, aligned: null, data: null, points: null, interval: null };
+  // vmas = médias do volume (id -> { series, key, values, m }), no painel de volume
+  const st = { vol: null, vmas: new Map(), series: null, aligned: null, data: null, points: null, interval: null };
 
   // títulos dos painéis (HTML por cima do gráfico, com dica no hover): volume, OI, long/short, funding
   const titles = [1, 2, 3, 4].map(() => {
@@ -262,8 +264,43 @@ export function createFuturesPanes(chart, wrap) {
     titles.slice(1).forEach((el) => (el.hidden = true));
   }
 
+  function removeVolumeAverage(id) {
+    chart.removeSeries(st.vmas.get(id).series);
+    st.vmas.delete(id);
+  }
+
+  // médias móveis do volume visíveis ([{ id, period, type, color, opacity }]); recalcula só quando mudam
+  // as velas ou os parâmetros
+  function setVolumeAverages(list) {
+    const ids = new Set(st.vol ? list.map((m) => m.id) : []);
+    for (const id of [...st.vmas.keys()]) if (!ids.has(id)) removeVolumeAverage(id);
+    if (!st.vol) return;
+    for (const m of list) {
+      let v = st.vmas.get(m.id);
+      if (!v) {
+        v = { series: chart.addSeries(LWC.LineSeries, { ...base, lineWidth: 2, priceFormat: usd }, 1) };
+        st.vmas.set(m.id, v);
+      }
+      v.m = m;
+      v.series.applyOptions({ color: maColor(m), title: maLabel(m) });
+      const key = `${m.type}|${m.period}`;
+      if (v.points === st.points && v.key === key) continue;
+      v.points = st.points;
+      v.key = key;
+      v.values = movingAverage(st.points, m.period, m.type, "volume");
+      v.series.setData(
+        st.points.map((p, i) => {
+          const time = toChartTime(p.time, st.interval);
+          return v.values[i] === null ? { time } : { time, value: v.values[i] };
+        })
+      );
+    }
+    renderTitles();
+  }
+
   function remove() {
     removeFutures();
+    for (const id of [...st.vmas.keys()]) removeVolumeAverage(id);
     if (st.vol) chart.removeSeries(st.vol);
     st.vol = null;
     st.points = null;
@@ -276,9 +313,16 @@ export function createFuturesPanes(chart, wrap) {
     const tip = (key, label) => `<span class="help-tip" data-tip="${FUTURES_HELP[key]}">${label}</span>`;
     const pts = st.points;
     if (st.vol && pts?.length) {
-      const p = idx !== null && idx >= 0 && idx < pts.length ? pts[idx] : pts.at(-1);
+      const i = idx !== null && idx >= 0 && idx < pts.length ? idx : pts.length - 1;
+      const p = pts[i];
       const v = p.volume;
-      titles[0].innerHTML = `${tip("volume", "Volume")} <b class="${p.close >= p.open ? "pnl-pos" : "pnl-neg"}">${v == null ? "--" : formatUsdShort(v)}</b>`;
+      const avgs = [...st.vmas.values()]
+        .map(({ m, values }) => {
+          const a = values?.[i];
+          return `<span style="color:${maColor({ ...m, opacity: 1 })}">${maLabel(m)} ${a == null ? "--" : formatUsdShort(a)}</span>`;
+        })
+        .join(" ");
+      titles[0].innerHTML = `${tip("volume", "Volume")} <b class="${p.close >= p.open ? "pnl-pos" : "pnl-neg"}">${v == null ? "--" : formatUsdShort(v)}</b>${avgs ? ` ${avgs}` : ""}`;
     }
     const a = st.aligned;
     if (!a) return;
@@ -355,6 +399,7 @@ export function createFuturesPanes(chart, wrap) {
     crosshair(idx) {
       if (st.vol) renderTitles(idx);
     },
+    setVolumeAverages,
     remove,
     active: () => !!st.series,
     /** quantos painéis existem abaixo do preço */

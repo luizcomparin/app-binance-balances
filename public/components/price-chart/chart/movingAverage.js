@@ -1,24 +1,26 @@
-// Médias móveis sobre os fechamentos das velas (funções puras, sem DOM).
+// Médias móveis sobre as velas (fechamento ou volume) — funções puras, sem DOM.
 
 /**
  * Média móvel de `period` velas, alinhada a `points` (mesmo tamanho):
  * null nas primeiras velas, enquanto ainda não há histórico suficiente.
  * type: "SMA" (simples) | "EMA" (exponencial, começa pela SMA das primeiras `period` velas)
+ * field: campo da vela usado ("close" ou "volume")
  */
-export function movingAverage(points, period, type = "SMA") {
+export function movingAverage(points, period, type = "SMA", field = "close") {
   const out = new Array(points.length).fill(null);
   if (period < 1 || points.length < period) return out;
 
   let sum = 0;
-  for (let i = 0; i < period; i++) sum += points[i].close;
+  const v = (i) => points[i][field] ?? 0;
+  for (let i = 0; i < period; i++) sum += v(i);
   out[period - 1] = sum / period;
 
   if (type === "EMA") {
     const k = 2 / (period + 1);
-    for (let i = period; i < points.length; i++) out[i] = points[i].close * k + out[i - 1] * (1 - k);
+    for (let i = period; i < points.length; i++) out[i] = v(i) * k + out[i - 1] * (1 - k);
   } else {
     for (let i = period; i < points.length; i++) {
-      sum += points[i].close - points[i - period].close;
+      sum += v(i) - v(i - period);
       out[i] = sum / period;
     }
   }
