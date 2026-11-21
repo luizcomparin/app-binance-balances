@@ -1,21 +1,57 @@
-﻿<section class="card tab-panel active" data-tab="charts">
+﻿<section class="card tab-panel" data-tab="charts">
   <div class="panel">
-    <div class="panel-header">
-      <div>
-        <p>Gráficos de distribuição percentual e valores em USDT.</p>
+    <div class="panel-header list-header">
+      <div class="list-intro">
+        <h3>Gráficos de Distribuição</h3>
+        <p>Como a carteira está dividida entre as moedas, em % e em USDT.</p>
       </div>
     </div>
+    <!-- rosca (com o total no meio e a legenda com números) à esquerda; valores por moeda à direita -->
     <div class="charts-grid">
-      <div class="chart-container">
+      <div class="chart-container chart-dist">
         <h4 class="chart-title">Distribuição (%)</h4>
-        <canvas id="walletChart"></canvas>
+        <div class="donut-wrap">
+          <canvas id="walletChart"></canvas>
+        </div>
+        <ul class="dist-legend" id="walletLegend"></ul>
+      </div>
+      <div class="chart-container chart-values">
+        <h4 class="chart-title">Valores (USDT)</h4>
+        <div class="bar-legend">
+          <span><i class="bar-swatch"></i>Livre</span>
+          <span><i class="bar-swatch locked"></i>Em ordens</span>
+        </div>
+        <div class="bar-wrap" id="walletBarWrap">
+          <canvas id="walletBarChart"></canvas>
+        </div>
+        <button type="button" class="pc-btn bar-toggle" id="walletBarToggle" hidden></button>
+      </div>
+    </div>
+
+    <!-- resultado por moeda (P&L não realizado, os mesmos números de Saldos por moeda) -->
+    <div class="charts-grid charts-grid-pnl">
+      <div class="chart-container">
+        <h4 class="chart-title">P&amp;L por moeda (USDT)</h4>
+        <p class="chart-sub">Lucro (verde) ou prejuízo (vermelho) de cada moeda: valor hoje − quanto custou.</p>
+        <p class="chart-status" id="pnlChartStatus" hidden></p>
+        <div class="bar-wrap" id="pnlChartWrap">
+          <canvas id="pnlChart"></canvas>
+        </div>
+        <button type="button" class="pc-btn bar-toggle" id="pnlChartToggle" hidden></button>
       </div>
       <div class="chart-container">
-        <h4 class="chart-title">Valores (USDT)</h4>
-        <canvas id="walletBarChart"></canvas>
+        <h4 class="chart-title">Custo vs. valor atual (USDT)</h4>
+        <div class="bar-legend">
+          <span><i class="bar-swatch cost"></i>Custo</span>
+          <span><i class="bar-swatch gain"></i>Valor hoje (acima do custo)</span>
+          <span><i class="bar-swatch loss"></i>Valor hoje (abaixo)</span>
+        </div>
+        <p class="chart-status" id="costChartStatus" hidden></p>
+        <div class="bar-wrap" id="costChartWrap">
+          <canvas id="costChart"></canvas>
+        </div>
+        <button type="button" class="pc-btn bar-toggle" id="costChartToggle" hidden></button>
       </div>
     </div>
   </div>
 </section>
-
-

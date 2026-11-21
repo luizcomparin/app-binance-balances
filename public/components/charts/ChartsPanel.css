@@ -1,34 +1,30 @@
-﻿.charts-grid {
+﻿/* rosca à esquerda e valores por moeda à direita; em tela estreita, um abaixo do outro */
+.charts-grid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 32px;
-  padding: 0 16px 16px;
+  grid-template-columns: minmax(320px, 5fr) 7fr;
+  align-items: start;
+  gap: 24px;
+}
+
+@media (max-width: 1000px) {
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .chart-container {
-    width: 100%;
   position: relative;
-  padding: 24px 16px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  min-width: 0;
+  padding: 20px 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: 12px;
 }
 
-.chart-container:first-child {
-  /* max-width: 500px; */
-  margin: 0 auto;
-}
-
-.chart-container:first-child canvas {
-  max-height: 400px;
-  width: 100% !important;
-  height: 400px !important;
-}
-
-.chart-container:last-child canvas {
-  max-height: 1200px;
-  width: 100% !important;
-  height: 1200px !important;
+/* a rosca acompanha a rolagem enquanto a lista de barras (mais alta) passa */
+.chart-dist {
+  position: sticky;
+  top: 16px;
 }
 
 .chart-title {
@@ -40,3 +36,143 @@
   letter-spacing: 0.08em;
   font-weight: 700;
 }
+
+/* rosca (o total do meio é desenhado no canvas) */
+.donut-wrap {
+  position: relative;
+  height: 300px;
+}
+
+/* legenda: cor, nome, % e valor de cada fatia */
+.dist-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dist-legend li {
+  display: grid;
+  grid-template-columns: 12px 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.dist-legend li:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.dist-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.dist-name {
+  font-weight: 700;
+}
+
+.dist-name small {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.dist-pct {
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.dist-usdt {
+  min-width: 110px;
+  color: var(--muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* barras: altura definida pelo JS conforme a quantidade de moedas */
+.bar-wrap {
+  position: relative;
+  height: 600px;
+}
+
+/* legenda das barras: parte livre (cor cheia) e em ordens (mais clara) */
+.bar-legend {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  margin: -6px 0 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.bar-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bar-swatch {
+  width: 14px;
+  height: 10px;
+  border-radius: 3px;
+  background: rgba(155, 176, 214, 0.8);
+}
+
+.bar-swatch.locked {
+  background: rgba(155, 176, 214, 0.32);
+}
+
+/* mostrar todas / só as maiores */
+.bar-toggle {
+  display: flex;
+  margin: 12px auto 0;
+}
+
+.bar-toggle[hidden] {
+  display: none;
+}
+
+/* segunda linha: P&L por moeda e custo vs. valor atual, meio a meio */
+.charts-grid-pnl {
+  grid-template-columns: 1fr 1fr;
+  margin-top: 24px;
+}
+
+@media (max-width: 1000px) {
+  .charts-grid-pnl {
+    grid-template-columns: 1fr;
+  }
+}
+
+.chart-sub {
+  margin: -8px 0 12px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* carregando / erro do P&L, no lugar do gráfico */
+.chart-status {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.chart-status.error {
+  color: #ff7272;
+}
+
+.chart-status[hidden] {
+  display: none;
+}
+
+.bar-swatch.cost { background: rgba(155, 176, 214, 0.45); }
+.bar-swatch.gain { background: rgba(82, 255, 168, 0.75); }
+.bar-swatch.loss { background: rgba(255, 114, 114, 0.75); }
