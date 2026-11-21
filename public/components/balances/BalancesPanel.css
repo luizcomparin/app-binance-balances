@@ -1,52 +1,94 @@
 ﻿/* Balances panel styles are covered by base table styles. */
 
-.unpriced-note {
-  margin-top: 6px;
+/* ---- cabeçalho: título, subtítulo e avisos ---- */
+.balances-header {
+  flex-wrap: wrap;
+  align-items: stretch; /* a coluna da esquerda acompanha a altura do resumo de P&L */
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.balances-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.balances-intro h3 {
+  margin: 0;
+}
+
+/* avisos abaixo do subtítulo (sem cotação, falha no P&L) */
+.panel-header .balances-note {
+  margin-top: 4px;
   font-size: 12px;
+}
+
+.panel-header .balances-note::before {
+  content: "⚠ ";
+}
+
+.panel-header .unpriced-note {
   color: #f5c26b;
 }
 
-.positions-status {
-  margin-top: 6px;
-  font-size: 12px;
+.panel-header .positions-status {
   color: var(--muted);
 }
 
-.positions-status.error {
+.panel-header .positions-status.error {
   color: #ff7272;
 }
 
+/* opções da tabela: no pé da coluna da esquerda, logo acima da tabela */
+.balances-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 10px;
+}
+
+/* "Visão simplificada": esconde as colunas de detalhe */
+#balances-table.is-simple .col-detail {
+  display: none;
+}
+
+/* dicas das últimas colunas abrem para a esquerda (não saem da tabela) */
+#balances-table th .help-tip.end:hover::after {
+  left: auto;
+  right: 0;
+}
+
+/* texto da dica sem o estilo do cabeçalho (negrito, sem quebra) */
+#balances-table th .help-tip:hover::after {
+  white-space: pre-line;
+  text-align: left;
+}
 
 .coverage-warn {
   color: #f5c26b;
   cursor: help;
 }
 
-/* ---- resumo de P&L (cabeçalho do painel de saldos) ---- */
+/* ---- resumo de P&L (à direita do cabeçalho) ---- */
 .pnl-summary {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  min-width: 220px;
-  padding: 10px 14px;
+  gap: 4px;
+  min-width: 260px;
+  padding: 12px 16px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--card-alt);
 }
 
 .pnl-summary-label {
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.pnl-main {
-  font-size: 18px;
+  font-size: 11px;
   font-weight: 700;
-  white-space: nowrap;
-}
-
-.pnl-sub {
-  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--muted);
 }
 
@@ -54,6 +96,49 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+.pnl-main {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.pnl-main .pnl-pct {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.pnl-sub {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.pnl-sub[hidden] {
+  display: none;
+}
+
+/* custo e realizado: rótulo pequeno em cima, valor embaixo */
+.pnl-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 8px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.pnl-meta dt {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.pnl-meta dd {
+  margin: 2px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .pnl-loading {

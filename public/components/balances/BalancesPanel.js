@@ -11,9 +11,33 @@ import { loadPositions } from "../../core/positions.js";
 const BALANCE_COLUMNS = 12;
 // abaixo disso, parte relevante da quantidade não veio de trades (depósito, Convert, Earn...)
 const LOW_COVERAGE = 0.95;
+// "Visão simplificada" (esconde Qtd, Preço atual, 24h, P&L e Realizado), lembrada no navegador
+const SIMPLE_VIEW_KEY = "balances-simple-view";
 
 export function initBalancesPanel() {
   on(POSITIONS_UPDATED, onPositionsUpdated);
+  initSimpleView();
+}
+
+function initSimpleView() {
+  const input = document.getElementById("balances-simple");
+  const table = document.getElementById("balances-table");
+  if (!input || !table) return;
+  try {
+    input.checked = localStorage.getItem(SIMPLE_VIEW_KEY) === "1";
+  } catch {
+    // sem armazenamento: começa desligada
+  }
+  const apply = () => table.classList.toggle("is-simple", input.checked);
+  apply();
+  input.addEventListener("change", () => {
+    apply();
+    try {
+      localStorage.setItem(SIMPLE_VIEW_KEY, input.checked ? "1" : "0");
+    } catch {
+      // sem armazenamento: vale só até recarregar
+    }
+  });
 }
 
 export async function loadBalances() {
@@ -53,7 +77,10 @@ function onPositionsUpdated() {
 
   if (state.positionsError) {
     const detail = document.getElementById("pnl-detail");
-    if (detail) detail.innerText = "Falha ao calcular o P&L.";
+    if (detail) {
+      detail.innerText = "Falha ao calcular o P&L.";
+      detail.hidden = false;
+    }
     return;
   }
 
@@ -105,6 +132,8 @@ function renderPnlSummary() {
   const pctEl = document.getElementById("pnl-pct");
   const brlEl = document.getElementById("pnl-brl");
   const detailEl = document.getElementById("pnl-detail");
+  const costEl = document.getElementById("pnl-cost");
+  const realizedEl = document.getElementById("pnl-realized");
   if (!totals || !valueEl) return;
 
   const cls = signClass(totals.unrealizedPnlUSDT);
@@ -121,10 +150,11 @@ function renderPnlSummary() {
       ? `${formatSigned(totals.unrealizedPnlUSDT * state.usdtBrlPrice)} BRL`
       : "--";
   }
-  if (detailEl) {
-    detailEl.innerText =
-      `Custo: ${totals.costBasisUSDT.formatCurrency()} USDT · ` +
-      `Realizado: ${formatSigned(totals.realizedPnlUSDT)} USDT`;
+  if (detailEl) detailEl.hidden = true;
+  if (costEl) costEl.innerText = `${totals.costBasisUSDT.formatCurrency()} USDT`;
+  if (realizedEl) {
+    realizedEl.className = signClass(totals.realizedPnlUSDT);
+    realizedEl.innerText = `${formatSigned(totals.realizedPnlUSDT)} USDT`;
   }
 }
 
@@ -195,18 +225,18 @@ function renderBalances() {
                 : `<button class="asset-link" title="Ver gráfico de preço" onclick="openPriceChart('${asset.asset}')">${asset.asset}</button>`
             }</td>
             <td>${asset.pct.toFixed(2)}%</td>
-            <td>${formatQty(asset.qty)}</td>
-            <td>${formatPrice(asset.priceUSDT)}</td>
-            <td class="${signClass(asset.change24hPct)}">${change24h}</td>
+            <td class="col-detail">${formatQty(asset.qty)}</td>
+            <td class="col-detail">${formatPrice(asset.priceUSDT)}</td>
+            <td class="col-detail ${signClass(asset.change24hPct)}">${change24h}</td>
             <td>${formatPrice(asset.avgBuyPriceUSDT)}${coverageHint}</td>
             <td>${asset.freeUSDT.toFixed(2).formatCurrency()} USDT</td>
             <td>${asset.lockedUSDT.toFixed(2).formatCurrency()} USDT</td>
             <td>${asset.totalUSDT.toFixed(2).formatCurrency()} USDT</td>
-            <td class="${pnlClass}">${formatSigned(asset.unrealizedPnlUSDT)}</td>
-            <td class="${pnlClass}">${
+            <td class="col-detail ${pnlClass}">${formatSigned(asset.unrealizedPnlUSDT)}</td>
+            <td class="col-detail ${pnlClass}">${
               asset.unrealizedPnlPct === null ? "--" : `${formatSigned(asset.unrealizedPnlPct)}%`
             }</td>
-            <td class="${signClass(asset.realizedPnlUSDT)}">${formatSigned(asset.realizedPnlUSDT)}</td>
+            <td class="col-detail ${signClass(asset.realizedPnlUSDT)}">${formatSigned(asset.realizedPnlUSDT)}</td>
           </tr>
         `;
     })

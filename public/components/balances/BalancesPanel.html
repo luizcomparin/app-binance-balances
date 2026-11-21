@@ -1,10 +1,19 @@
 ﻿<section class="card tab-panel" data-tab="balances">
     <div class="panel">
-        <div class="panel-header">
-            <div>
+        <!-- cabeçalho: título, avisos e opções à esquerda, resumo de P&L à direita -->
+        <div class="panel-header balances-header">
+            <div class="balances-intro">
+                <h3>Saldos por moeda</h3>
                 <p>Totais em USDT, livres e posicionados em ordens.</p>
-                <p id="positions-status" class="positions-status" hidden></p>
-                <p id="unpriced-note" class="unpriced-note" hidden></p>
+                <p id="positions-status" class="balances-note positions-status" hidden></p>
+                <p id="unpriced-note" class="balances-note unpriced-note" hidden></p>
+                <!-- opções da tabela: no pé da coluna, alinhadas com a base do resumo de P&L -->
+                <div class="balances-toolbar">
+                    <label class="pc-chip">
+                        <input type="checkbox" id="balances-simple" />
+                        <span>Visão simplificada</span>
+                    </label>
+                </div>
             </div>
             <div class="pnl-summary is-loading" id="pnl-summary">
                 <span class="pnl-summary-label">Resultado não realizado</span>
@@ -13,28 +22,32 @@
                     <span>Calculando P&amp;L...</span>
                 </div>
                 <div class="pnl-body">
-                    <span class="pnl-main"><span id="pnl-total">--</span> <span id="pnl-pct"></span></span>
+                    <span class="pnl-main"><span id="pnl-total">--</span> <span class="pnl-pct" id="pnl-pct"></span></span>
                     <span class="pnl-sub" id="pnl-brl"></span>
-                    <span class="pnl-sub" id="pnl-detail"></span>
+                    <span class="pnl-sub" id="pnl-detail" hidden></span>
+                    <dl class="pnl-meta">
+                        <div><dt>Custo</dt><dd id="pnl-cost">--</dd></div>
+                        <div><dt>Realizado</dt><dd id="pnl-realized">--</dd></div>
+                    </dl>
                 </div>
             </div>
         </div>
         <div class="table-wrapper">
-            <table>
+            <table id="balances-table">
                 <thead>
                     <tr>
                         <th onclick="sortBalances('asset')">Moeda ⇅</th>
-                        <th onclick="sortBalances('pct')">% ⇅</th>
-                        <th onclick="sortBalances('qty')">Qtd ⇅</th>
-                        <th onclick="sortBalances('priceUSDT')">Preço atual ⇅</th>
-                        <th onclick="sortBalances('change24hPct')">24h ⇅</th>
+                        <th onclick="sortBalances('pct')"><span class="help-tip" data-tip="Quanto esta moeda representa da carteira: Total (USDT) da moeda ÷ total de todas as moedas × 100.">%</span> ⇅</th>
+                        <th class="col-detail" onclick="sortBalances('qty')">Qtd ⇅</th>
+                        <th class="col-detail" onclick="sortBalances('priceUSDT')">Preço atual ⇅</th>
+                        <th class="col-detail" onclick="sortBalances('change24hPct')">24h ⇅</th>
                         <th onclick="sortBalances('avgBuyPriceUSDT')">Preço médio ⇅</th>
                         <th onclick="sortBalances('freeUSDT')">Livre (USDT) ⇅</th>
                         <th onclick="sortBalances('lockedUSDT')">Ordens (USDT) ⇅</th>
                         <th onclick="sortBalances('totalUSDT')">Total (USDT) ⇅</th>
-                        <th onclick="sortBalances('unrealizedPnlUSDT')">P&amp;L (USDT) ⇅</th>
-                        <th onclick="sortBalances('unrealizedPnlPct')">P&amp;L % ⇅</th>
-                        <th onclick="sortBalances('realizedPnlUSDT')">Realizado (USDT) ⇅</th>
+                        <th class="col-detail" onclick="sortBalances('unrealizedPnlUSDT')"><span class="help-tip" data-tip="Lucro ou prejuízo não realizado: quanto a quantidade que você tem vale agora (Qtd × preço atual) menos quanto ela custou (Qtd × preço médio).&#10;Só vira lucro ou prejuízo de verdade quando você vender.">P&amp;L (USDT)</span> ⇅</th>
+                        <th class="col-detail" onclick="sortBalances('unrealizedPnlPct')"><span class="help-tip end" data-tip="O P&amp;L (USDT) em relação ao custo: P&amp;L ÷ (Qtd × preço médio) × 100.&#10;Ex.: +20% = a posição vale 20% a mais do que custou.">P&amp;L %</span> ⇅</th>
+                        <th class="col-detail" onclick="sortBalances('realizedPnlUSDT')"><span class="help-tip end" data-tip="Lucro ou prejuízo já garantido nas vendas que você fez: em cada venda, o valor recebido (descontadas as taxas) menos o preço médio de compra daquele momento × a quantidade vendida.&#10;Não muda com o preço atual.">Realizado (USDT)</span> ⇅</th>
                     </tr>
                 </thead>
                 <tbody id="table-body-balances"></tbody>
