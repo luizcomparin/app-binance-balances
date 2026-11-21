@@ -205,6 +205,8 @@ export function createMeasureTool(chart, { getSeries, getPoints, getInterval }) 
   return {
     primitive,
     clear,
+    /** medição em andamento (o segundo clique ainda não foi dado) */
+    busy: () => phase === "drawing",
     /** mira mexeu: durante a medição o fim segue o mouse. true = medindo (esconder a tooltip da vela) */
     move(param) {
       if (phase !== "drawing") return false;

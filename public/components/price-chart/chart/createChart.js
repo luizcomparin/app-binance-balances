@@ -17,6 +17,8 @@ import { BandFill, bollinger } from "./bollinger.js";
 import { LiquidationOverlay } from "./liquidationOverlay.js";
 import { createFuturesPanes } from "./futuresPanes.js";
 import { createMeasureTool } from "./measureTool.js";
+import { createDrawings } from "./drawings.js";
+import { createDrawingToolbar } from "./drawingToolbar.js";
 import { candleTooltipHtml, createTooltip, lineHelpTooltipHtml, ordersTooltipHtml, simTooltipHtml } from "./tooltip.js";
 
 const LWC = window.LightweightCharts;
@@ -85,6 +87,19 @@ export function createPriceChart(els, handlers = {}) {
 
   // painéis de volume, open interest, long/short e funding (mesmo eixo de tempo)
   const futures = createFuturesPanes(chart, wrap);
+
+  // ferramentas de desenho (linha de tendência, raio, horizontal, retângulo, canal) e a barra delas;
+  // criadas antes da régua: nos cliques, a régua em andamento tem prioridade
+  const toolbar = createDrawingToolbar(wrap, (tool) => drawings.setTool(tool));
+  const drawings = createDrawings(chart, {
+    container,
+    getSeries: () => s.series,
+    getPoints: () => s.points,
+    getInterval: () => s.interval,
+    formatPrice: (p) => formatAxisPrice(p, s.precision),
+    isBusy: () => measure.busy(),
+    onToolChange: (tool) => toolbar.setActive(tool),
+  });
 
   // régua de medição (Shift + clique); anexada à série principal, como o mapa de liquidação
   const measure = createMeasureTool(chart, {
@@ -167,11 +182,13 @@ export function createPriceChart(els, handlers = {}) {
     if (old) {
       old.detachPrimitive(liquidation);
       old.detachPrimitive(measure.primitive);
+      old.detachPrimitive(drawings.primitive);
       chart.removeSeries(old);
     }
     s.markersApi = LWC.createSeriesMarkers(s.series, []);
     s.series.attachPrimitive(liquidation);
     s.series.attachPrimitive(measure.primitive);
+    s.series.attachPrimitive(drawings.primitive);
     s.priceLines = [];
     s.mode = mode;
     return true;
@@ -430,7 +447,8 @@ export function createPriceChart(els, handlers = {}) {
   chart.subscribeCrosshairMove((param) => {
     scheduleOffscreen();
     futures.crosshair(param.point && param.logical !== undefined ? Math.round(param.logical) : null);
-    if (measure.move(param)) return tooltip.hide(); // medindo: o fim da régua segue o mouse
+    // medindo ou desenhando: o ponto seguinte segue o mouse (sem tooltip da vela)
+    if (measure.move(param) || drawings.move(param)) return tooltip.hide();
     if (!s.series || !s.points || !param.point || param.time === undefined) return tooltip.hide();
     if (param.paneIndex) return tooltip.hide(); // mouse nos painéis de futuros: só os títulos mostram os valores
 
@@ -476,6 +494,7 @@ export function createPriceChart(els, handlers = {}) {
       s.points = opts.points;
       if (s.interval && opts.interval !== s.interval) measure.clear(); // outra vela: a medida não vale mais
       s.interval = opts.interval;
+      drawings.setAsset(opts.asset);
       // só mexe nas opções do eixo de tempo quando mudam (mudar provoca reajuste de layout)
       const timeVisible = INTRADAY.has(opts.interval);
       if (timeVisible !== s.timeVisible) {
@@ -519,6 +538,7 @@ export function createPriceChart(els, handlers = {}) {
       removeIndicators();
       liquidation.setData(null);
       measure.clear();
+      drawings.setAsset(null);
       futures.remove();
       wrap.style.setProperty("--sub-panes", 0);
       s.points = null;
