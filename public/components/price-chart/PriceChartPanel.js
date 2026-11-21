@@ -42,7 +42,7 @@ const VALID_RANGE = /^(7d|30d|90d|6m|1y|2y|all|\d{1,4}[dmy])$/;
 const PROJECTED_STORAGE_KEY = "priceChartProjectedAvg";
 const STATS_STORAGE_KEY = "priceChartStats";
 const ASSET_STORAGE_KEY = "priceChartAsset"; // última moeda vista
-const DEFAULT_ASSET = "BTC"; // sem última moeda vista
+const DEFAULT_ASSET = "BTC"; // sem última moeda vista (se estiver na carteira; senão a de maior valor)
 const PANEL_TAB = "price-chart";
 const STATS_DAYS_STORAGE_KEY = "priceChartStatsDays";
 const DCA_STORAGE_KEY = "priceChartDca";
@@ -633,7 +633,11 @@ export function initPriceChartPanel() {
   picker = initAssetPicker({ getCurrent: () => view.asset, onSelect: openPriceChart });
   // lista de moedas à direita do gráfico (atualiza com os saldos)
   watchlist = initWatchlist({ getCurrent: () => view.asset, onSelect: openPriceChart });
-  on(BALANCES_UPDATED, () => watchlist.refresh());
+  on(BALANCES_UPDATED, () => {
+    watchlist.refresh();
+    // aba aberta esperando os saldos para escolher a moeda inicial
+    if (!view.asset && isTabActive(PANEL_TAB)) openInitialAsset(true);
+  });
 
   const container = document.getElementById("priceChartContainer");
   const wrap = document.getElementById("price-chart-canvas-wrap");
@@ -770,7 +774,7 @@ export function initPriceChartPanel() {
       return;
     }
     if (!view.asset) {
-      openPriceChart(readStored(ASSET_STORAGE_KEY) || DEFAULT_ASSET);
+      openInitialAsset();
       return;
     }
     updateSimAvailability();
@@ -784,6 +788,21 @@ export function initPriceChartPanel() {
 }
 
 // Abre o gráfico de `asset` na aba "Gráfico de preço" (vindo da tabela de saldos ou do seletor)
+// Moeda sem última vista: BTC se estiver na carteira; senão a de maior valor em carteira.
+// null = saldos ainda não chegaram (a escolha espera por eles).
+function defaultAsset() {
+  const assets = state.currentAssets.filter((a) => a.asset !== "USDT");
+  if (!assets.length) return null;
+  if (assets.some((a) => a.asset === DEFAULT_ASSET)) return DEFAULT_ASSET;
+  return assets.reduce((top, a) => (a.totalUSDT > top.totalUSDT ? a : top)).asset;
+}
+
+// abre a última moeda vista ou a padrão; balancesLoaded: carteira já carregada (vazia → BTC)
+function openInitialAsset(balancesLoaded = false) {
+  const asset = readStored(ASSET_STORAGE_KEY) || defaultAsset() || (balancesLoaded ? DEFAULT_ASSET : null);
+  if (asset) openPriceChart(asset);
+}
+
 export function openPriceChart(asset) {
   view.asset = asset;
   writeStored(ASSET_STORAGE_KEY, asset);
