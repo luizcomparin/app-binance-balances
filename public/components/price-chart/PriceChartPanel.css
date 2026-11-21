@@ -205,6 +205,13 @@
   color: var(--accent);
 }
 
+/* barra acima do gráfico: todos os controles com a mesma altura (segmentados, Personalizado,
+   Camadas, Ajustar zoom e lista de moedas) */
+.price-chart-toolbar .pc-seg,
+.price-chart-toolbar .pc-btn:not(.pc-btn-accent) {
+  height: 40px;
+}
+
 /* período personalizado: botão + formulário em menu */
 .pc-custom {
   position: relative;
@@ -950,7 +957,7 @@
 
 .asset-picker .ap-item {
   display: grid;
-  grid-template-columns: 1fr 64px 110px 64px;
+  grid-template-columns: 10px 1fr 64px 110px 64px;
   align-items: center;
   gap: 8px;
   padding: 7px 10px;
@@ -975,6 +982,20 @@
 
 .asset-picker .ap-symbol {
   font-weight: 700;
+  white-space: nowrap; /* o "●" da moeda aberta fica na mesma linha do nome */
+}
+
+/* cor de indicação (definida na lista ao lado do gráfico); vazada sem cor */
+.asset-picker .ap-flag {
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid rgba(155, 176, 214, 0.35);
+  border-radius: 50%;
+}
+
+.asset-picker .ap-flag.has-color {
+  background: var(--flag);
+  border-color: var(--flag);
 }
 
 .asset-picker .ap-pct,

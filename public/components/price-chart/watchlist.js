@@ -45,6 +45,22 @@ function readColors() {
   }
 }
 
+// ordem e cores ficam em memória (compartilhadas com o seletor do título) e são salvas a cada mudança
+let order = readOrder();
+let colors = readColors();
+
+/** Moedas da lista na ordem definida (salva; as novas no fim por valor em carteira). Sem o USDT. */
+export function watchlistAssets() {
+  const assets = state.currentAssets.filter((a) => a.asset !== "USDT");
+  const byAsset = new Map(assets.map((a) => [a.asset, a]));
+  const saved = order.filter((s) => byAsset.has(s)).map((s) => byAsset.get(s));
+  const rest = assets.filter((a) => !order.includes(a.asset)).sort((a, b) => b.totalUSDT - a.totalUSDT);
+  return [...saved, ...rest];
+}
+
+/** Cor de indicação de cada moeda ({ moeda: "#rrggbb" }) */
+export const watchlistColors = () => colors;
+
 /** getCurrent(): moeda aberta agora; onSelect(asset): abrir `asset` no gráfico. Devolve { refresh() } */
 export function initWatchlist({ getCurrent, onSelect }) {
   const toggle = document.getElementById("price-chart-watchlist-btn");
@@ -52,20 +68,11 @@ export function initWatchlist({ getCurrent, onSelect }) {
   const list = document.getElementById("price-chart-watchlist-list");
   if (!toggle || !panel || !list) return { refresh() {} };
 
-  let order = readOrder();
-  let colors = readColors();
   const saveColors = () => write(COLORS_KEY, JSON.stringify(colors));
   let dragged = null; // moeda sendo arrastada
 
-  // moedas da carteira (menos o USDT, como no seletor do título): primeiro na ordem salva,
-  // as novas no fim por valor em carteira
-  function items() {
-    const assets = state.currentAssets.filter((a) => a.asset !== "USDT");
-    const byAsset = new Map(assets.map((a) => [a.asset, a]));
-    const saved = order.filter((s) => byAsset.has(s)).map((s) => byAsset.get(s));
-    const rest = assets.filter((a) => !order.includes(a.asset)).sort((a, b) => b.totalUSDT - a.totalUSDT);
-    return [...saved, ...rest];
-  }
+  // moedas na ordem salva (a mesma do seletor do título)
+  const items = watchlistAssets;
 
   function render() {
     if (panel.hidden) return;

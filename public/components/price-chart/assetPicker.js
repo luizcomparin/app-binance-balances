@@ -1,7 +1,9 @@
 // Seletor de moeda no título do gráfico ("XRP / USDT ▾"): lista as moedas da carteira com busca,
 // para trocar o gráfico sem fechar o modal. Teclado: ↑ ↓ navegam, Enter escolhe, Esc fecha a lista.
+// Mesma lista da watchlist ao lado do gráfico: mesma ordem e mesmas cores de indicação.
 import { state } from "../../core/state.js";
 import { formatSigned, signClass } from "../../core/format.js";
+import { watchlistAssets, watchlistColors } from "./watchlist.js";
 
 /**
  * getCurrent(): moeda aberta agora; onSelect(asset): trocar o gráfico para `asset`.
@@ -16,9 +18,8 @@ export function initAssetPicker({ getCurrent, onSelect }) {
   let items = []; // moedas filtradas, na ordem exibida
   let active = 0; // índice destacado (teclado/mouse)
 
-  // moedas com gráfico: todas da carteira menos o próprio USDT (mesma regra da tabela de saldos)
-  const available = () =>
-    [...state.currentAssets].filter((a) => a.asset !== "USDT").sort((a, b) => b.totalUSDT - a.totalUSDT);
+  // moedas com gráfico: as da lista ao lado do gráfico, na ordem definida lá
+  const available = watchlistAssets;
 
   function render() {
     const term = search.value.trim().toUpperCase();
@@ -31,6 +32,7 @@ export function initAssetPicker({ getCurrent, onSelect }) {
     }
 
     const current = getCurrent();
+    const colors = watchlistColors();
     list.innerHTML = items
       .map((a, i) => {
         const change =
@@ -40,6 +42,7 @@ export function initAssetPicker({ getCurrent, onSelect }) {
         return `
           <li role="option" data-idx="${i}" class="ap-item${i === active ? " active" : ""}${a.asset === current ? " current" : ""}"
               aria-selected="${a.asset === current}">
+            <span class="ap-flag${colors[a.asset] ? " has-color" : ""}"${colors[a.asset] ? ` style="--flag: ${colors[a.asset]}"` : ""}></span>
             <span class="ap-symbol">${a.asset}</span>
             <span class="ap-pct">${a.pct.toFixed(2)}%</span>
             <span class="ap-usdt">${a.totalUSDT.toFixed(2).formatCurrency()} USDT</span>
