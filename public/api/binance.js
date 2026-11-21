@@ -1,22 +1,40 @@
-﻿export async function fetchBalances() {
-  return fetch("/balances").then((x) => x.json());
+﻿// Requisições à API local. Se o servidor estiver fora do ar por um instante (o nodemon reiniciando
+// depois de salvar um arquivo do servidor), tenta de novo por alguns segundos em vez de falhar na hora.
+const RETRY_FOR_MS = 15000;
+const RETRY_EVERY_MS = 500;
+
+async function apiFetch(url) {
+  const start = Date.now();
+  for (;;) {
+    try {
+      return await fetch(url);
+    } catch (err) {
+      // só erro de rede (servidor não respondeu); respostas de erro da API voltam normalmente
+      if (!(err instanceof TypeError) || Date.now() - start >= RETRY_FOR_MS) throw err;
+      await new Promise((r) => setTimeout(r, RETRY_EVERY_MS));
+    }
+  }
+}
+
+export async function fetchBalances() {
+  return apiFetch("/balances").then((x) => x.json());
 }
 
 export async function fetchRaw() {
-  return fetch("/raw")
+  return apiFetch("/raw")
     .then((x) => x.json())
     .catch(() => null);
 }
 
 export async function fetchPositions() {
-  const res = await fetch("/positions");
+  const res = await apiFetch("/positions");
   const json = await res.json();
   if (!res.ok || json.error) throw new Error(json.error || res.statusText);
   return json;
 }
 
 async function getJson(url) {
-  const res = await fetch(url);
+  const res = await apiFetch(url);
   const json = await res.json();
   if (!res.ok || json.error) throw new Error(json.error || res.statusText);
   return json;
@@ -60,5 +78,5 @@ export async function fetchOpenOrdersForAsset(asset) {
 }
 
 export async function fetchOrders() {
-  return fetch("/orders").then((x) => x.json());
+  return apiFetch("/orders").then((x) => x.json());
 }
