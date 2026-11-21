@@ -32,7 +32,7 @@ body {
 }
 
 .app {
-  max-width: 1200px;
+  max-width: 1680px; /* largo o bastante para o gráfico de preço com a lista de moedas aberta */
   margin: 0 auto;
 }
 
