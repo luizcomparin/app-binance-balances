@@ -130,11 +130,12 @@
         <span class="mini-spinner"></span>Carregando histórico...
       </div>
     </div>
-    <!-- quadros informativos (faixa estatística, compra mensal fixa, mapa de liquidação): abaixo do gráfico -->
+    <!-- quadros informativos (faixa estatística, compra mensal fixa, mapa de liquidação): abaixo do gráfico;
+         data-title = título do quadro (mostrado pelo CSS, o JS só troca o conteúdo) -->
     <div class="price-chart-info-boxes">
-      <div class="price-chart-stats" id="price-chart-stats-box" hidden></div>
-      <div class="price-chart-stats" id="price-chart-dca-box" hidden></div>
-      <div class="price-chart-stats" id="price-chart-liq-box" hidden></div>
+      <div class="price-chart-stats" id="price-chart-stats-box" data-title="Faixa estatística" hidden></div>
+      <div class="price-chart-stats" id="price-chart-dca-box" data-title="Comparação com compra mensal fixa" hidden></div>
+      <div class="price-chart-stats" id="price-chart-liq-box" data-title="Mapa de liquidação" hidden></div>
     </div>
   </div>
   <div class="price-chart-orders" id="price-chart-orders">

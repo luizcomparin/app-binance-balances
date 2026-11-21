@@ -811,6 +811,18 @@
   display: none;
 }
 
+/* título do quadro (atributo data-title do HTML) */
+.price-chart-stats[data-title]::before {
+  content: attr(data-title);
+  display: block;
+  margin-bottom: 4px;
+  color: #4dd4ff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .price-chart-stats .mini-spinner {
   display: inline-block;
   width: 12px;
