@@ -1,7 +1,7 @@
 import { state } from "../../core/state.js";
 
 import { BALANCES_UPDATED, on } from "../../core/events.js";
-import { brlOf, fmt2 } from "./chartUtils.js";
+import { brlOf, fmt2, openOnClick } from "./chartUtils.js";
 import { initPnlCharts } from "./pnlCharts.js";
 
 let walletChart = null;
@@ -13,6 +13,11 @@ export function initChartsPanel() {
     renderWalletBarChart(data.assets);
   });
   initPnlCharts();
+  // legenda da rosca: clicar numa moeda abre o gráfico de preço
+  document.getElementById("walletLegend")?.addEventListener("click", (e) => {
+    const asset = e.target.closest(".dist-link")?.dataset.asset;
+    if (asset) window.openPriceChart?.(asset);
+  });
   document.getElementById("walletBarToggle")?.addEventListener("click", () => {
     showAllBars = !showAllBars;
     renderWalletBarChart(lastAssets);
@@ -58,7 +63,7 @@ function renderLegend(slices) {
   el.innerHTML = slices
     .map(
       (s) => `
-        <li>
+        <li${s.members || s.label === "USDT" ? "" : ` class="dist-link" data-asset="${s.label}" title="Abrir ${s.label} no gráfico de preço"`}>
           <i class="dist-swatch" style="background: ${s.color}"></i>
           <span class="dist-name">${s.label}${s.members ? ` <small>(${s.members.length} moedas)</small>` : ""}</span>
           <span class="dist-pct">${s.pct.toFixed(2).replace(".", ",")}%</span>
@@ -126,6 +131,7 @@ export function renderWalletChart(assets) {
       responsive: true,
       maintainAspectRatio: false,
       cutout: "64%",
+      ...openOnClick((i) => slices[i]?.label),
       plugins: {
         donutCenter: center,
         legend: { display: false }, // legenda própria, com % e valor
@@ -246,6 +252,7 @@ export function renderWalletBarChart(assets) {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false, axis: "y" },
+      ...openOnClick((i) => sortedAssets[i]?.asset),
       plugins: {
         legend: { display: false },
         barValueLabels: { items },

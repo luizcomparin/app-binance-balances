@@ -46,3 +46,24 @@ export function createTopToggle(buttonId, limit, onChange) {
     },
   };
 }
+
+// moeda que abre no gráfico de preço (o próprio USDT e "Outros" não têm gráfico)
+const chartable = (asset) => !!asset && asset !== "USDT" && asset !== "Outros";
+
+/**
+ * Opções de clique de um gráfico: clicar na fatia/barra abre a moeda no gráfico de preço
+ * (cursor de mão em cima das que abrem). assetAt(i) = moeda do item i.
+ */
+export function openOnClick(assetAt) {
+  const assetOf = (elements) => (elements.length ? assetAt(elements[0].index) : null);
+  return {
+    onClick: (_event, elements) => {
+      const asset = assetOf(elements);
+      if (chartable(asset)) window.openPriceChart?.(asset);
+    },
+    onHover: (event, elements) => {
+      const target = event.native?.target;
+      if (target) target.style.cursor = chartable(assetOf(elements)) ? "pointer" : "default";
+    },
+  };
+}

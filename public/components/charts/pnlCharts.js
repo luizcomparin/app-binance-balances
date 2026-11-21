@@ -4,7 +4,7 @@
 // Só entram moedas com preço médio conhecido (sem o USDT).
 import { state } from "../../core/state.js";
 import { on, POSITIONS_UPDATED } from "../../core/events.js";
-import { AXIS_TICKS, brlOf, createTopToggle, fitBarHeight, fmt2, GRID, LABEL_TICKS, pct1, TOOLTIP_STYLE } from "./chartUtils.js";
+import { AXIS_TICKS, brlOf, createTopToggle, fitBarHeight, fmt2, GRID, LABEL_TICKS, openOnClick, pct1, TOOLTIP_STYLE } from "./chartUtils.js";
 
 const TOP = 15;
 const GAIN = "rgba(82, 255, 168, 0.75)";
@@ -99,6 +99,8 @@ function renderPnlChart() {
       indexAxis: "y",
       responsive: true,
       maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false, axis: "y" }, // clique/dica em qualquer ponto da linha
+      ...openOnClick((i) => items[i]?.asset),
       plugins: {
         legend: { display: false },
         pnlLabels: { items },
@@ -157,6 +159,7 @@ function renderCostChart() {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false, axis: "y" },
+      ...openOnClick((i) => items[i]?.asset),
       plugins: {
         legend: { display: false }, // legenda própria acima do gráfico
         tooltip: {
