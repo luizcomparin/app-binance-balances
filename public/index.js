@@ -16,6 +16,7 @@ import {
   sortExecutedOrders,
 } from "./components/executed/ExecutedOrdersPanel.js";
 import { initPriceChartPanel, openPriceChart } from "./components/price-chart/PriceChartPanel.js";
+import { initSettings } from "./components/settings/SettingsModal.js";
 
 async function boot() {
   showLoading();
@@ -46,6 +47,12 @@ async function boot() {
   // por último: a aba da URL já encontra todos os componentes ouvindo TAB_CHANGED
   initTabs();
 
+  // sem chave da API: abre as Configurações e não tenta carregar a carteira
+  const hasApiKey = await initSettings();
+  if (!hasApiKey) {
+    hideLoading();
+    return;
+  }
   Promise.all([loadBalances(), loadOrders()]).finally(() => hideLoading());
 }
 

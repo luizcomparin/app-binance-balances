@@ -16,6 +16,23 @@ async function apiFetch(url) {
   }
 }
 
+// ---- Configurações: chave da API da Binance (o secret vai para o servidor e nunca volta) ----
+export async function fetchApiKeyStatus() {
+  const res = await apiFetch("/settings/api-key");
+  return res.json();
+}
+
+export async function saveApiKey(apiKey, apiSecret) {
+  const res = await fetch("/settings/api-key", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ apiKey, apiSecret }),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || res.statusText);
+  return json;
+}
+
 export async function fetchBalances() {
   return apiFetch("/balances").then((x) => x.json());
 }

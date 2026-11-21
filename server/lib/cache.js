@@ -4,6 +4,11 @@
 export const SHORT_CACHE_MS = 15 * 1000;
 const shortCache = new Map(); // key -> { promise, settledAt }
 
+// limpa tudo (as chaves da API mudaram: os dados guardados eram de outra conta)
+export function clearCache() {
+	shortCache.clear();
+}
+
 // Chamadas simultâneas com a mesma chave compartilham a mesma promise;
 // o resultado vale por `ttlMs`; erros não ficam em cache.
 export function cached(key, ttlMs, fn) {

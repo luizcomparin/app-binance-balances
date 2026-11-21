@@ -1,0 +1,46 @@
+<div id="settings-modal" class="modal settings-modal" hidden>
+  <div class="modal-content settings-content" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <div class="modal-header">
+      <span class="close" id="settings-close" title="Fechar" aria-label="Fechar">&times;</span>
+      <h2 id="settings-title">Configurações</h2>
+    </div>
+    <div class="modal-body">
+      <section class="settings-section">
+        <h3>API da Binance</h3>
+        <p class="settings-status" id="settings-status">Verificando...</p>
+
+        <form class="settings-form" id="settings-form" autocomplete="off">
+          <label for="settings-api-key">API Key</label>
+          <input type="text" id="settings-api-key" spellcheck="false" placeholder="Cole aqui a API Key" />
+
+          <label for="settings-api-secret">Secret Key</label>
+          <div class="settings-secret">
+            <input type="password" id="settings-api-secret" spellcheck="false" placeholder="Cole aqui a Secret Key" />
+            <button type="button" class="pc-btn" id="settings-secret-toggle" aria-pressed="false">Mostrar</button>
+          </div>
+
+          <p class="settings-message" id="settings-message" hidden></p>
+
+          <button type="submit" class="primary" id="settings-save">Testar e salvar</button>
+          <p class="settings-note">
+            A chave é testada na Binance e gravada no arquivo <code>.env</code> do servidor, no seu computador.
+            A Secret Key não fica no navegador e não volta para a página.
+          </p>
+        </form>
+      </section>
+
+      <details class="settings-tutorial" id="settings-tutorial">
+        <summary>Como criar a chave na Binance</summary>
+        <ol>
+          <li>Entre na sua conta pelo site da Binance e abra <b>Perfil → Gerenciamento de API</b> (em inglês, <i>API Management</i>).</li>
+          <li>Clique em <b>Criar API</b>, escolha <b>Chave gerada pelo sistema</b> e dê um nome, por exemplo <i>Dashboard</i>. Confirme a verificação de segurança (2FA).</li>
+          <li>Nas permissões, deixe marcado <b>só "Habilitar leitura"</b> (<i>Enable Reading</i>). <b>Não</b> habilite negociação, margem, futuros nem saques: o dashboard só lê os dados.</li>
+          <li>Opcional e mais seguro: em <b>Restrição de acesso por IP</b>, libere só o IP do seu computador. Se o seu IP mudar, a chave para de funcionar até você atualizar a lista.</li>
+          <li>Copie a <b>API Key</b> e a <b>Secret Key</b>. A Secret Key só aparece uma vez; se perder, apague a chave e crie outra.</li>
+          <li>Cole as duas aqui em cima e clique em <b>Testar e salvar</b>.</li>
+        </ol>
+        <p class="settings-note">Nunca compartilhe a Secret Key. Para trocar de chave depois, é só abrir esta tela de novo.</p>
+      </details>
+    </div>
+  </div>
+</div>

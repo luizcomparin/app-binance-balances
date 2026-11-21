@@ -8,6 +8,7 @@
 @import "./components/balances/BalancesPanel.css";
 @import "./components/orders/OrdersPanel.css";
 @import "./components/simulation/SimulationModal.css";
+@import "./components/settings/SettingsModal.css";
 @import "./components/executed/ExecutedOrdersPanel.css";
 @import "./components/price-chart/PriceChartPanel.css";
 @import "./components/price-chart/chart/chart.css";

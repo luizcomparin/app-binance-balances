@@ -33,6 +33,11 @@ const TRADES_TTL_MS = 5 * 60 * 1000;
 const EMPTY_TRADES_TTL_MS = 30 * 60 * 1000;
 const tradesCache = new Map(); // symbol -> { trades, lastSync }
 
+// as chaves da API mudaram: os trades guardados eram de outra conta
+export function clearTradesCache() {
+	tradesCache.clear();
+}
+
 export async function getAllMyTrades(symbol, { tradable = true } = {}) {
 	const entry = tradesCache.get(symbol) || { trades: [], lastSync: 0 };
 	if (entry.lastSync && !tradable) return entry.trades;

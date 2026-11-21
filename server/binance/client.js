@@ -1,7 +1,7 @@
 // Cliente HTTP da Binance: GET público e GET assinado (HMAC, recvWindow, relógio sincronizado).
 import crypto from "node:crypto";
 import fetch from "node-fetch";
-import { BASE_URL, BINANCE_API_KEY, BINANCE_API_SECRET } from "../config.js";
+import { BASE_URL, getApiKey, getApiSecret, hasCredentials } from "../config.js";
 
 // ---- Limite de peso da Binance (6000 por minuto, por IP) ----
 // Cada resposta informa o peso já usado no minuto (X-MBX-USED-WEIGHT-1M). Perto do limite, as
@@ -54,11 +54,17 @@ export async function publicGet(pathAndQuery, retried = false) {
 	return res.json();
 }
 
-function signQuery(query) {
-	return crypto
-		.createHmac("sha256", BINANCE_API_SECRET)
-		.update(query)
-		.digest("hex");
+function signQuery(query, secret) {
+	return crypto.createHmac("sha256", secret).update(query).digest("hex");
+}
+
+// erro "sem chave": as rotas respondem 401 e o dashboard abre as Configurações
+export class MissingCredentialsError extends Error {
+	constructor() {
+		super("Chaves da API da Binance não configuradas. Abra Configurações no dashboard.");
+		this.status = 401;
+		this.code = "API_KEY_MISSING";
+	}
 }
 
 // ---- Sincronização de relógio (evita erro -1021 "Timestamp outside of recvWindow") ----
@@ -79,26 +85,33 @@ syncServerTime().catch((err) =>
 );
 setInterval(() => syncServerTime().catch(() => {}), TIME_SYNC_INTERVAL_MS).unref();
 
-// GET assinado com recvWindow e timestamp corrigido; em -1021 ressincroniza e tenta de novo
-export async function signedGet(pathname, params = {}, retried = false) {
+// GET assinado com as chaves configuradas
+export function signedGet(pathname, params = {}) {
+	if (!hasCredentials()) return Promise.reject(new MissingCredentialsError());
+	return signedGetWith({ key: getApiKey(), secret: getApiSecret() }, pathname, params);
+}
+
+// GET assinado com chaves informadas (usado também para testar chaves novas antes de salvar);
+// recvWindow e timestamp corrigido; em -1021 ressincroniza e tenta de novo
+export async function signedGetWith(creds, pathname, params = {}, retried = false) {
 	await throttle(); // antes de montar o timestamp (a espera não pode vencer o recvWindow)
 	const query = new URLSearchParams({
 		...params,
 		recvWindow: RECV_WINDOW_MS,
 		timestamp: Date.now() + serverTimeOffset,
 	}).toString();
-	const signature = signQuery(query);
+	const signature = signQuery(query, creds.secret);
 
 	const res = await trackedFetch(`${BASE_URL}${pathname}?${query}&signature=${signature}`, {
-		headers: { "X-MBX-APIKEY": BINANCE_API_KEY },
+		headers: { "X-MBX-APIKEY": creds.key },
 	});
 
 	if (!res.ok) {
-		if (res.status === 429 && !retried) return signedGet(pathname, params, true); // espera o Retry-After
+		if (res.status === 429 && !retried) return signedGetWith(creds, pathname, params, true); // espera o Retry-After
 		const text = await res.text();
 		if (!retried && text.includes("-1021")) {
 			await syncServerTime();
-			return signedGet(pathname, params, true);
+			return signedGetWith(creds, pathname, params, true);
 		}
 		const err = new Error(text);
 		err.status = res.status;

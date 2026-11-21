@@ -9,17 +9,51 @@ import { buildOrderHistory } from "./services/orderHistory.js";
 import { buildAssetTrades } from "./services/assetTrades.js";
 import { buildLiquidationMap } from "./services/liquidationMap.js";
 import { buildFuturesData, FUTURES_PERIODS } from "./services/futuresData.js";
+import { apiKeyStatus, changeApiKey } from "./services/apiKeySettings.js";
+import { PORT } from "./config.js";
+import express from "express";
 
-// Envolve o handler: responde o JSON retornado ou { error } com status 500
+// Envolve o handler: responde o JSON retornado ou { error } com status 500;
+// sem chave da API: 401 com code "API_KEY_MISSING" (o dashboard abre as Configurações)
 const handle = (fn) => async (req, res) => {
 	try {
 		res.json(await fn(req, res));
 	} catch (e) {
-		res.status(500).json({ error: e.toString() });
+		res.status(e.code === "API_KEY_MISSING" ? 401 : 500).json({ error: e.toString(), code: e.code });
 	}
 };
 
+// Só o próprio dashboard pode trocar a chave: Origin (quando vem) tem de ser o dashboard e o corpo
+// tem de ser JSON (o navegador exige pré-checagem de CORS, então outro site não consegue enviar)
+function sameOriginJson(req, res, next) {
+	const origin = req.get("origin");
+	const allowed = [`http://localhost:${PORT}`, `http://127.0.0.1:${PORT}`];
+	if ((origin && !allowed.includes(origin)) || !req.is("application/json")) {
+		return res.status(403).json({ error: "Requisição não permitida" });
+	}
+	next();
+}
+
 export function registerRoutes(app) {
+	// Chave da API da Binance (painel Configurações): status e troca (o secret nunca é devolvido)
+	app.get("/settings/api-key", (req, res) => res.json(apiKeyStatus()));
+	app.post("/settings/api-key", sameOriginJson, express.json({ limit: "2kb" }), async (req, res) => {
+		try {
+			const { status, warnings, persist } = await changeApiKey(req.body);
+			// grava no .env depois de responder (em modo dev o nodemon reinicia ao ver o .env mudar)
+			res.on("finish", () => {
+				try {
+					persist();
+				} catch (err) {
+					console.error("Erro ao gravar as chaves no .env:", err.message);
+				}
+			});
+			res.json({ ...status, warnings });
+		} catch (e) {
+			res.status(e.status === 400 ? 400 : 500).json({ error: e.message });
+		}
+	});
+
 	// JSON cru da conta na Binance
 	app.get("/raw", handle(() => getRawBinanceAccount()));
 
