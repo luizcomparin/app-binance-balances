@@ -104,7 +104,7 @@
 }
 
 .orders-simulation .sim-title {
-  margin: 0 0 10px;
+    margin: 0px;
   font-weight: 700;
   font-size: 14px;
 }
@@ -129,7 +129,7 @@
 }
 
 .orders-simulation .sim-note {
-  margin: 10px 0 0;
+    margin: 0px;
   font-size: 12px;
   color: var(--muted);
 }
@@ -154,4 +154,11 @@ th .help-tip.end:hover::after {
 /* data das ordens numa linha só */
 #table-body-orders td.nowrap {
   white-space: nowrap;
+}
+
+.sim-header {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 12px;
 }
