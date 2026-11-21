@@ -739,6 +739,22 @@ export function initPriceChartPanel() {
     if (e.key === "Escape") setCustomOpen(false);
   });
 
+  // botão de engrenagem: abre/fecha a lista de camadas (marcar uma camada não fecha a lista)
+  const layersBtn = document.getElementById("price-chart-layers-btn");
+  const layersPop = document.getElementById("price-chart-layers");
+  function setLayersOpen(open) {
+    if (!layersBtn || !layersPop) return;
+    layersPop.hidden = !open;
+    layersBtn.setAttribute("aria-expanded", String(open));
+  }
+  layersBtn?.addEventListener("click", () => setLayersOpen(layersPop.hidden));
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest("#price-chart-layers-wrap")) setLayersOpen(false);
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") setLayersOpen(false);
+  });
+
   // "Ajustar zoom" (topo da aba): enquadra todo o período carregado
   document.getElementById("price-chart-fit")?.addEventListener("click", () => chart?.fit());
 

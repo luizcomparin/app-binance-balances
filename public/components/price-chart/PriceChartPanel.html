@@ -18,41 +18,6 @@
       <div id="price-chart-info" class="pc-stats"></div>
     </div>
 
-    <!-- camadas extras sobre/abaixo do gráfico -->
-    <div class="pc-section">
-      <span class="pc-label">Camadas</span>
-      <div class="pc-chips">
-        <label class="price-chart-sim-toggle pc-chip" id="price-chart-projected-label">
-          <input type="checkbox" id="price-chart-projected" />
-          <span class="mini-spinner sim-spinner"></span>
-          <span id="price-chart-projected-text">Preço médio após compras abertas</span>
-        </label>
-        <label class="price-chart-sim-toggle pc-chip" id="price-chart-liq-label" title="Regiões onde posições alavancadas dos futuros seriam liquidadas, estimadas a partir do open interest e da razão long/short dos últimos 30 dias (não é dado real)">
-          <input type="checkbox" id="price-chart-liq" />
-          <span>Mapa de liquidação</span>
-        </label>
-        <label class="price-chart-sim-toggle pc-chip" id="price-chart-fut-label" title="Painéis de open interest, long/short e taxa de funding dos futuros perpétuos, abaixo do gráfico">
-          <input type="checkbox" id="price-chart-fut" />
-          <span class="mini-spinner sim-spinner"></span>
-          <span id="price-chart-fut-text">Dados de futuros</span>
-        </label>
-        <label class="price-chart-sim-toggle pc-chip" id="price-chart-stats-label" title="Faixa de preço típica a partir da volatilidade do último ano (não é previsão)">
-          <input type="checkbox" id="price-chart-stats" />
-          <span>Faixa estatística</span>
-          <span class="pc-chip-extra">em <input type="number" id="price-chart-stats-days" class="stats-days" min="1" max="365" value="30" /> dias</span>
-        </label>
-        <label class="price-chart-sim-toggle pc-chip" id="price-chart-dca-label" title="Seu preço médio de compra vs. comprar o mesmo total em parcelas mensais iguais desde a sua primeira compra">
-          <input type="checkbox" id="price-chart-dca" />
-          <span>Comparar com compra mensal fixa</span>
-        </label>
-        <label class="price-chart-sim-toggle pc-chip" id="price-chart-sim-label">
-          <input type="checkbox" id="price-chart-sim" />
-          <span class="mini-spinner sim-spinner"></span>
-          <span id="price-chart-sim-text">Simular compra até o preço médio</span>
-        </label>
-      </div>
-    </div>
-
     <div class="pc-section">
       <span class="pc-label">Indicadores</span>
       <div class="price-chart-mas" id="price-chart-mas"></div>
@@ -60,7 +25,7 @@
   </div>
   <div class="price-chart-body">
     <p id="price-chart-error" class="positions-status error" hidden></p>
-    <!-- logo acima do gráfico: tipo, vela e período à esquerda; ajustar zoom e lista de moedas à direita -->
+    <!-- logo acima do gráfico: tipo, vela, período e camadas à esquerda; ajustar zoom e lista de moedas à direita -->
     <div class="price-chart-toolbar">
       <div class="pc-controls">
         <div class="pc-group">
@@ -110,6 +75,46 @@
                 </div>
                 <button type="submit" class="pc-btn pc-btn-accent">Aplicar</button>
               </form>
+            </div>
+          </div>
+        </div>
+        <!-- camadas extras sobre/abaixo do gráfico: botão de engrenagem abre a lista -->
+        <div class="pc-group">
+          <span class="pc-label">Camadas</span>
+          <div class="pc-layers" id="price-chart-layers-wrap">
+            <button type="button" class="pc-btn pc-icon-btn" id="price-chart-layers-btn" title="Camadas do gráfico" aria-label="Camadas do gráfico" aria-haspopup="true" aria-expanded="false" aria-controls="price-chart-layers">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              <span class="pc-caret" aria-hidden="true">▾</span>
+            </button>
+            <div class="pc-pop pc-layers-pop" id="price-chart-layers" hidden>
+              <label class="price-chart-sim-toggle pc-chip" id="price-chart-projected-label">
+                <input type="checkbox" id="price-chart-projected" />
+                <span class="mini-spinner sim-spinner"></span>
+                <span id="price-chart-projected-text">Preço médio após compras abertas</span>
+              </label>
+              <label class="price-chart-sim-toggle pc-chip" id="price-chart-liq-label" title="Regiões onde posições alavancadas dos futuros seriam liquidadas, estimadas a partir do open interest e da razão long/short dos últimos 30 dias (não é dado real)">
+                <input type="checkbox" id="price-chart-liq" />
+                <span>Mapa de liquidação</span>
+              </label>
+              <label class="price-chart-sim-toggle pc-chip" id="price-chart-fut-label" title="Painéis de open interest, long/short e taxa de funding dos futuros perpétuos, abaixo do gráfico">
+                <input type="checkbox" id="price-chart-fut" />
+                <span class="mini-spinner sim-spinner"></span>
+                <span id="price-chart-fut-text">Dados de futuros</span>
+              </label>
+              <label class="price-chart-sim-toggle pc-chip" id="price-chart-stats-label" title="Faixa de preço típica a partir da volatilidade do último ano (não é previsão)">
+                <input type="checkbox" id="price-chart-stats" />
+                <span>Faixa estatística</span>
+                <span class="pc-chip-extra">em <input type="number" id="price-chart-stats-days" class="stats-days" min="1" max="365" value="30" /> dias</span>
+              </label>
+              <label class="price-chart-sim-toggle pc-chip" id="price-chart-dca-label" title="Seu preço médio de compra vs. comprar o mesmo total em parcelas mensais iguais desde a sua primeira compra">
+                <input type="checkbox" id="price-chart-dca" />
+                <span>Comparar com compra mensal fixa</span>
+              </label>
+              <label class="price-chart-sim-toggle pc-chip" id="price-chart-sim-label">
+                <input type="checkbox" id="price-chart-sim" />
+                <span class="mini-spinner sim-spinner"></span>
+                <span id="price-chart-sim-text">Simular compra até o preço médio</span>
+              </label>
             </div>
           </div>
         </div>

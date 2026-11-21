@@ -230,6 +230,29 @@
   display: none;
 }
 
+/* camadas: lista (uma abaixo da outra) aberta pelo botão de engrenagem */
+.pc-layers {
+  position: relative;
+}
+
+.pc-layers-pop {
+  width: auto;
+  min-width: 300px;
+  gap: 6px;
+  padding: 8px;
+}
+
+.pc-layers-pop .pc-chip {
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+#price-chart-layers-btn[aria-expanded="true"] {
+  background: rgba(77, 212, 255, 0.1);
+  border-color: rgba(77, 212, 255, 0.55);
+  color: var(--accent);
+}
+
 .pc-pop .pc-label {
   margin: 0;
 }
