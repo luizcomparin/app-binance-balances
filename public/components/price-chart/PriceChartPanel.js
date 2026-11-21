@@ -624,7 +624,7 @@ export function initPriceChartPanel() {
       ensureWarmup();
     },
   });
-  initOpenOrdersTable(document.getElementById("pco-open"));
+  initOpenOrdersTable(document.getElementById("pco-open"), { onRetry: () => view.asset && reloadOpenOrders(view.asset) });
   initOrdersTabs();
 
   // título "XRP / USDT ▾": troca de moeda direto na aba
@@ -797,6 +797,15 @@ export function openPriceChart(asset) {
   loadMyOrders().then(() => {
     if (view.asset === asset && view.points && isOpen()) render();
   });
+  reloadOpenOrders(asset);
+}
+
+// carrega as ordens abertas da moeda (na troca de moeda e no "Tentar de novo" da tabela)
+function reloadOpenOrders(asset) {
+  if (view.openOrders?.all === null) {
+    view.openOrders = null; // tentando de novo depois de um erro: volta a mostrar "carregando"
+    renderOrdersTable();
+  }
   loadOpenOrders(asset).then((openOrders) => {
     if (view.asset !== asset) return;
     view.openOrders = openOrders;
@@ -810,7 +819,13 @@ export function openPriceChart(asset) {
 // tabela de ordens abertas abaixo do gráfico (undefined = carregando)
 function renderOrdersTable() {
   const orders = view.openOrders ? view.openOrders.all : undefined;
-  renderOpenOrdersTable(document.getElementById("pco-open"), orders, view.asset, document.getElementById("pco-open-count"));
+  renderOpenOrdersTable(
+    document.getElementById("pco-open"),
+    orders,
+    view.asset,
+    document.getElementById("pco-open-count"),
+    view.openOrders?.error
+  );
 }
 
 // ---------------------------------------------------------------------------

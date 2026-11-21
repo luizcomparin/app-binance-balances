@@ -41,16 +41,21 @@ export function loadMyOrders() {
   return myOrders.loading;
 }
 
-// Ordens abertas por moeda, já convertidas para USDT: { buys, sells, all }, cada item de buys/sells =
-// { priceUSDT, qty, order }; all = lista crua de todas as ordens (null se a requisição falhou)
+// Ordens abertas por moeda, já convertidas para USDT: { buys, sells, all, error }, cada item de buys/sells =
+// { priceUSDT, qty, order }; all = lista crua de todas as ordens (null se a requisição falhou, com o
+// motivo em error). Falhas não entram no cache: chamar de novo tenta de novo.
 const openOrdersCache = new Map();
 
 export async function loadOpenOrders(asset) {
   const hit = openOrdersCache.get(asset);
   if (hit && Date.now() - hit.at < CLIENT_CACHE_MS) return hit.data;
 
-  const raw = await fetchOpenOrdersForAsset(asset).catch(() => null);
-  if (!raw) return hit?.data || { buys: [], sells: [], all: null };
+  let error = null;
+  const raw = await fetchOpenOrdersForAsset(asset).catch((err) => {
+    error = err?.message || "erro desconhecido";
+    return null;
+  });
+  if (!raw) return hit?.data || { buys: [], sells: [], all: null, error };
 
   const buys = [];
   const sells = [];

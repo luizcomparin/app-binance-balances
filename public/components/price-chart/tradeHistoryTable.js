@@ -4,6 +4,7 @@ import { fetchAssetTrades } from "../../api/binance.js";
 import { formatDateTime, formatPrice, formatQty } from "../../core/format.js";
 import { quoteAmount } from "./openOrdersTable.js";
 import { createPeriodFilter } from "./periodFilter.js";
+import { loadErrorHtml, onLoadRetry } from "./loadError.js";
 
 const CACHE_MS = 30 * 1000;
 const DEFAULT_PRESET = "30d"; // como na Binance: 1 mês
@@ -18,6 +19,7 @@ const st = {
   el: null,
   asset: null,
   trades: undefined, // lista | undefined (carregando/não carregado) | null (erro)
+  error: null, // mensagem do último erro de carga
   cache: new Map(), // asset -> { at, trades }
   period: null,
   sort: { key: "time", dir: -1 },
@@ -63,7 +65,7 @@ function render() {
     return;
   }
   if (st.trades === null) {
-    el.innerHTML = '<p class="pco-empty">Não foi possível carregar o histórico de trades.</p>';
+    el.innerHTML = loadErrorHtml("o histórico de trades", st.error);
     return;
   }
 
@@ -92,15 +94,17 @@ async function load(asset) {
     return render();
   }
   st.trades = undefined;
+  st.error = null;
   render();
   try {
     const data = await fetchAssetTrades(asset);
     st.cache.set(asset, { at: Date.now(), trades: data.trades || [] });
     if (st.asset !== asset) return;
     st.trades = data.trades || [];
-  } catch {
+  } catch (err) {
     if (st.asset !== asset) return;
     st.trades = null;
+    st.error = err?.message || null;
   }
   render();
 }
@@ -111,8 +115,10 @@ export function initTradeHistory(els) {
   st.period = createPeriodFilter(els, {
     defaultPreset: DEFAULT_PRESET,
     oldest: () => (Array.isArray(st.trades) && st.trades.length ? Math.min(...st.trades.map((t) => t.time)) : null),
-    onChange: render,
+    // o filtro de período é local (a lista vem inteira); se a última carga falhou, Buscar tenta de novo
+    onChange: () => (st.trades === null && st.asset ? load(st.asset) : render()),
   });
+  onLoadRetry(els.list, () => st.asset && load(st.asset));
   els.list.addEventListener("click", (e) => {
     const key = e.target.closest("th[data-sort]")?.dataset.sort;
     if (!key) return;

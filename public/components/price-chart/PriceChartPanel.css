@@ -777,6 +777,15 @@
   font-size: 14px;
 }
 
+/* erro de carga: mensagem + "Tentar de novo" (loadError.js) */
+.price-chart-orders .pco-retry {
+  margin-left: 8px;
+  padding: 4px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
 .price-chart-orders .pco-empty .mini-spinner {
   display: inline-block;
   width: 12px;

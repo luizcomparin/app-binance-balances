@@ -1,5 +1,6 @@
 // Aba "Ordens abertas" abaixo do gráfico: as ordens em aberto da moeda, no estilo da tabela da Binance.
 import { formatDateTime, formatPrice, formatQty } from "../../core/format.js";
+import { loadErrorHtml, onLoadRetry } from "./loadError.js";
 
 const TYPE_LABELS = {
   LIMIT: "Limite",
@@ -78,11 +79,11 @@ function headerHtml() {
 
 /**
  * Desenha a tabela em `el` e o total no rótulo da aba (`countEl`). orders: lista crua de
- * /orders/:asset (com baseAsset/quoteAsset), undefined = carregando, null = erro.
+ * /orders/:asset (com baseAsset/quoteAsset), undefined = carregando, null = erro (error = motivo).
  */
-export function renderOpenOrdersTable(el, orders, asset, countEl) {
+export function renderOpenOrdersTable(el, orders, asset, countEl, error = null) {
   if (!el) return;
-  last = { el, orders, asset, countEl };
+  last = { el, orders, asset, countEl, error };
   if (countEl) countEl.textContent = Array.isArray(orders) ? `(${orders.length})` : "";
   const title = "";
 
@@ -91,7 +92,7 @@ export function renderOpenOrdersTable(el, orders, asset, countEl) {
     return;
   }
   if (orders === null) {
-    el.innerHTML = `${title}<p class="pco-empty">Não foi possível carregar as ordens abertas.</p>`;
+    el.innerHTML = `${title}${loadErrorHtml("as ordens abertas", error)}`;
     return;
   }
   if (!orders.length) {
@@ -111,13 +112,14 @@ export function renderOpenOrdersTable(el, orders, asset, countEl) {
   </table></div>`;
 }
 
-// clique no cabeçalho ordena (de novo na mesma coluna inverte)
-export function initOpenOrdersTable(el) {
+// clique no cabeçalho ordena (de novo na mesma coluna inverte); onRetry = "Tentar de novo" após erro
+export function initOpenOrdersTable(el, { onRetry } = {}) {
+  if (onRetry) onLoadRetry(el, onRetry);
   el?.addEventListener("click", (e) => {
     const key = e.target.closest("th[data-sort]")?.dataset.sort;
     if (!key) return;
     sort.dir = sort.key === key ? -sort.dir : key === "time" ? -1 : 1;
     sort.key = key;
-    if (last.el) renderOpenOrdersTable(last.el, last.orders, last.asset, last.countEl);
+    if (last.el) renderOpenOrdersTable(last.el, last.orders, last.asset, last.countEl, last.error);
   });
 }

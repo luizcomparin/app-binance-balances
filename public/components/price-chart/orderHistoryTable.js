@@ -4,6 +4,7 @@ import { fetchOrderHistory } from "../../api/binance.js";
 import { formatDateTime, formatPrice, formatQty } from "../../core/format.js";
 import { quoteAmount, triggerText, typeLabel } from "./openOrdersTable.js";
 import { createPeriodFilter } from "./periodFilter.js";
+import { loadErrorHtml, onLoadRetry } from "./loadError.js";
 
 const CACHE_MS = 60 * 1000;
 const DEFAULT_PRESET = "90d"; // como na Binance: 3 meses
@@ -27,6 +28,7 @@ const hist = {
   els: null,
   asset: null,
   orders: undefined, // lista | undefined (carregando/não carregado) | null (erro)
+  error: null, // mensagem do último erro de carga
   cache: new Map(), // asset -> { at, orders }
   period: null, // filtro de período (periodFilter.js)
   sort: { key: "time", dir: -1 },
@@ -116,7 +118,7 @@ function render() {
     return;
   }
   if (hist.orders === null) {
-    el.innerHTML = '<p class="pco-empty">Não foi possível carregar o histórico de ordens.</p>';
+    el.innerHTML = loadErrorHtml("o histórico de ordens", hist.error);
     return;
   }
 
@@ -149,15 +151,17 @@ async function load(asset) {
     return render();
   }
   hist.orders = undefined;
+  hist.error = null;
   render();
   try {
     const data = await fetchOrderHistory(asset);
     hist.cache.set(asset, { at: Date.now(), orders: data.orders || [] });
     if (hist.asset !== asset) return;
     hist.orders = data.orders || [];
-  } catch {
+  } catch (err) {
     if (hist.asset !== asset) return;
     hist.orders = null;
+    hist.error = err?.message || null;
   }
   render();
 }
@@ -172,8 +176,10 @@ export function initOrderHistory(els) {
   hist.period = createPeriodFilter(els, {
     defaultPreset: DEFAULT_PRESET,
     oldest: () => (Array.isArray(hist.orders) && hist.orders.length ? Math.min(...hist.orders.map((o) => o.time)) : null),
-    onChange: render,
+    // o filtro de período é local (a lista vem inteira); se a última carga falhou, Buscar tenta de novo
+    onChange: () => (hist.orders === null && hist.asset ? load(hist.asset) : render()),
   });
+  onLoadRetry(els.list, () => hist.asset && load(hist.asset));
 
   els.list.addEventListener("click", (e) => {
     const sortKey = e.target.closest("th[data-sort]")?.dataset.sort;
