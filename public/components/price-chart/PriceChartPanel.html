@@ -1,7 +1,7 @@
 <section class="card tab-panel" data-tab="price-chart" id="price-chart-panel">
   <div class="panel">
   <div class="price-chart-header">
-    <!-- topo: moeda (abre a lista) e ajustar zoom -->
+    <!-- topo: moeda (abre a lista) -->
     <div class="pc-top">
       <div class="asset-picker-wrap">
         <h2>
@@ -15,10 +15,6 @@
           <ul id="asset-picker-list" role="listbox"></ul>
         </div>
       </div>
-      <button type="button" class="pc-btn" id="price-chart-fit" title="Enquadrar todo o período carregado">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
-        Ajustar zoom
-      </button>
     </div>
 
     <!-- preço atual, preço médio e diferença -->
@@ -120,7 +116,14 @@
   </div>
   <div class="price-chart-body">
     <p id="price-chart-error" class="positions-status error" hidden></p>
-    <div class="price-chart-legend" id="price-chart-legend"></div>
+    <!-- legenda e "Ajustar zoom" logo acima do gráfico -->
+    <div class="price-chart-legend-row">
+      <div class="price-chart-legend" id="price-chart-legend"></div>
+      <button type="button" class="pc-btn" id="price-chart-fit" title="Enquadrar todo o período carregado">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+        Ajustar zoom
+      </button>
+    </div>
     <div class="price-chart-canvas" id="price-chart-canvas-wrap">
       <div id="priceChartContainer" class="price-chart-lwc"></div>
       <div class="price-chart-overlay">

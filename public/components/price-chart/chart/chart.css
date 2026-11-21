@@ -114,13 +114,26 @@
 }
 
 /* legenda com liga/desliga */
+/* linha acima do gráfico: legenda à esquerda, "Ajustar zoom" à direita */
+.price-chart-legend-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.price-chart-legend-row #price-chart-fit {
+  flex: none;
+  margin-left: auto;
+}
+
 .price-chart-legend {
+  flex: 1;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px 16px;
   min-height: 30px;
-  margin-bottom: 8px;
   font-size: 13px;
   color: #e5ecff;
 }
