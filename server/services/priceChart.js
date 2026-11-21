@@ -73,10 +73,12 @@ export async function buildPriceChart(asset, { range = "30d", interval = null, l
 			interval: config.interval,
 			points: rows.map((k) => {
 				const [open, high, low, close] = [k[1], k[2], k[3], k[4]].map(Number);
-				if (!inverted) return { time: k[0], open, high, low, close };
+				// volume negociado em USDT: volume da moeda de cotação (k[7]); no par invertido o USDT é a base (k[5])
+				const volume = Number(inverted ? k[5] : k[7]) || 0;
+				if (!inverted) return { time: k[0], open, high, low, close, volume };
 				// par invertido (USDT/X): 1/preço — máxima e mínima trocam de lugar
 				const inv = (v) => (v ? 1 / v : 0);
-				return { time: k[0], open: inv(open), high: inv(low), low: inv(high), close: inv(close) };
+				return { time: k[0], open: inv(open), high: inv(low), low: inv(high), close: inv(close), volume };
 			}),
 		};
 	});

@@ -1,6 +1,7 @@
-// Painéis de futuros abaixo do gráfico de preço (mesmo eixo de tempo: zoom, arrasto e mira sincronizados):
-//   1. Open interest (USDT)   2. Long/Short (% comprados: contas e top traders)   3. Taxa de funding
-// Os dados vêm em períodos próprios (1h/4h/1d e funding a cada 8h) e são encaixados nas velas do gráfico.
+// Painéis abaixo do gráfico de preço (mesmo eixo de tempo: zoom, arrasto e mira sincronizados):
+//   1. Volume (USDT, sempre que há velas)
+//   2. Open interest (USDT)   3. Long/Short (% comprados: contas e top traders)   4. Taxa de funding
+// Os de futuros vêm em períodos próprios (1h/4h/1d e funding a cada 8h) e são encaixados nas velas do gráfico.
 import { formatUsdShort } from "./liquidationOverlay.js";
 import { toChartTime } from "./axis.js";
 
@@ -8,6 +9,8 @@ const LWC = window.LightweightCharts;
 const PANE_HEIGHT = 96;
 
 const COLORS = {
+  volumeUp: "rgba(82, 255, 168, 0.5)",
+  volumeDown: "rgba(255, 114, 114, 0.5)",
   oi: "#a78bfa",
   global: "#ffd166",
   top: "#4dd4ff",
@@ -17,6 +20,15 @@ const COLORS = {
 
 // Dicas (hover no título de cada painel)
 export const FUTURES_HELP = {
+  volume: [
+    "Quanto foi negociado em cada vela, em USDT (mercado à vista).",
+    "Verde: a vela fechou em alta. Vermelho: fechou em baixa.",
+    "",
+    "Leia junto com o preço:",
+    "• Movimento com volume alto: tem força, muita gente participando.",
+    "• Movimento com volume baixo: fraco, mais fácil de reverter.",
+    "• Pico de volume numa queda forte: muita gente vendendo de uma vez (capitulação), às vezes perto de fundo.",
+  ].join("\n"),
   oi: [
     "Valor total dos contratos em aberto nos futuros.",
     "",
@@ -44,6 +56,26 @@ export const FUTURES_HELP = {
     "• Normal: perto de +0,01%. Valores muito acima ou abaixo costumam aparecer perto de viradas.",
   ].join("\n"),
 };
+
+// alturas escolhidas na divisória dos painéis, salvas no navegador: { volume: px, oi: px, ... }
+const HEIGHTS_KEY = "priceChartPaneHeights";
+
+function readPaneHeights() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(HEIGHTS_KEY) || "{}");
+    const out = {};
+    for (const [k, v] of Object.entries(raw || {})) if (Number.isFinite(v) && v > 0) out[k] = v;
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+function writePaneHeights(heights) {
+  try {
+    localStorage.setItem(HEIGHTS_KEY, JSON.stringify(heights));
+  } catch {}
+}
 
 const pct = (v, digits = 1) => `${(v * 100).toFixed(digits).replace(".", ",")}%`;
 const fundingPct = (r) => `${r > 0 ? "+" : ""}${(r * 100).toFixed(4).replace(".", ",")}%`;
@@ -87,10 +119,11 @@ function alignToBars(points, rows, get, mode) {
 }
 
 export function createFuturesPanes(chart, wrap) {
-  const st = { series: null, aligned: null, data: null, points: null, interval: null };
+  // vol = série de volume (painel 1); series = séries de futuros (painéis 2 a 4, só com dados de futuros)
+  const st = { vol: null, series: null, aligned: null, data: null, points: null, interval: null };
 
-  // títulos dos painéis (HTML por cima do gráfico, com dica no hover)
-  const titles = [1, 2, 3].map(() => {
+  // títulos dos painéis (HTML por cima do gráfico, com dica no hover): volume, OI, long/short, funding
+  const titles = [1, 2, 3, 4].map(() => {
     const el = document.createElement("div");
     el.className = "fp-title";
     el.hidden = true;
@@ -98,29 +131,88 @@ export function createFuturesPanes(chart, wrap) {
     return el;
   });
 
+  // arrastar a divisória entre painéis muda a altura deles sem mudar o tamanho do gráfico:
+  // observa cada painel para os títulos acompanharem
+  let titlesFrame = 0;
+  const schedulePositionTitles = () => {
+    cancelAnimationFrame(titlesFrame);
+    titlesFrame = requestAnimationFrame(positionTitles);
+  };
+  const paneObserver = new ResizeObserver(schedulePositionTitles);
+  const observedPanes = new WeakSet();
+
   function positionTitles() {
     const panes = chart.panes();
     const wrapTop = wrap.getBoundingClientRect().top;
+    for (const pane of panes) {
+      const paneEl = pane.getHTMLElement();
+      if (paneEl && !observedPanes.has(paneEl)) {
+        observedPanes.add(paneEl);
+        // o painel é uma linha de tabela: observa também as células (sempre têm caixa própria)
+        for (const node of [paneEl, ...paneEl.children]) paneObserver.observe(node);
+      }
+    }
     titles.forEach((el, k) => {
       const pane = panes[k + 1];
-      const paneEl = st.series && pane ? pane.getHTMLElement() : null;
+      const active = k === 0 ? st.vol : st.series;
+      const paneEl = active && pane ? pane.getHTMLElement() : null;
       el.hidden = !paneEl;
       if (paneEl) el.style.top = `${paneEl.getBoundingClientRect().top - wrapTop + 4}px`;
     });
   }
-  // altura fixa dos painéis de futuros; o painel de preço fica com o resto. Reaplicada sempre que o
+  // quantos painéis abaixo do preço devem existir (volume + 3 de futuros)
+  const subCount = () => (st.vol ? 1 : 0) + (st.series ? 3 : 0);
+
+  // painéis de baixo em uso, na ordem do gráfico
+  const subKeys = () => [...(st.vol ? ["volume"] : []), ...(st.series ? ["oi", "ls", "funding"] : [])];
+
+  // altura (px) de cada painel de baixo: PANE_HEIGHT até o usuário arrastar a divisória; daí fica a
+  // escolhida (vale ao trocar de moeda, ligar/desligar futuros, redimensionar a janela e recarregar a página)
+  const paneHeights = readPaneHeights();
+  const heightOf = (key) => paneHeights[key] ?? PANE_HEIGHT;
+
+  // painéis de baixo com a altura guardada; o painel de preço fica com o resto. Reaplicada sempre que o
   // gráfico muda de tamanho (a biblioteca redistribui as alturas proporcionalmente ao redimensionar)
   // (setHeight de um painel redistribui os outros; com as proporções de todos de uma vez fica exato)
   function applyHeights() {
-    if (!st.series) return;
+    const keys = subKeys();
+    if (!keys.length) return;
     const panes = chart.panes();
-    if (panes.length < 4) return;
-    if ([1, 2, 3].every((i) => Math.abs(panes[i].getHeight() - PANE_HEIGHT) <= 1)) return;
+    if (panes.length < keys.length + 1) return;
+    const subs = panes.slice(1, keys.length + 1);
+    if (subs.every((p, i) => Math.abs(p.getHeight() - heightOf(keys[i])) <= 1)) return;
     const total = panes.reduce((sum, p) => sum + p.getHeight(), 0);
-    const main = Math.max(PANE_HEIGHT, total - 3 * PANE_HEIGHT);
-    panes[0].setStretchFactor(main / PANE_HEIGHT);
-    for (let i = 1; i <= 3; i++) panes[i].setStretchFactor(1);
+    const wanted = keys.reduce((sum, k) => sum + heightOf(k), 0);
+    const main = Math.max(PANE_HEIGHT, total - wanted);
+    panes[0].setStretchFactor(main);
+    subs.forEach((p, i) => p.setStretchFactor(heightOf(keys[i])));
   }
+
+  // fim de um arraste no gráfico (pode ter sido na divisória): guarda as alturas atuais dos painéis
+  let pointerInChart = false;
+  wrap.addEventListener("pointerdown", () => (pointerInChart = true), true);
+  window.addEventListener(
+    "pointerup",
+    () => {
+      if (!pointerInChart) return;
+      pointerInChart = false;
+      requestAnimationFrame(() => {
+        const keys = subKeys();
+        const panes = chart.panes();
+        if (!keys.length || panes.length !== keys.length + 1) return;
+        let changed = false;
+        keys.forEach((k, i) => {
+          const h = panes[i + 1].getHeight();
+          if (Math.abs(h - heightOf(k)) > 1) {
+            paneHeights[k] = h;
+            changed = true;
+          }
+        });
+        if (changed) writePaneHeights(paneHeights);
+      });
+    },
+    true
+  );
   const relayout = () =>
     requestAnimationFrame(() =>
       setTimeout(() => {
@@ -130,38 +222,64 @@ export function createFuturesPanes(chart, wrap) {
     );
   new ResizeObserver(relayout).observe(wrap);
 
+  const usd = { type: "custom", minMove: 1, formatter: (v) => formatUsdShort(Math.abs(v)) };
+  const base = { priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false };
+
+  function createVolume() {
+    st.vol = chart.addSeries(LWC.HistogramSeries, { ...base, priceFormat: usd, base: 0 }, 1);
+    relayout();
+  }
+
   function createSeries() {
-    const usd = { type: "custom", minMove: 1, formatter: (v) => formatUsdShort(Math.abs(v)) };
     const percent = { type: "custom", minMove: 0.001, formatter: (v) => `${Math.round(v)}%` };
     const fundingFmt = { type: "custom", minMove: 0.000001, formatter: (v) => `${v.toFixed(3).replace(".", ",")}%` };
-    const base = { priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false };
     st.series = {
       oi: chart.addSeries(
         LWC.AreaSeries,
         { ...base, lineColor: COLORS.oi, topColor: "rgba(167, 139, 250, 0.25)", bottomColor: "rgba(167, 139, 250, 0.02)", lineWidth: 2, priceFormat: usd },
-        1
+        2
       ),
-      global: chart.addSeries(LWC.LineSeries, { ...base, color: COLORS.global, lineWidth: 2, priceFormat: percent }, 2),
-      top: chart.addSeries(LWC.LineSeries, { ...base, color: COLORS.top, lineWidth: 2, priceFormat: percent }, 2),
-      funding: chart.addSeries(LWC.HistogramSeries, { ...base, priceFormat: fundingFmt, base: 0 }, 3),
+      global: chart.addSeries(LWC.LineSeries, { ...base, color: COLORS.global, lineWidth: 2, priceFormat: percent }, 3),
+      top: chart.addSeries(LWC.LineSeries, { ...base, color: COLORS.top, lineWidth: 2, priceFormat: percent }, 3),
+      funding: chart.addSeries(LWC.HistogramSeries, { ...base, priceFormat: fundingFmt, base: 0 }, 4),
     };
     st.series.global.createPriceLine({ price: 50, color: "rgba(155, 176, 214, 0.4)", lineWidth: 1, lineStyle: LWC.LineStyle.Dashed, axisLabelVisible: false });
     relayout(); // alturas depois do layout (o gráfico acabou de crescer para caber os painéis)
   }
 
-  function remove() {
+  // painéis vazios que sobrarem depois dos que estão em uso
+  function removeEmptyPanes() {
+    for (let i = chart.panes().length - 1; i > subCount(); i--) chart.removePane(i);
+  }
+
+  function removeFutures() {
     if (!st.series) return;
     for (const s of Object.values(st.series)) chart.removeSeries(s);
     st.series = null;
     st.aligned = null;
-    st.data = st.points = null;
-    // painéis vazios que sobrarem
-    for (let i = chart.panes().length - 1; i >= 1; i--) chart.removePane(i);
+    st.data = null;
+    removeEmptyPanes();
+    titles.slice(1).forEach((el) => (el.hidden = true));
+  }
+
+  function remove() {
+    removeFutures();
+    if (st.vol) chart.removeSeries(st.vol);
+    st.vol = null;
+    st.points = null;
+    removeEmptyPanes();
     titles.forEach((el) => (el.hidden = true));
   }
 
   // títulos com o valor na vela idx (mira) ou o mais recente
   function renderTitles(idx = null) {
+    const tip = (key, label) => `<span class="help-tip" data-tip="${FUTURES_HELP[key]}">${label}</span>`;
+    const pts = st.points;
+    if (st.vol && pts?.length) {
+      const p = idx !== null && idx >= 0 && idx < pts.length ? pts[idx] : pts.at(-1);
+      const v = p.volume;
+      titles[0].innerHTML = `${tip("volume", "Volume")} <b class="${p.close >= p.open ? "pnl-pos" : "pnl-neg"}">${v == null ? "--" : formatUsdShort(v)}</b>`;
+    }
     const a = st.aligned;
     if (!a) return;
     const at = (arr) => {
@@ -174,12 +292,21 @@ export function createFuturesPanes(chart, wrap) {
     const t = at(a.top);
     const f = at(a.funding);
     const next = st.data.nextFunding;
-    const tip = (key, label) => `<span class="help-tip" data-tip="${FUTURES_HELP[key]}">${label}</span>`;
-    titles[0].innerHTML = `${tip("oi", "Open interest")} <b>${oi === null ? "--" : formatUsdShort(oi)}</b>`;
-    titles[1].innerHTML = `${tip("ls", "Long/Short")} <span style="color:${COLORS.global}">Contas ${g === null ? "--" : pct(g / 100)}</span> <span style="color:${COLORS.top}">Top traders ${t === null ? "--" : pct(t / 100)}</span>`;
-    titles[2].innerHTML = `${tip("funding", "Funding")} <b class="${f > 0 ? "pnl-pos" : f < 0 ? "pnl-neg" : ""}">${f === null ? "--" : fundingPct(f / 100)}</b>${
+    titles[1].innerHTML = `${tip("oi", "Open interest")} <b>${oi === null ? "--" : formatUsdShort(oi)}</b>`;
+    titles[2].innerHTML = `${tip("ls", "Long/Short")} <span style="color:${COLORS.global}">Contas ${g === null ? "--" : pct(g / 100)}</span> <span style="color:${COLORS.top}">Top traders ${t === null ? "--" : pct(t / 100)}</span>`;
+    titles[3].innerHTML = `${tip("funding", "Funding")} <b class="${f > 0 ? "pnl-pos" : f < 0 ? "pnl-neg" : ""}">${f === null ? "--" : fundingPct(f / 100)}</b>${
       idx === null && next ? ` <span class="muted">· próxima ≈ ${fundingPct(next.r)}</span>` : ""
     }`;
+  }
+
+  function setVolumeData() {
+    const { points, interval } = st;
+    st.vol.setData(
+      points.map((p) => {
+        const time = toChartTime(p.time, interval);
+        return p.volume == null ? { time } : { time, value: p.volume, color: p.close >= p.open ? COLORS.volumeUp : COLORS.volumeDown };
+      })
+    );
   }
 
   function setData() {
@@ -203,26 +330,34 @@ export function createFuturesPanes(chart, wrap) {
         return v === null ? { time } : { time, value: v, color: v >= 0 ? COLORS.fundingUp : COLORS.fundingDown };
       })
     );
-    renderTitles();
   }
 
   return {
-    /** data = resposta de /futures-data (available) ou null para remover os painéis */
+    /** points = velas (sem velas, remove tudo); data = resposta de /futures-data (available) ou null para
+     *  remover só os painéis de futuros (o de volume fica) */
     update(points, interval, data) {
-      if (!data || !points?.length) return remove();
-      if (data === st.data && points === st.points && interval === st.interval) return;
-      if (!st.series) createSeries();
-      st.data = data;
+      if (!points?.length) return remove();
+      const candlesChanged = points !== st.points || interval !== st.interval;
+      if (st.vol && !candlesChanged && data === st.data && !!data === !!st.series) return;
+      if (!st.vol) createVolume();
       st.points = points;
       st.interval = interval;
-      setData();
+      if (candlesChanged || !st.vol.data().length) setVolumeData();
+      if (data) {
+        if (!st.series) createSeries();
+        st.data = data;
+        setData();
+      } else removeFutures();
+      renderTitles();
       relayout();
     },
     // mira: valores da vela sob o mouse (null = mais recentes)
     crosshair(idx) {
-      if (st.series) renderTitles(idx);
+      if (st.vol) renderTitles(idx);
     },
     remove,
     active: () => !!st.series,
+    /** quantos painéis existem abaixo do preço */
+    count: subCount,
   };
 }

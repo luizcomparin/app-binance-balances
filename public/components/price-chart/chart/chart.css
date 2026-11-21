@@ -36,12 +36,8 @@
 .price-chart-canvas {
   position: relative;
   /* na aba, o gráfico ocupa boa parte da altura da tela */
-  height: clamp(420px, 62vh, 780px);
-}
-
-/* com os painéis de futuros (3 × ~96px), o gráfico cresce para o preço não encolher */
-.price-chart-canvas.with-futures {
-  height: calc(clamp(420px, 62vh, 780px) + 300px);
+  /* + os painéis de baixo (volume e futuros, ~100px cada): o gráfico cresce para o preço não encolher */
+  height: calc(clamp(420px, 62vh, 780px) + var(--sub-panes, 0) * 100px);
 }
 
 /* título de cada painel de futuros (canto superior esquerdo do painel) */

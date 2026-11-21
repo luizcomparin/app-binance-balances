@@ -81,7 +81,7 @@ export function createPriceChart(els, handlers = {}) {
   // mapa de liquidação estimado (anexado à série principal; reanexado quando ela é recriada)
   const liquidation = new LiquidationOverlay(timeToX);
 
-  // painéis de open interest, long/short e funding (mesmo eixo de tempo)
+  // painéis de volume, open interest, long/short e funding (mesmo eixo de tempo)
   const futures = createFuturesPanes(chart, wrap);
 
   // resumo das ordens abertas fora da faixa de preço visível
@@ -478,7 +478,8 @@ export function createPriceChart(els, handlers = {}) {
       summary.hidden = !opts.summary;
       liquidation.setData(opts.liquidation || null);
       // primeiro a altura final do gráfico, depois os painéis (as alturas deles partem dela)
-      wrap.classList.toggle("with-futures", !!opts.futures);
+      // (1 painel de volume sempre que há velas + 3 de futuros quando há dados)
+      wrap.style.setProperty("--sub-panes", (s.points?.length ? 1 : 0) + (opts.futures ? 3 : 0));
       futures.update(s.points, s.interval, opts.futures || null);
       scheduleOffscreen();
     },
@@ -503,7 +504,7 @@ export function createPriceChart(els, handlers = {}) {
       removeIndicators();
       liquidation.setData(null);
       futures.remove();
-      wrap.classList.remove("with-futures");
+      wrap.style.setProperty("--sub-panes", 0);
       s.points = null;
       s.opts = null;
       if (els.legend) els.legend.innerHTML = "";
