@@ -3,6 +3,28 @@ import { state } from "../../core/state.js";
 import { toggleSort, compareValues } from "../../core/sort.js";
 import { formatSigned } from "../../core/format.js";
 import { renderOrderSimulation } from "./orderSimulation.js";
+import { createPairCombo } from "../../core/pairCombo.js";
+
+let pairCombo = null; // filtro de par com busca
+let loaded = false;
+
+// filtros: par com busca e chips BUY/SELL (aplicam na hora)
+export function initOrdersPanel() {
+  const input = document.getElementById("ordersPairSearch");
+  const list = document.getElementById("ordersPairList");
+  if (input && list) {
+    pairCombo = createPairCombo({
+      input,
+      list,
+      getPairs: () => state.orders.map((o) => o.pair),
+      isLoaded: () => loaded,
+      onChange: applyOrderFilters,
+    });
+  }
+  for (const id of ["ordersSideBuy", "ordersSideSell"]) {
+    document.getElementById(id)?.addEventListener("change", applyOrderFilters);
+  }
+}
 
 export async function loadOrders() {
   const tbody = document.querySelector("#table-body-orders");
@@ -17,10 +39,6 @@ export async function loadOrders() {
 
     for (const base in json) {
       json[base].forEach((order) => {
-        if (state.pairs.find((item) => item === order.symbol) === undefined) {
-          state.pairs.push(order.symbol);
-        }
-
         state.orders.push({
           pair: order.symbol,
           side: order.side,
@@ -40,7 +58,8 @@ export async function loadOrders() {
         });
       });
     }
-    createOrderFilters();
+    loaded = true;
+    pairCombo?.sync(); // par escolhido que não tem mais ordens (recarregou): volta para todos
     applyOrderFilters();
   } catch (e) {
     if (tbody) {
@@ -49,25 +68,13 @@ export async function loadOrders() {
   }
 }
 
-function createOrderFilters() {
-  const pairSelect = document.getElementById("filterPair");
-  if (!pairSelect) return;
-
-  pairSelect.innerHTML = state.pairs
-    .map((item) => `<option value="${item}">${item}</option> `)
-    .toString();
-  pairSelect.innerHTML = '<option value="">Todos</option>' + pairSelect.innerHTML;
-}
-
 export function applyOrderFilters() {
-  const pair = document.getElementById("filterPair")?.value.trim().toUpperCase();
-  const side = document.getElementById("filterSide")?.value;
+  const pair = pairCombo?.value() || "";
+  const sides = new Set();
+  if (document.getElementById("ordersSideBuy")?.checked !== false) sides.add("BUY");
+  if (document.getElementById("ordersSideSell")?.checked !== false) sides.add("SELL");
 
-  state.filteredOrders = state.orders.filter(
-    (o) =>
-      (pair === "" || o.pair.includes(pair)) &&
-      (side === "ALL" || o.side === side)
-  );
+  state.filteredOrders = state.orders.filter((o) => (pair === "" || o.pair === pair) && sides.has(o.side));
 
   state.totalsByPair = calculateTotalsByPair(state.filteredOrders);
   renderOrders();
@@ -104,7 +111,6 @@ function calculateTotalsByPair(orders) {
 
 function renderOrders() {
   const tbody = document.querySelector("#table-body-orders");
-  const totalOrdersDiv = document.querySelector("#total-orders");
   if (!tbody) return;
 
   tbody.innerHTML = "";
@@ -153,12 +159,11 @@ function renderOrders() {
       `;
   });
 
-  if (totalOrdersDiv) {
-    totalOrdersDiv.innerHTML =
-      "Total das ordens abertas filtradas: <b>" +
-      total.toFixed(2).formatCurrency() +
-      " USDT</b>";
-  }
+  // resumo do que está filtrado
+  const countEl = document.getElementById("orders-count");
+  const totalEl = document.getElementById("orders-total");
+  if (countEl) countEl.textContent = state.filteredOrders.length.toLocaleString("pt-BR");
+  if (totalEl) totalEl.textContent = `${total.toFixed(2).formatCurrency()} USDT`;
 
   if (!state.filteredOrders.length) {
     tbody.innerHTML =

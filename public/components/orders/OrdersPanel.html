@@ -1,34 +1,38 @@
 ﻿<section class="card tab-panel" data-tab="orders">
     <div class="panel">
-        <div class="panel-header">
-            <div>
+        <!-- cabeçalho: título e descrição à esquerda, recarregar à direita -->
+        <div class="panel-header list-header">
+            <div class="list-intro">
                 <h3>Ordens em aberto</h3>
                 <p>Filtre por par e lado para ver o somatório.</p>
             </div>
-            <div class="panel-actions">
-                <button class="ghost" onclick="loadOrders()">
-                    Recarregar ordens
-                </button>
-                <div id="total-orders"></div>
-            </div>
+            <button type="button" class="pc-btn" onclick="loadOrders()" title="Buscar as ordens de novo na Binance">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 4v5h-5"/></svg>
+                Recarregar
+            </button>
         </div>
 
-        <div class="orders-filters">
-            <div class="field">
-                <label>Par</label>
-                <select id="filterPair"></select>
+        <!-- filtros (par com busca, lado em chips; aplicam na hora) e resumo do que está filtrado -->
+        <div class="filter-bar">
+            <div class="filter-field">
+                <label for="ordersPairSearch">Par</label>
+                <div class="pair-combo">
+                    <input type="search" id="ordersPairSearch" placeholder="Todos os pares" autocomplete="off" spellcheck="false"
+                           role="combobox" aria-expanded="false" aria-controls="ordersPairList" />
+                    <ul class="pair-combo-list" id="ordersPairList" role="listbox" hidden></ul>
+                </div>
             </div>
-            <div class="field">
-                <label>Lado</label>
-                <select id="filterSide">
-                    <option value="ALL">Todos</option>
-                    <option value="BUY">BUY</option>
-                    <option value="SELL">SELL</option>
-                </select>
+            <div class="filter-field">
+                <span class="filter-label">Lado</span>
+                <div class="side-chips">
+                    <label class="pc-chip side-chip buy"><input type="checkbox" id="ordersSideBuy" checked /><span>BUY</span></label>
+                    <label class="pc-chip side-chip sell"><input type="checkbox" id="ordersSideSell" checked /><span>SELL</span></label>
+                </div>
             </div>
-            <button class="primary" onclick="applyOrderFilters()">
-                Aplicar filtro
-            </button>
+            <dl class="filter-summary">
+                <div><dt>Ordens</dt><dd id="orders-count">--</dd></div>
+                <div><dt>Total (USDT)</dt><dd id="orders-total">--</dd></div>
+            </dl>
         </div>
 
         <div class="orders-simulation" id="orders-simulation" hidden>

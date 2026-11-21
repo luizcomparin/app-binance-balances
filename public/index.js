@@ -3,7 +3,7 @@ import { showLoading, hideLoading } from "./core/dom.js";
 import { initAppShell } from "./components/app/AppShell.js";
 import { initTabs } from "./components/tabs/Tabs.js";
 import { initBalancesPanel, loadBalances, sortBalances } from "./components/balances/BalancesPanel.js";
-import { loadOrders, applyOrderFilters, sortOrders } from "./components/orders/OrdersPanel.js";
+import { initOrdersPanel, loadOrders, applyOrderFilters, sortOrders } from "./components/orders/OrdersPanel.js";
 import { initOrderSimulation } from "./components/orders/orderSimulation.js";
 import { initStatGrid } from "./components/stats/StatGrid.js";
 import { initChartsPanel } from "./components/charts/ChartsPanel.js";
@@ -35,6 +35,7 @@ async function boot() {
 
   // componentes passam a escutar os eventos de dados antes do primeiro carregamento
   initBalancesPanel();
+  initOrdersPanel();
   initStatGrid();
   initChartsPanel();
   initAssetStrip();

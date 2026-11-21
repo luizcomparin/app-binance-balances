@@ -1,8 +1,11 @@
 import { fetchExecutedOrders } from "../../api/binance.js";
 import { toggleSort, compareValues } from "../../core/sort.js";
 import { formatPrice, formatQty } from "../../core/format.js";
+import { on, TAB_CHANGED } from "../../core/events.js";
+import { createPairCombo } from "../../core/pairCombo.js";
 
 const COLUMNS = 8;
+let pairCombo = null; // filtro de par com busca
 
 const executed = {
   orders: [],
@@ -14,10 +17,24 @@ const executed = {
 
 // Carrega só quando a aba é aberta pela primeira vez (o histórico de trades é pesado)
 export function initExecutedOrdersPanel() {
-  const tab = document.querySelector('.tab[data-tab="executed"]');
-  tab?.addEventListener("click", () => {
-    if (!executed.loaded) loadExecutedOrders();
+  // ao entrar na aba por clique, pela URL (F5, link direto) ou Voltar/Avançar
+  on(TAB_CHANGED, (tab) => {
+    if (tab === "executed" && !executed.loaded) loadExecutedOrders();
   });
+  const input = document.getElementById("executedPairSearch");
+  const list = document.getElementById("executedPairList");
+  if (input && list) {
+    pairCombo = createPairCombo({
+      input,
+      list,
+      getPairs: () => executed.orders.map((o) => o.symbol),
+      isLoaded: () => executed.loaded,
+      onChange: applyExecutedFilters,
+    });
+  }
+  for (const id of ["executedSideBuy", "executedSideSell"]) {
+    document.getElementById(id)?.addEventListener("change", applyExecutedFilters);
+  }
 }
 
 export async function loadExecutedOrders() {
@@ -33,7 +50,7 @@ export async function loadExecutedOrders() {
     .then((data) => {
       executed.orders = data.orders || [];
       executed.loaded = true;
-      createPairFilter();
+      pairCombo?.sync(); // par escolhido que não existe mais (recarregou): volta para todos
       applyExecutedFilters();
 
       if (status) {
@@ -56,25 +73,13 @@ export async function loadExecutedOrders() {
   return executed.loading;
 }
 
-function createPairFilter() {
-  const select = document.getElementById("executedFilterPair");
-  if (!select) return;
-
-  const current = select.value;
-  const pairs = [...new Set(executed.orders.map((o) => o.symbol))].sort();
-  select.innerHTML =
-    '<option value="">Todos</option>' +
-    pairs.map((p) => `<option value="${p}">${p}</option>`).join("");
-  if (pairs.includes(current)) select.value = current;
-}
-
 export function applyExecutedFilters() {
-  const pair = document.getElementById("executedFilterPair")?.value || "";
-  const side = document.getElementById("executedFilterSide")?.value || "ALL";
+  const pair = pairCombo?.value() || "";
+  const sides = new Set();
+  if (document.getElementById("executedSideBuy")?.checked !== false) sides.add("BUY");
+  if (document.getElementById("executedSideSell")?.checked !== false) sides.add("SELL");
 
-  executed.filtered = executed.orders.filter(
-    (o) => (pair === "" || o.symbol === pair) && (side === "ALL" || o.side === side)
-  );
+  executed.filtered = executed.orders.filter((o) => (pair === "" || o.symbol === pair) && sides.has(o.side));
   renderExecutedOrders();
 }
 
@@ -85,7 +90,6 @@ export function sortExecutedOrders(key) {
 
 function renderExecutedOrders() {
   const tbody = document.getElementById("table-body-executed");
-  const totalDiv = document.getElementById("executed-total");
   if (!tbody) return;
 
   const { key, asc } = executed.sort;
@@ -113,11 +117,14 @@ function renderExecutedOrders() {
       .join("");
   }
 
-  if (totalDiv) {
-    const buys = rows.filter((o) => o.side === "BUY").reduce((acc, o) => acc + o.totalUSDT, 0);
-    const sells = rows.filter((o) => o.side === "SELL").reduce((acc, o) => acc + o.totalUSDT, 0);
-    totalDiv.innerHTML =
-      `${rows.length} ordens · Compras: <b>${buys.toFixed(2).formatCurrency()} USDT</b>` +
-      ` · Vendas: <b>${sells.toFixed(2).formatCurrency()} USDT</b>`;
-  }
+  // resumo do que está filtrado
+  const buys = rows.filter((o) => o.side === "BUY").reduce((acc, o) => acc + o.totalUSDT, 0);
+  const sells = rows.filter((o) => o.side === "SELL").reduce((acc, o) => acc + o.totalUSDT, 0);
+  const set = (id, text) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  };
+  set("executed-count", rows.length.toLocaleString("pt-BR"));
+  set("executed-buys", `${buys.toFixed(2).formatCurrency()} USDT`);
+  set("executed-sells", `${sells.toFixed(2).formatCurrency()} USDT`);
 }

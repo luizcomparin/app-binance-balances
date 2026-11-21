@@ -183,3 +183,182 @@ tbody tr:hover {
 .muted {
   color: var(--muted);
 }
+
+/* ---- abas de lista de ordens (Ordens Abertas, Ordens Executadas) ---- */
+/* cabeçalho: título e descrição à esquerda, recarregar à direita */
+.list-header {
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.list-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.list-intro h3 {
+  margin: 0;
+}
+
+.panel-header .list-note {
+  margin-top: 4px;
+  color: #f5c26b;
+  font-size: 12px;
+}
+
+.panel-header .list-note::before {
+  content: "⚠ ";
+}
+
+.list-header > .pc-btn {
+  flex: none;
+}
+
+/* filtros + resumo: uma faixa acima da tabela */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 20px;
+  margin-bottom: 14px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-field > label,
+.filter-label {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* par: campo de busca com lista de resultados */
+.pair-combo {
+  position: relative;
+  width: 220px;
+}
+
+.pair-combo input {
+  width: 100%;
+  height: 38px;
+  padding: 0 12px;
+  background: var(--card-alt);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+}
+
+.pair-combo input:focus {
+  outline: none;
+  border-color: rgba(77, 212, 255, 0.55);
+}
+
+/* sem par escolhido, o campo mostra "Todos os pares" como valor */
+.pair-combo input::placeholder {
+  color: var(--text);
+  opacity: 0.85;
+}
+
+.pair-combo input:focus::placeholder {
+  color: var(--muted);
+}
+
+.pair-combo-list {
+  position: absolute;
+  z-index: 25;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 280px;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  list-style: none;
+  background: #11172e;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+
+.pair-combo-list[hidden] {
+  display: none;
+}
+
+.pair-combo-list li {
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pair-combo-list li.active {
+  background: rgba(77, 212, 255, 0.1);
+}
+
+.pair-combo-list li.current {
+  color: var(--accent);
+}
+
+.pair-combo-list li.empty {
+  color: var(--muted);
+  font-weight: 400;
+  cursor: default;
+}
+
+/* lado: chips BUY (verde) e SELL (vermelho); prefixo .side-chips para vencer o .pc-chip (carregado depois) */
+.side-chips {
+  display: flex;
+  gap: 8px;
+}
+
+.side-chip {
+  height: 38px;
+}
+
+.side-chips .side-chip.buy:has(> input:checked) {
+  background: rgba(82, 255, 168, 0.1);
+  border-color: rgba(82, 255, 168, 0.55);
+  color: #52ffa8;
+}
+
+.side-chips .side-chip.sell:has(> input:checked) {
+  background: rgba(255, 114, 114, 0.1);
+  border-color: rgba(255, 114, 114, 0.55);
+  color: #ff7272;
+}
+
+.side-chips .side-chip.buy input { accent-color: #52ffa8; }
+.side-chips .side-chip.sell input { accent-color: #ff7272; }
+
+/* resumo: rótulo pequeno em cima, valor embaixo (à direita da faixa) */
+.filter-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin: 0 0 0 auto;
+}
+
+.filter-summary dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.filter-summary dd {
+  margin: 2px 0 0;
+  font-size: 16px;
+  font-weight: 700;
+  white-space: nowrap;
+}
