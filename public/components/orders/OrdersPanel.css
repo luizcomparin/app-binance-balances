@@ -8,6 +8,37 @@
   opacity: 0.9;
 }
 
+.group-header {
+  cursor: pointer;
+}
+
+/* ordens dentro do par: recuadas, com o par apagado (já está na linha de cima) */
+#table-body-orders tr.order-row td:first-child {
+  padding-left: 34px;
+  color: var(--muted);
+}
+
+/* distância perto de executar */
+#table-body-orders .dist-near {
+  color: #ffd166;
+  font-weight: 800;
+}
+
+#table-body-orders .dist-mid {
+  color: #ffe6a3;
+  font-weight: 600;
+}
+
+/* expandir/recolher todos: mesma altura dos chips */
+.orders-expand-all {
+  height: 38px;
+}
+
+.orders-expand-all:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* linha-resumo do par: ▸ fechado / ▾ aberto */
 .group-header .grp-chevron {
   display: inline-block;

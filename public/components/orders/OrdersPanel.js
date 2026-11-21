@@ -8,6 +8,27 @@ import { createPairCombo } from "../../core/pairCombo.js";
 let pairCombo = null; // filtro de par com busca
 let loaded = false;
 
+// pares abertos (expandidos) na tabela, lembrados no navegador
+const OPEN_KEY = "ordersOpenPairs";
+const openPairs = new Set(readOpenPairs());
+
+function readOpenPairs() {
+  try {
+    const list = JSON.parse(localStorage.getItem(OPEN_KEY) || "[]");
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveOpenPairs() {
+  try {
+    localStorage.setItem(OPEN_KEY, JSON.stringify([...openPairs]));
+  } catch {
+    // sem armazenamento: vale só até recarregar
+  }
+}
+
 // filtros: par com busca e chips BUY/SELL (aplicam na hora)
 export function initOrdersPanel() {
   const input = document.getElementById("ordersPairSearch");
@@ -24,6 +45,51 @@ export function initOrdersPanel() {
   for (const id of ["ordersSideBuy", "ordersSideSell"]) {
     document.getElementById(id)?.addEventListener("change", applyOrderFilters);
   }
+
+  // clique no nome do par: abre o gráfico de preço; no resto da linha: abre/fecha as ordens do par
+  document.getElementById("table-body-orders")?.addEventListener("click", (e) => {
+    const link = e.target.closest(".asset-link");
+    if (link) {
+      window.openPriceChart?.(link.dataset.asset);
+      return;
+    }
+    const header = e.target.closest("tr.group-header");
+    if (header) setPairsOpen([header.dataset.group], !openPairs.has(header.dataset.group));
+  });
+
+  // expandir/recolher todos os pares visíveis
+  document.getElementById("orders-expand-all")?.addEventListener("click", () => {
+    const pairs = visiblePairs();
+    setPairsOpen(pairs, !pairs.every((p) => openPairs.has(p)));
+  });
+}
+
+const visiblePairs = () => [...document.querySelectorAll("#table-body-orders tr.group-header")].map((tr) => tr.dataset.group);
+
+// abre/fecha pares sem redesenhar a tabela
+function setPairsOpen(pairs, open) {
+  for (const pair of pairs) {
+    if (open) openPairs.add(pair);
+    else openPairs.delete(pair);
+  }
+  saveOpenPairs();
+  const set = new Set(pairs);
+  document.querySelectorAll("#table-body-orders tr[data-group]").forEach((tr) => {
+    if (!set.has(tr.dataset.group)) return;
+    if (tr.classList.contains("group-header")) tr.classList.toggle("group-collapsed", !open);
+    else tr.hidden = !open;
+  });
+  updateExpandAllLabel();
+}
+
+function updateExpandAllLabel() {
+  const btn = document.getElementById("orders-expand-all");
+  if (!btn) return;
+  const pairs = visiblePairs();
+  const allOpen = pairs.length > 0 && pairs.every((p) => openPairs.has(p));
+  btn.disabled = !pairs.length;
+  btn.querySelector("span").textContent = allOpen ? "Recolher todos" : "Expandir todos";
+  btn.classList.toggle("is-open", allOpen);
 }
 
 export async function loadOrders() {
@@ -149,9 +215,10 @@ function groupedOrders(orders) {
   const groupValue = GROUP_SORT[key] || GROUP_SORT.distancePct;
   const groupAsc = GROUP_SORT[key] ? asc : true;
   groups.sort((a, b) => compareValues(groupValue(a), groupValue(b), groupAsc) || compareValues(a.pair, b.pair, true));
-  // ordens dentro do par: pela coluna clicada (sem coluna, na ordem em que vieram)
-  if (key && key in GROUP_SORT && key !== "pair") {
-    for (const g of groups) g.orders.sort((a, b) => compareValues(a[key], b[key], asc));
+  // ordens dentro do par: pela coluna clicada; sem coluna (ou por Par), pelo preço, do menor para o maior
+  const byColumn = key && key in GROUP_SORT && key !== "pair";
+  for (const g of groups) {
+    g.orders.sort((a, b) => (byColumn ? compareValues(a[key], b[key], asc) : compareValues(a.price, b.price, true)));
   }
   return groups;
 }
@@ -169,6 +236,16 @@ const pct = (v) => `${formatSigned(v)}%`;
 const usdt = (v) => v.toFixed(2).formatCurrency();
 const priceIn = (v, quote) => (quote === "USDT" ? formatPrice(v) : `${v.toFixed(8)} ${quote}`);
 
+// moeda base do par (BTCUSDT → BTC), para abrir no gráfico de preço
+const baseOf = (g) => (g.quoteAsset && g.pair.endsWith(g.quoteAsset) ? g.pair.slice(0, -g.quoteAsset.length) : g.pair);
+
+// distância perto de executar: < 2% destacada, < 5% um pouco
+function distanceClass(d) {
+  if (d === null) return "";
+  const abs = Math.abs(d);
+  return abs < 2 ? "dist-near" : abs < 5 ? "dist-mid" : "";
+}
+
 function groupRow(g) {
   const nb = g.buys.length;
   const ns = g.sells.length;
@@ -177,8 +254,8 @@ function groupRow(g) {
       ? priceIn(g.minPrice, g.quoteAsset)
       : `${priceIn(g.minPrice, g.quoteAsset)} – ${priceIn(g.maxPrice, g.quoteAsset)}`;
   return `
-    <tr class="group-header" data-group="${g.pair}">
-      <td><span class="grp-chevron" aria-hidden="true">▸</span>${g.pair}</td>
+    <tr class="group-header${openPairs.has(g.pair) ? "" : " group-collapsed"}" data-group="${g.pair}">
+      <td><span class="grp-chevron" aria-hidden="true">▸</span><button type="button" class="asset-link" data-asset="${baseOf(g)}" title="Abrir ${baseOf(g)} no gráfico de preço">${g.pair}</button></td>
       <td>${split(nb ? plural(nb, "compra", "compras") : null, ns ? plural(ns, "venda", "vendas") : null)}</td>
       <td>${priceRange}</td>
       <td>${split(
@@ -201,11 +278,11 @@ function orderRow(o) {
       ? `${o.total.toFixed(2).formatCurrency()} USDT`
       : `${o.total.toFixed(2).formatCurrency()} USDT <small>(${o.totalQuote.toFixed(8)} ${o.quoteAsset})</small>`;
   return `
-    <tr data-group="${o.pair}">
+    <tr class="order-row" data-group="${o.pair}"${openPairs.has(o.pair) ? "" : " hidden"}>
       <td>${o.pair}</td>
       <td class="${o.side === "BUY" ? "buy" : "sell"}">${o.side}</td>
       <td>${priceText}</td>
-      <td>${o.distancePct === null ? "--" : pct(o.distancePct)}</td>
+      <td class="${distanceClass(o.distancePct)}">${o.distancePct === null ? "--" : pct(o.distancePct)}</td>
       <td>${o.amount.toFixed(8)}</td>
       <td>${totalText}</td>
       <td class="nowrap">${formattedDate}</td>
@@ -232,38 +309,6 @@ function renderOrders() {
   set("orders-buys", `${usdt(sum(groups, (g) => g.buyTotal))} USDT`);
   set("orders-sells", `${usdt(sum(groups, (g) => g.sellTotal))} USDT`);
 
-  activateGroupAccordions();
+  updateExpandAllLabel();
   renderOrderSimulation();
-}
-
-function activateGroupAccordions() {
-  const rows = document.querySelectorAll("#table-body-orders tr.group-header");
-
-  rows.forEach((header) => {
-    header.style.cursor = "pointer";
-
-    const group = header.dataset.group;
-    let current = header.nextElementSibling;
-
-    header.classList.add("group-collapsed");
-
-    while (current && !current.classList.contains("group-header")) {
-      if (current.dataset.group === group) {
-        current.style.display = "none";
-      }
-      current = current.nextElementSibling;
-    }
-
-    header.addEventListener("click", () => {
-      const isHidden = header.classList.toggle("group-collapsed");
-      let c = header.nextElementSibling;
-
-      while (c && !c.classList.contains("group-header")) {
-        if (c.dataset.group === group) {
-          c.style.display = isHidden ? "none" : "table-row";
-        }
-        c = c.nextElementSibling;
-      }
-    });
-  });
 }
