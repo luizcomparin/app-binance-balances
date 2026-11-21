@@ -8,6 +8,42 @@
   opacity: 0.9;
 }
 
+/* linha-resumo do par: ▸ fechado / ▾ aberto */
+.group-header .grp-chevron {
+  display: inline-block;
+  width: 14px;
+  margin-right: 6px;
+  color: var(--accent);
+  transition: transform 0.15s ease;
+  transform: rotate(90deg);
+}
+
+.group-header.group-collapsed .grp-chevron {
+  transform: none;
+}
+
+/* valores de compra e de venda lado a lado (cores do lado, mais suaves que nas ordens) */
+.group-header td {
+  white-space: nowrap;
+}
+
+.buy-soft {
+  color: #52ffa8;
+  font-weight: 600;
+}
+
+.sell-soft {
+  color: #ff7272;
+  font-weight: 600;
+}
+
+.grp-sep,
+.grp-unit,
+.grp-latest {
+  color: var(--muted);
+  font-weight: 500;
+}
+
 .buy {
   color: #52ffa8;
   font-weight: 800;
@@ -65,4 +101,26 @@
   margin: 10px 0 0;
   font-size: 12px;
   color: var(--muted);
+}
+
+/* dicas nos títulos das colunas (balão do app, sem o "?"; só o sublinhado pontilhado) */
+.help-tip.no-icon::before {
+  content: none;
+}
+
+/* texto da dica sem o estilo do cabeçalho (negrito, sem quebra) */
+th .help-tip:hover::after {
+  white-space: pre-line;
+  text-align: left;
+}
+
+/* dicas das últimas colunas abrem para a esquerda (não saem da tabela) */
+th .help-tip.end:hover::after {
+  left: auto;
+  right: 0;
+}
+
+/* data das ordens numa linha só */
+#table-body-orders td.nowrap {
+  white-space: nowrap;
 }

@@ -1,7 +1,7 @@
 ﻿import { fetchOrders } from "../../api/binance.js";
 import { state } from "../../core/state.js";
 import { toggleSort, compareValues } from "../../core/sort.js";
-import { formatSigned } from "../../core/format.js";
+import { formatPrice, formatQty, formatSigned } from "../../core/format.js";
 import { renderOrderSimulation } from "./orderSimulation.js";
 import { createPairCombo } from "../../core/pairCombo.js";
 
@@ -82,25 +82,8 @@ export function applyOrderFilters() {
 
 export function sortOrders(key) {
   toggleSort(state.orderSort, key);
-
-  state.totalsByPair = calculateTotalsByPair(state.filteredOrders);
-  state.filteredOrders.sort((a, b) => {
-    if (key === "total") {
-      const totalA = state.totalsByPair[a.pair] || 0;
-      const totalB = state.totalsByPair[b.pair] || 0;
-      const totalCompare = compareValues(totalA, totalB, state.orderSort.asc);
-      if (totalCompare !== 0) return totalCompare;
-      return compareValues(a.time, b.time, true);
-    }
-
-    const A = a[key],
-      B = b[key];
-    return compareValues(A, B, state.orderSort.asc);
-  });
-
   renderOrders();
 }
-
 
 function calculateTotalsByPair(orders) {
   return orders.reduce((totals, order) => {
@@ -109,66 +92,145 @@ function calculateTotalsByPair(orders) {
   }, {});
 }
 
+// ---------------------------------------------------------------------------
+// agrupamento por par: cada par vira uma linha-resumo (compras e vendas separadas) com as ordens dentro
+// ---------------------------------------------------------------------------
+
+const sum = (list, f) => list.reduce((acc, o) => acc + f(o), 0);
+const withDistance = (list) => list.filter((o) => o.distancePct !== null);
+
+function summarize(pair, orders) {
+  const buys = orders.filter((o) => o.side === "BUY");
+  const sells = orders.filter((o) => o.side === "SELL");
+  const prices = orders.map((o) => o.price);
+  // mais perto de executar: compra com a menor queda, venda com a menor alta
+  const nearBuy = withDistance(buys).reduce((best, o) => (best === null || o.distancePct > best ? o.distancePct : best), null);
+  const nearSell = withDistance(sells).reduce((best, o) => (best === null || o.distancePct < best ? o.distancePct : best), null);
+  const nearest = Math.min(...[nearBuy, nearSell].filter((d) => d !== null).map(Math.abs), Infinity);
+  return {
+    pair,
+    orders,
+    quoteAsset: orders[0].quoteAsset,
+    buys,
+    sells,
+    minPrice: Math.min(...prices),
+    maxPrice: Math.max(...prices),
+    nearBuy,
+    nearSell,
+    nearest,
+    buyQty: sum(buys, (o) => o.amount),
+    sellQty: sum(sells, (o) => o.amount),
+    buyTotal: sum(buys, (o) => o.total),
+    sellTotal: sum(sells, (o) => o.total),
+    total: sum(orders, (o) => o.total),
+    latest: Math.max(...orders.map((o) => o.time)),
+  };
+}
+
+// valor de cada par para ordenar pela coluna clicada; sem coluna: a ordem mais perto de executar primeiro
+const GROUP_SORT = {
+  pair: (g) => g.pair,
+  side: (g) => g.orders.length,
+  price: (g) => g.minPrice,
+  distancePct: (g) => g.nearest,
+  amount: (g) => g.buyQty + g.sellQty,
+  total: (g) => g.total,
+  time: (g) => g.latest,
+};
+
+function groupedOrders(orders) {
+  const byPair = new Map();
+  for (const o of orders) {
+    if (!byPair.has(o.pair)) byPair.set(o.pair, []);
+    byPair.get(o.pair).push(o);
+  }
+  const groups = [...byPair].map(([pair, list]) => summarize(pair, list));
+  const { key, asc } = state.orderSort;
+  const groupValue = GROUP_SORT[key] || GROUP_SORT.distancePct;
+  const groupAsc = GROUP_SORT[key] ? asc : true;
+  groups.sort((a, b) => compareValues(groupValue(a), groupValue(b), groupAsc) || compareValues(a.pair, b.pair, true));
+  // ordens dentro do par: pela coluna clicada (sem coluna, na ordem em que vieram)
+  if (key && key in GROUP_SORT && key !== "pair") {
+    for (const g of groups) g.orders.sort((a, b) => compareValues(a[key], b[key], asc));
+  }
+  return groups;
+}
+
+// "compra · venda" com as cores do lado; um lado sem valor não aparece
+function split(buyText, sellText) {
+  const parts = [];
+  if (buyText !== null) parts.push(`<span class="buy-soft">${buyText}</span>`);
+  if (sellText !== null) parts.push(`<span class="sell-soft">${sellText}</span>`);
+  return parts.length ? parts.join('<span class="grp-sep"> · </span>') : "--";
+}
+
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+const pct = (v) => `${formatSigned(v)}%`;
+const usdt = (v) => v.toFixed(2).formatCurrency();
+const priceIn = (v, quote) => (quote === "USDT" ? formatPrice(v) : `${v.toFixed(8)} ${quote}`);
+
+function groupRow(g) {
+  const nb = g.buys.length;
+  const ns = g.sells.length;
+  const priceRange =
+    g.minPrice === g.maxPrice
+      ? priceIn(g.minPrice, g.quoteAsset)
+      : `${priceIn(g.minPrice, g.quoteAsset)} – ${priceIn(g.maxPrice, g.quoteAsset)}`;
+  return `
+    <tr class="group-header" data-group="${g.pair}">
+      <td><span class="grp-chevron" aria-hidden="true">▸</span>${g.pair}</td>
+      <td>${split(nb ? plural(nb, "compra", "compras") : null, ns ? plural(ns, "venda", "vendas") : null)}</td>
+      <td>${priceRange}</td>
+      <td>${split(
+        g.nearBuy === null ? null : `↓ ${pct(g.nearBuy)}`,
+        g.nearSell === null ? null : `↑ ${pct(g.nearSell)}`
+      )}</td>
+      <td>${split(nb ? formatQty(g.buyQty) : null, ns ? formatQty(g.sellQty) : null)}</td>
+      <td>${split(nb ? usdt(g.buyTotal) : null, ns ? usdt(g.sellTotal) : null)} <span class="grp-unit">USDT</span></td>
+      <td class="grp-latest">${new Date(g.latest).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</td>
+    </tr>`;
+}
+
+function orderRow(o) {
+  const formattedDate = new Date(o.time).toLocaleString("pt-BR");
+  const isUsdtQuote = o.quoteAsset === "USDT";
+  const priceText = isUsdtQuote ? `${o.price.toFixed(5).formatCurrency()} USDT` : `${o.price.toFixed(8)} ${o.quoteAsset}`;
+  const totalText = o.totalUnknown
+    ? `-- <small>(${o.totalQuote.toFixed(8)} ${o.quoteAsset})</small>`
+    : isUsdtQuote
+      ? `${o.total.toFixed(2).formatCurrency()} USDT`
+      : `${o.total.toFixed(2).formatCurrency()} USDT <small>(${o.totalQuote.toFixed(8)} ${o.quoteAsset})</small>`;
+  return `
+    <tr data-group="${o.pair}">
+      <td>${o.pair}</td>
+      <td class="${o.side === "BUY" ? "buy" : "sell"}">${o.side}</td>
+      <td>${priceText}</td>
+      <td>${o.distancePct === null ? "--" : pct(o.distancePct)}</td>
+      <td>${o.amount.toFixed(8)}</td>
+      <td>${totalText}</td>
+      <td class="nowrap">${formattedDate}</td>
+    </tr>`;
+}
+
 function renderOrders() {
   const tbody = document.querySelector("#table-body-orders");
   if (!tbody) return;
 
-  tbody.innerHTML = "";
-
-  let lastPair = null;
-  let total = 0;
-
   state.totalsByPair = calculateTotalsByPair(state.filteredOrders);
+  const groups = groupedOrders(state.filteredOrders);
 
-  state.filteredOrders.forEach((o) => {
-    total += o.total;
+  tbody.innerHTML = groups.length
+    ? groups.map((g) => groupRow(g) + g.orders.map(orderRow).join("")).join("")
+    : "<tr><td colspan='7'>Nenhuma ordem encontrada para os filtros.</td></tr>";
 
-    if (o.pair !== lastPair) {
-      const pairTotal = state.totalsByPair[o.pair].toFixed(2);
-      tbody.innerHTML += `
-            <tr class="group-header" data-group="${o.pair}">
-                <td colspan="5">${o.pair}</td>
-                <td colspan="1">${pairTotal.formatCurrency()} USDT</td>
-                <td colspan="1"></td>
-            </tr>`;
-
-      lastPair = o.pair;
-    }
-
-    const formattedDate = new Date(o.time).toLocaleString("pt-BR");
-    const isUsdtQuote = o.quoteAsset === "USDT";
-    const priceText = isUsdtQuote
-      ? `${o.price.toFixed(5).formatCurrency()} USDT`
-      : `${o.price.toFixed(8)} ${o.quoteAsset}`;
-    const totalText = o.totalUnknown
-      ? `-- <small>(${o.totalQuote.toFixed(8)} ${o.quoteAsset})</small>`
-      : isUsdtQuote
-        ? `${o.total.toFixed(2).formatCurrency()} USDT`
-        : `${o.total.toFixed(2).formatCurrency()} USDT <small>(${o.totalQuote.toFixed(8)} ${o.quoteAsset})</small>`;
-
-    tbody.innerHTML += `
-        <tr data-group="${o.pair}">
-          <td>${o.pair}</td>
-          <td class="${o.side === "BUY" ? "buy" : "sell"}">${o.side}</td>
-          <td>${priceText}</td>
-          <td>${o.distancePct === null ? "--" : `${formatSigned(o.distancePct)}%`}</td>
-          <td>${o.amount.toFixed(8)}</td>
-          <td>${totalText}</td>
-          <td>${formattedDate}</td>
-        </tr>
-      `;
-  });
-
-  // resumo do que está filtrado
-  const countEl = document.getElementById("orders-count");
-  const totalEl = document.getElementById("orders-total");
-  if (countEl) countEl.textContent = state.filteredOrders.length.toLocaleString("pt-BR");
-  if (totalEl) totalEl.textContent = `${total.toFixed(2).formatCurrency()} USDT`;
-
-  if (!state.filteredOrders.length) {
-    tbody.innerHTML =
-      "<tr><td colspan='7'>Nenhuma ordem encontrada para os filtros.</td></tr>";
-  }
+  // resumo do que está filtrado: compras e vendas separadas (somar as duas não diz nada)
+  const set = (id, text) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  };
+  set("orders-count", state.filteredOrders.length.toLocaleString("pt-BR"));
+  set("orders-buys", `${usdt(sum(groups, (g) => g.buyTotal))} USDT`);
+  set("orders-sells", `${usdt(sum(groups, (g) => g.sellTotal))} USDT`);
 
   activateGroupAccordions();
   renderOrderSimulation();
