@@ -114,21 +114,25 @@
 }
 
 /* legenda com liga/desliga */
-/* linha acima do gráfico: legenda à esquerda, "Ajustar zoom" à direita */
-.price-chart-legend-row {
+/* linha acima do gráfico: tipo, vela e período à esquerda; "Ajustar zoom" e lista de moedas à direita
+   (acima do gráfico na sobreposição: o menu "Personalizado" abre por cima dele) */
+.price-chart-toolbar {
+  position: relative;
+  z-index: 20;
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 8px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px 24px;
+  margin-bottom: 10px;
 }
 
-.price-chart-legend-row #price-chart-fit {
-  flex: none;
+.pc-chart-actions {
+  display: flex;
+  gap: 8px;
   margin-left: auto;
 }
 
-.price-chart-legend-row .pc-icon-btn {
-  flex: none;
+.pc-chart-actions .pc-icon-btn {
   padding: 7px 9px;
 }
 
@@ -303,21 +307,32 @@
   }
 }
 
+/* legenda dentro do gráfico: mini caixa no mesmo estilo do resumo (par · vela · período) */
 .price-chart-legend {
-  flex: 1;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 16px;
-  min-height: 30px;
-  font-size: 13px;
-  color: #e5ecff;
+  gap: 2px 12px;
+  flex: 0 1 auto; /* encolhe para caber ao lado do resumo e quebra os itens por dentro */
+  min-width: 0;
+  padding: 1px 6px;
+  background: rgba(11, 16, 36, 0.85);
+  border-radius: 4px;
+  color: #c9d6f2;
+  font-size: 11px;
+  font-weight: 600;
+  pointer-events: auto;
+}
+
+/* sem itens (moeda sem preço médio nem ordens): não ocupa espaço */
+.price-chart-legend:empty {
+  display: none;
 }
 
 .price-chart-legend .lg-item {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   user-select: none;
 }
 
@@ -332,7 +347,7 @@
 
 .price-chart-legend .sw {
   display: inline-block;
-  width: 18px;
+  width: 14px;
   height: 0;
   border-top: 2px dashed;
 }
@@ -346,8 +361,8 @@
 
 .price-chart-legend .sw-buy,
 .price-chart-legend .sw-sell {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border: none;
   border-radius: 50%;
   background: #52ffa8;
@@ -386,7 +401,7 @@
 
 .price-chart-legend .lg-note {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
   cursor: help;
 }
 
@@ -454,16 +469,21 @@
 /* barra do canto superior esquerdo: ordens acima + resumo (par · vela · período) */
 .lwc-topbar {
   position: absolute;
-  z-index: 2;
+  z-index: 4; /* acima da barra de desenho: as dicas da legenda abrem por cima dela */
   top: 6px;
   left: 8px;
+  right: 90px; /* não invade o eixo de preço; sem espaço, a legenda quebra linha dentro da caixa */
   display: flex;
+  flex-wrap: nowrap; /* legenda na mesma linha do resumo */
+  align-items: flex-start;
   gap: 6px;
   pointer-events: none;
 }
 
 .lwc-topbar .lwc-offscreen {
   position: static;
+  flex: none;
+  white-space: nowrap;
 }
 
 .lwc-offscreen.summary {

@@ -1,7 +1,7 @@
 <section class="card tab-panel" data-tab="price-chart" id="price-chart-panel">
   <div class="panel">
   <div class="price-chart-header">
-    <!-- topo: moeda (abre a lista) -->
+    <!-- topo: moeda (abre a lista) e, ao lado, preço atual, preço médio e diferença -->
     <div class="pc-top">
       <div class="asset-picker-wrap">
         <h2>
@@ -15,63 +15,7 @@
           <ul id="asset-picker-list" role="listbox"></ul>
         </div>
       </div>
-    </div>
-
-    <!-- preço atual, preço médio e diferença -->
-    <div id="price-chart-info" class="pc-stats"></div>
-
-    <!-- tipo, tamanho da vela e período -->
-    <div class="pc-controls">
-      <div class="pc-group">
-        <span class="pc-label">Tipo</span>
-        <div class="pc-seg" id="price-chart-mode">
-          <button type="button" data-mode="line" title="Linha">Linha</button>
-          <button type="button" data-mode="candle" title="Velas">Velas</button>
-        </div>
-      </div>
-      <div class="pc-group">
-        <span class="pc-label">Intervalo</span>
-        <div class="pc-seg" id="price-chart-interval" title="Tamanho da vela">
-          <button type="button" data-interval="1h" title="1 hora">1h</button>
-          <button type="button" data-interval="4h" title="4 horas">4h</button>
-          <button type="button" data-interval="1d" title="Diário">D</button>
-          <button type="button" data-interval="1w" title="Semanal">S</button>
-          <button type="button" data-interval="1M" title="Mensal">M</button>
-        </div>
-      </div>
-      <div class="pc-group">
-        <span class="pc-label">Período</span>
-        <div class="pc-row" id="price-chart-ranges">
-          <div class="pc-seg">
-            <button type="button" data-range="7d">7d</button>
-            <button type="button" data-range="30d">30d</button>
-            <button type="button" data-range="90d">90d</button>
-            <button type="button" data-range="6m">6 meses</button>
-            <button type="button" class="active" data-range="1y">1 ano</button>
-            <button type="button" data-range="2y">2 anos</button>
-            <button type="button" data-range="all">Tudo</button>
-          </div>
-          <div class="pc-custom" id="price-chart-custom-wrap">
-            <button type="button" class="pc-btn" id="price-chart-custom-btn" aria-haspopup="true" aria-expanded="false">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
-              <span id="price-chart-custom-label">Personalizado</span>
-              <span class="pc-caret" aria-hidden="true">▾</span>
-            </button>
-            <form class="pc-pop price-chart-custom" id="price-chart-custom" hidden>
-              <span class="pc-label">Últimos</span>
-              <div class="pc-pop-row">
-                <input type="number" id="price-chart-custom-value" min="1" max="9999" step="1" placeholder="Ex: 2" />
-                <select id="price-chart-custom-unit">
-                  <option value="d">Dias</option>
-                  <option value="m" selected>Meses</option>
-                  <option value="y">Anos</option>
-                </select>
-              </div>
-              <button type="submit" class="pc-btn pc-btn-accent">Aplicar</button>
-            </form>
-          </div>
-        </div>
-      </div>
+      <div id="price-chart-info" class="pc-stats"></div>
     </div>
 
     <!-- camadas extras sobre/abaixo do gráfico -->
@@ -116,21 +60,76 @@
   </div>
   <div class="price-chart-body">
     <p id="price-chart-error" class="positions-status error" hidden></p>
-    <!-- legenda, "Ajustar zoom" e lista de moedas logo acima do gráfico -->
-    <div class="price-chart-legend-row">
-      <div class="price-chart-legend" id="price-chart-legend"></div>
-      <button type="button" class="pc-btn" id="price-chart-fit" title="Enquadrar todo o período carregado">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
-        Ajustar zoom
-      </button>
-      <button type="button" class="pc-btn pc-icon-btn" id="price-chart-watchlist-btn" title="Lista de moedas" aria-label="Lista de moedas" aria-expanded="false" aria-controls="price-chart-watchlist">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg>
-      </button>
+    <!-- logo acima do gráfico: tipo, vela e período à esquerda; ajustar zoom e lista de moedas à direita -->
+    <div class="price-chart-toolbar">
+      <div class="pc-controls">
+        <div class="pc-group">
+          <span class="pc-label">Tipo</span>
+          <div class="pc-seg" id="price-chart-mode">
+            <button type="button" data-mode="line" title="Linha">Linha</button>
+            <button type="button" data-mode="candle" title="Velas">Velas</button>
+          </div>
+        </div>
+        <div class="pc-group">
+          <span class="pc-label">Intervalo</span>
+          <div class="pc-seg" id="price-chart-interval" title="Tamanho da vela">
+            <button type="button" data-interval="1h" title="1 hora">1h</button>
+            <button type="button" data-interval="4h" title="4 horas">4h</button>
+            <button type="button" data-interval="1d" title="Diário">D</button>
+            <button type="button" data-interval="1w" title="Semanal">S</button>
+            <button type="button" data-interval="1M" title="Mensal">M</button>
+          </div>
+        </div>
+        <div class="pc-group">
+          <span class="pc-label">Período</span>
+          <div class="pc-row" id="price-chart-ranges">
+            <div class="pc-seg">
+              <button type="button" data-range="7d">7d</button>
+              <button type="button" data-range="30d">30d</button>
+              <button type="button" data-range="90d">90d</button>
+              <button type="button" data-range="6m">6 meses</button>
+              <button type="button" class="active" data-range="1y">1 ano</button>
+              <button type="button" data-range="2y">2 anos</button>
+              <button type="button" data-range="all">Tudo</button>
+            </div>
+            <div class="pc-custom" id="price-chart-custom-wrap">
+              <button type="button" class="pc-btn" id="price-chart-custom-btn" aria-haspopup="true" aria-expanded="false">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
+                <span id="price-chart-custom-label">Personalizado</span>
+                <span class="pc-caret" aria-hidden="true">▾</span>
+              </button>
+              <form class="pc-pop price-chart-custom" id="price-chart-custom" hidden>
+                <span class="pc-label">Últimos</span>
+                <div class="pc-pop-row">
+                  <input type="number" id="price-chart-custom-value" min="1" max="9999" step="1" placeholder="Ex: 2" />
+                  <select id="price-chart-custom-unit">
+                    <option value="d">Dias</option>
+                    <option value="m" selected>Meses</option>
+                    <option value="y">Anos</option>
+                  </select>
+                </div>
+                <button type="submit" class="pc-btn pc-btn-accent">Aplicar</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="pc-chart-actions">
+        <button type="button" class="pc-btn" id="price-chart-fit" title="Enquadrar todo o período carregado">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+          Ajustar zoom
+        </button>
+        <button type="button" class="pc-btn pc-icon-btn" id="price-chart-watchlist-btn" title="Lista de moedas" aria-label="Lista de moedas" aria-expanded="false" aria-controls="price-chart-watchlist">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg>
+        </button>
+      </div>
     </div>
     <!-- gráfico e, à direita, a lista de moedas (watchlist) -->
     <div class="price-chart-main">
     <div class="price-chart-canvas" id="price-chart-canvas-wrap">
       <div id="priceChartContainer" class="price-chart-lwc"></div>
+      <!-- legenda: o gráfico a coloca na barra do canto superior esquerdo, ao lado do resumo -->
+      <div class="price-chart-legend" id="price-chart-legend"></div>
       <div class="price-chart-overlay">
         <span class="chart-spinner"></span>
       </div>

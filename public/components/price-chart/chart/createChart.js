@@ -120,6 +120,8 @@ export function createPriceChart(els, handlers = {}) {
   const topBar = document.createElement("div");
   topBar.className = "lwc-topbar";
   topBar.append(offTop, summary);
+  // legenda (linhas de preço médio, ordens...) na mesma barra, logo depois do resumo
+  if (els.legend) topBar.append(els.legend);
   wrap.append(topBar, offBottom);
 
   const renderLegend = createLegend(els.legend, {

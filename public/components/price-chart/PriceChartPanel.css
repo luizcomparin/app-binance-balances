@@ -17,13 +17,16 @@
 }
 
 /* números sem setinhas de aumentar/diminuir (economiza espaço) */
-.price-chart-header input[type="number"] {
+.price-chart-header input[type="number"],
+.price-chart-toolbar input[type="number"] {
   -moz-appearance: textfield;
   appearance: textfield;
 }
 
 .price-chart-header input[type="number"]::-webkit-inner-spin-button,
-.price-chart-header input[type="number"]::-webkit-outer-spin-button {
+.price-chart-header input[type="number"]::-webkit-outer-spin-button,
+.price-chart-toolbar input[type="number"]::-webkit-inner-spin-button,
+.price-chart-toolbar input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
@@ -40,9 +43,11 @@
 /* topo: moeda à esquerda, ajustar zoom à direita */
 .pc-top {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 12px 48px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 /* botão pequeno com borda (Ajustar zoom, Personalizado, Aplicar) */
@@ -90,8 +95,6 @@
   align-items: flex-start;
   gap: 12px 40px;
   min-height: 52px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .pc-stat-value {
