@@ -20,7 +20,7 @@ const SORTS = {
   price: (o) => priceOf(o) * (Number(o.quotePriceUSDT) || 1),
 };
 
-const sort = { key: "time", dir: -1 }; // padrão: mais recentes primeiro
+const sort = { key: "price", dir: 1 }; // padrão: preço, do menor para o maior
 let last = { el: null, orders: null, asset: null };
 
 export const typeLabel = (type) => TYPE_LABELS[type] || String(type || "--").replace(/_/g, " ");
