@@ -48,6 +48,22 @@ export function avgAfterBuys({ avg: A, qty: Q }, buys) {
 }
 
 /**
+ * Preço médio de venda depois de executar vendas a preços definidos (ex.: ordens de venda abertas):
+ * (S·V + Σ qtdᵢ·preçoᵢ) / (S + Σ qtdᵢ), com S = quantidade já vendida no ciclo e V = preço médio de venda.
+ * Sem vendas no ciclo, é a média das vendas abertas. Taxas não entram. Retorna null sem vendas abertas.
+ */
+export function avgAfterSells({ avgSell: V, soldQty: S }, sells) {
+  if (!sells?.length) return null;
+  let value = V && S ? S * V : 0;
+  let qty = V && S ? S : 0;
+  for (const s of sells) {
+    value += s.qty * s.priceUSDT;
+    qty += s.qty;
+  }
+  return qty > 0 ? value / qty : null;
+}
+
+/**
  * Conteúdo da caixa do simulador para o preço sob o mouse.
  * Retorna { lines: [texto...], status: "ok" | "unreachable" | "none" }.
  */

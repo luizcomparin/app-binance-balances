@@ -10,19 +10,25 @@ export const COLORS = {
   down: "#ff7272",
   line: "#4dd4ff",
   avg: "rgba(247, 147, 26, 0.95)",
+  avgSell: "rgba(130, 160, 255, 0.95)",
   band: "rgba(155, 176, 214, 0.75)",
   projected: "rgba(196, 140, 255, 0.95)",
+  projectedSell: "rgba(220, 228, 245, 0.95)",
   dca: "rgba(255, 214, 102, 0.95)",
   fixedAvg: "rgba(255, 128, 191, 0.95)",
   openBuy: "rgba(82, 255, 168, 0.6)",
   openSell: "rgba(255, 114, 114, 0.6)",
 };
 
-// Explicação dos dois preços médios (hover na etiqueta da linha e na legenda)
+// Explicação dos preços médios (hover na etiqueta da linha e na legenda)
 export const AVG_HELP = {
   avg: {
-    title: "Preço médio dinâmico",
+    title: "Preço médio dinâmico de compra",
     text: "Preço médio da posição que você tem hoje (o mesmo do P&L). Cada venda tira moedas pelo preço médio, sem mudá-lo; as compras seguintes entram só sobre o que sobrou, então pesam mais. Se a posição chega a zero, o cálculo recomeça.",
+  },
+  avgSell: {
+    title: "Preço médio dinâmico de venda",
+    text: "Quanto você recebeu, em média, por moeda nas vendas da posição atual (total recebido, já sem as taxas ÷ quantidade vendida). Conta as vendas desde a compra que reabriu a posição depois de ela chegar a zero; vendas de ciclos anteriores não entram.",
   },
   fixedAvg: {
     title: "Preço médio fixo",
@@ -40,9 +46,9 @@ function openOrderTitle(prefix, it) {
 
 /**
  * Recria as linhas de preço da série (remove as anteriores) e devolve as novas.
- * opts = { avg, projectedAvg, fixedAvg, dcaAvg, openOrders, statBand }   hidden = { openBuys, openSells }
+ * opts = { avg, avgSell, projectedAvg, projectedSellAvg, fixedAvg, dcaAvg, openOrders, statBand }   hidden = { openBuys, openSells }
  */
-export function drawPriceLines(series, previousLines, { avg, projectedAvg, fixedAvg, dcaAvg, openOrders, statBand }, hidden) {
+export function drawPriceLines(series, previousLines, { avg, avgSell, projectedAvg, projectedSellAvg, fixedAvg, dcaAvg, openOrders, statBand }, hidden) {
   for (const line of previousLines) series.removePriceLine(line);
   const lines = [];
   const add = (o) => lines.push(series.createPriceLine({ axisLabelVisible: true, ...o }));
@@ -55,6 +61,7 @@ export function drawPriceLines(series, previousLines, { avg, projectedAvg, fixed
   }
 
   if (avg) add({ price: avg, color: COLORS.avg, lineWidth: 2, lineStyle: LWC.LineStyle.Dashed, title: AVG_HELP.avg.title });
+  if (avgSell) add({ price: avgSell, color: COLORS.avgSell, lineWidth: 2, lineStyle: LWC.LineStyle.Dashed, title: AVG_HELP.avgSell.title });
   if (projectedAvg) {
     add({
       price: projectedAvg,
@@ -62,6 +69,15 @@ export function drawPriceLines(series, previousLines, { avg, projectedAvg, fixed
       lineWidth: 2,
       lineStyle: LWC.LineStyle.LargeDashed,
       title: "Médio após compras",
+    });
+  }
+  if (projectedSellAvg) {
+    add({
+      price: projectedSellAvg,
+      color: COLORS.projectedSell,
+      lineWidth: 2,
+      lineStyle: LWC.LineStyle.LargeDashed,
+      title: "Médio após vendas",
     });
   }
   // comparação com compra mensal fixa: média de todas as compras e o médio se fossem parcelas mensais

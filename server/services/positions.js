@@ -10,6 +10,9 @@ function computePosition(asset, trades, prices, symbolInfo) {
 	let cost = 0;
 	let realized = 0;
 	let invested = 0;
+	// vendas do ciclo atual (desde a compra que reabriu a posição zerada) → preço médio de venda
+	let soldQtyCycle = 0;
+	let soldValueCycle = 0;
 
 	for (const t of trades) {
 		const { quoteAsset } = resolveSymbol(t.symbol, symbolInfo);
@@ -24,6 +27,11 @@ function computePosition(asset, trades, prices, symbolInfo) {
 				: 0;
 
 		if (t.isBuyer) {
+			// posição zerada e nova compra: começa um ciclo novo, e as vendas antigas saem da média
+			if (qty === 0) {
+				soldQtyCycle = 0;
+				soldValueCycle = 0;
+			}
 			qty += tradeQty - feeInBase;
 			cost += valueUSDT + feeUSDT;
 			invested += valueUSDT + feeUSDT;
@@ -32,6 +40,8 @@ function computePosition(asset, trades, prices, symbolInfo) {
 			const matchedQty = Math.min(soldQty, qty);
 			const avg = qty > 0 ? cost / qty : 0;
 			const proceeds = valueUSDT - feeUSDT;
+			soldQtyCycle += soldQty;
+			soldValueCycle += proceeds;
 
 			// se vendeu mais do que os trades explicam (ex.: veio de depósito), só a
 			// parte com custo conhecido entra no realizado
@@ -49,6 +59,8 @@ function computePosition(asset, trades, prices, symbolInfo) {
 	return {
 		trackedQty: qty,
 		avgBuyPriceUSDT: qty > 0 ? cost / qty : null,
+		avgSellPriceUSDT: soldQtyCycle > 0 ? soldValueCycle / soldQtyCycle : null,
+		soldQtyCycle,
 		realizedPnlUSDT: realized,
 		investedUSDT: invested,
 	};
@@ -78,6 +90,9 @@ export async function buildPositions() {
 			qty: h.qty,
 			currentPriceUSDT: currentPrice,
 			avgBuyPriceUSDT: avg,
+			avgSellPriceUSDT: pos.avgSellPriceUSDT,
+			// quantidade vendida no ciclo atual (base do preço médio de venda)
+			soldQtyCycle: pos.soldQtyCycle,
 			costBasisUSDT,
 			marketValueUSDT,
 			unrealizedPnlUSDT,

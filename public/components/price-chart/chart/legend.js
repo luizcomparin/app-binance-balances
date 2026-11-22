@@ -13,7 +13,7 @@ export function createLegend(el, { onToggle, onFit }) {
     if (key) onToggle(key);
   });
 
-  return function render({ avg, projectedAvg, fixedAvg, dcaAvg, orders, openOrders }, hidden) {
+  return function render({ avg, avgSell, projectedAvg, projectedSellAvg, fixedAvg, dcaAvg, orders, openOrders }, hidden) {
     if (!el) return;
     // help = texto explicativo mostrado no hover (itens sem liga/desliga)
     const item = (swatch, text, key, help) => {
@@ -27,7 +27,9 @@ export function createLegend(el, { onToggle, onFit }) {
     };
     const items = [];
     if (avg) items.push(item("sw-avg", `${AVG_HELP.avg.title}: ${formatPrice(avg)}`, null, AVG_HELP.avg.text));
+    if (avgSell) items.push(item("sw-avg-sell", `${AVG_HELP.avgSell.title}: ${formatPrice(avgSell)}`, null, AVG_HELP.avgSell.text));
     if (projectedAvg) items.push(item("sw-projected", `Médio após compras abertas: ${formatPrice(projectedAvg)}`));
+    if (projectedSellAvg) items.push(item("sw-projected-sell", `Médio após vendas abertas: ${formatPrice(projectedSellAvg)}`));
     if (fixedAvg) items.push(item("sw-fixed-avg", `${AVG_HELP.fixedAvg.title}: ${formatPrice(fixedAvg)}`, null, AVG_HELP.fixedAvg.text));
     if (dcaAvg) items.push(item("sw-dca", `Médio mensal fixo: ${formatPrice(dcaAvg)}`));
     if (orders.buys.length) items.push(item("sw-buy", `Suas compras (${orders.buys.length})`, "myBuys"));

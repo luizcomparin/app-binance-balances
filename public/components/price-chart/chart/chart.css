@@ -353,7 +353,9 @@
 }
 
 .price-chart-legend .sw-avg { border-color: rgba(247, 147, 26, 0.95); }
+.price-chart-legend .sw-avg-sell { border-color: rgba(130, 160, 255, 0.95); }
 .price-chart-legend .sw-projected { border-color: rgba(196, 140, 255, 0.95); }
+.price-chart-legend .sw-projected-sell { border-color: rgba(220, 228, 245, 0.95); }
 .price-chart-legend .sw-fixed-avg { border-color: rgba(255, 128, 191, 0.95); }
 .price-chart-legend .sw-dca { border-color: rgba(255, 214, 102, 0.95); }
 .price-chart-legend .sw-open-buy { border-top-style: dotted; border-color: #52ffa8; }

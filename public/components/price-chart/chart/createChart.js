@@ -149,7 +149,7 @@ export function createPriceChart(els, handlers = {}) {
   const autoscaleInfoProvider = (original) => {
     const res = original();
     if (!res?.priceRange) return res;
-    for (const v of [s.opts?.avg, s.opts?.projectedAvg, s.opts?.fixedAvg, s.opts?.dcaAvg]) {
+    for (const v of [s.opts?.avg, s.opts?.avgSell, s.opts?.projectedAvg, s.opts?.projectedSellAvg, s.opts?.fixedAvg, s.opts?.dcaAvg]) {
       if (v === null || v === undefined) continue;
       res.priceRange.minValue = Math.min(res.priceRange.minValue, v);
       res.priceRange.maxValue = Math.max(res.priceRange.maxValue, v);
@@ -432,11 +432,11 @@ export function createPriceChart(els, handlers = {}) {
   // tooltip e simulador
   // ---------------------------------------------------------------------------
 
-  // Etiqueta "Preço médio dinâmico"/"Preço médio fixo" sob o mouse? (desenhada no canto direito da área)
+  // Etiqueta de preço médio (dinâmico de compra/venda ou fixo) sob o mouse? (desenhada no canto direito da área)
   function lineLabelAt(point) {
     const width = chart.paneSize(0)?.width;
     if (!width) return null;
-    for (const key of ["avg", "fixedAvg"]) {
+    for (const key of ["avg", "avgSell", "fixedAvg"]) {
       const price = s.opts?.[key];
       if (!price) continue;
       const y = s.series.priceToCoordinate(price);

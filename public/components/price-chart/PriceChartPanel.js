@@ -9,7 +9,7 @@ import { BALANCES_UPDATED, on, POSITIONS_UPDATED, TAB_CHANGED } from "../../core
 import { isTabActive, showTab } from "../tabs/Tabs.js";
 import { getKlines, KLINES_PAGE, loadMyOrders, loadOpenOrders, ordersOnChart } from "./chartData.js";
 import { createPriceChart } from "./chart/createChart.js";
-import { avgAfterBuys, initBuySimulator, setSimContext, updateSimAvailability } from "./buySimulator.js";
+import { avgAfterBuys, avgAfterSells, initBuySimulator, setSimContext, updateSimAvailability } from "./buySimulator.js";
 import { initAssetPicker } from "./assetPicker.js";
 import { initWatchlist } from "./watchlist.js";
 import { buysOf, dcaComparison } from "./dca.js";
@@ -40,6 +40,7 @@ const DEFAULT_INTERVAL = "1d";
 const VALID_INTERVALS = ["1h", "4h", "1d", "1w", "1M"];
 const VALID_RANGE = /^(7d|30d|90d|6m|1y|2y|all|\d{1,4}[dmy])$/;
 const PROJECTED_STORAGE_KEY = "priceChartProjectedAvg";
+const PROJECTED_SELL_STORAGE_KEY = "priceChartProjectedSellAvg";
 const STATS_STORAGE_KEY = "priceChartStats";
 const ASSET_STORAGE_KEY = "priceChartAsset"; // última moeda vista
 const DEFAULT_ASSET = "BTC"; // sem última moeda vista (se estiver na carteira; senão a de maior valor)
@@ -67,6 +68,7 @@ const view = {
   mode: readStoredMode(),
   openOrders: null, // { buys, sells } da moeda aberta; null enquanto carrega
   showProjected: readStored(PROJECTED_STORAGE_KEY) === "1",
+  showProjectedSell: readStored(PROJECTED_SELL_STORAGE_KEY) === "1",
   // faixa estatística: ligada?, horizonte em dias e volatilidade da moeda aberta
   showStats: readStored(STATS_STORAGE_KEY) === "1",
   statsDays: clampStatsDays(Number(readStored(STATS_DAYS_STORAGE_KEY)) || 30),
@@ -134,8 +136,39 @@ function projectedAvg() {
   return avgAfterBuys(positionOf(view.asset), view.openOrders.buys);
 }
 
+function projectedSellAvg() {
+  if (!view.showProjectedSell || !view.openOrders) return null;
+  const pos = state.positions?.[view.asset];
+  return avgAfterSells({ avgSell: pos?.avgSellPriceUSDT ?? null, soldQty: pos?.soldQtyCycle ?? 0 }, view.openOrders.sells);
+}
+
+// Checkbox do preço médio de venda projetado: spinner enquanto carrega posição/ordens, desabilitado sem vendas abertas
+function updateProjectedSellAvailability() {
+  const input = document.getElementById("price-chart-projected-sell");
+  const label = document.getElementById("price-chart-projected-sell-label");
+  const text = document.getElementById("price-chart-projected-sell-text");
+  if (!input || !label) return;
+
+  const loading = state.positionsLoading || !view.openOrders;
+  const ok = !loading && !!view.openOrders?.sells.length;
+
+  input.checked = view.showProjectedSell;
+  input.disabled = !ok;
+  label.classList.toggle("is-loading", loading);
+  label.classList.toggle("disabled", !loading && !ok);
+  label.title = ok || loading ? "" : "Nenhuma ordem de venda aberta para esta moeda";
+  if (text) {
+    text.textContent = !loading
+      ? "Preço médio após vendas abertas"
+      : state.positionsLoading
+        ? "Calculando preço médio..."
+        : "Carregando ordens abertas...";
+  }
+}
+
 // Checkbox do preço médio projetado: spinner enquanto carrega posição/ordens, desabilitado se não se aplica
 function updateProjectedAvailability() {
+  updateProjectedSellAvailability();
   const input = document.getElementById("price-chart-projected");
   const label = document.getElementById("price-chart-projected-label");
   const text = document.getElementById("price-chart-projected-text");
@@ -197,9 +230,11 @@ function render(extra = {}) {
     interval: view.interval,
     mode: view.mode,
     avg: positionOf(view.asset).avg,
+    avgSell: state.positions?.[view.asset]?.avgSellPriceUSDT ?? null,
     orders: ordersOnChart(view.points, view.asset),
     openOrders: view.openOrders,
     projectedAvg: projectedAvg(),
+    projectedSellAvg: projectedSellAvg(),
     statBand: statBand(),
     fixedAvg: view.showDca ? view.dca?.yourAvg ?? null : null,
     dcaAvg: view.showDca ? view.dca?.dcaAvg ?? null : null,
@@ -656,6 +691,13 @@ export function initPriceChartPanel() {
     renderStats();
   });
 
+  const projectedSellInput = document.getElementById("price-chart-projected-sell");
+  projectedSellInput?.addEventListener("change", () => {
+    view.showProjectedSell = projectedSellInput.checked;
+    writeStored(PROJECTED_SELL_STORAGE_KEY, view.showProjectedSell ? "1" : "0");
+    render();
+  });
+
   const statsInput = document.getElementById("price-chart-stats");
   const statsDaysInput = document.getElementById("price-chart-stats-days");
   if (statsInput) statsInput.checked = view.showStats;
@@ -922,8 +964,13 @@ const INFO_HELP = {
     "• Cada venda tira moedas pelo preço médio, sem mudar a média.",
     "• Por isso compras feitas depois de vendas pesam mais. Se o saldo zera, a média recomeça.",
   ].join("\n"),
+  avgSell: [
+    "Quanto você recebeu, em média, por moeda nas vendas da posição atual.",
+    "• Total recebido nas vendas (já sem as taxas) ÷ quantidade vendida.",
+    "• Conta as vendas desde a compra que reabriu a posição depois de o saldo zerar; vendas de ciclos anteriores não entram.",
+  ].join("\n"),
   diff: [
-    "1º valor: quanto o preço atual está acima ou abaixo do seu preço médio dinâmico.",
+    "1º valor: quanto o preço atual está acima ou abaixo do seu preço médio dinâmico de compra.",
     "• Positivo (verde): as moedas que você tem valem mais do que custaram.",
     "• Negativo (vermelho): valem menos.",
     "",
@@ -943,7 +990,8 @@ function renderInfo() {
   const big = (v) => (v >= 1 ? v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : formatPrice(v));
   const stat = (label, value) => `<div class="pc-stat"><span class="pc-label">${label}</span><span class="pc-stat-value">${value}</span></div>`;
   const tip = (label, help) => `<span class="help-tip" data-tip="${help}">${label}</span>`;
-  const avgLabel = tip("Preço médio dinâmico", INFO_HELP.avg);
+  const avgSell = state.positions?.[view.asset]?.avgSellPriceUSDT ?? null;
+  const avgLabel = tip("Preço médio dinâmico de compra", INFO_HELP.avg);
   const blocks = [stat("Preço atual", `${big(lastPrice)} <small>USDT</small>`)];
   if (avg !== null) {
     const diff = ((lastPrice - avg) / avg) * 100;
@@ -959,6 +1007,9 @@ function renderInfo() {
     );
   } else if (!Object.keys(state.positions || {}).length) {
     blocks.push(stat(avgLabel, `<span class="pc-stat-pending"><span class="mini-spinner"></span> calculando...</span>`));
+  }
+  if (avgSell !== null) {
+    blocks.push(stat(tip("Preço médio dinâmico de venda", INFO_HELP.avgSell), `${big(avgSell)} <small>USDT</small>`));
   }
   info.innerHTML = blocks.join("");
 }
