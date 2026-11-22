@@ -109,15 +109,21 @@ async function fetchTradeHistory() {
 		}
 	});
 
-	// carrega cotações diárias das moedas de cotação/taxa usadas (desde o 1º trade)
+	await loadRatesForTrades(Object.values(tradesByAsset).flat(), symbolInfo, prices, errors);
+
+	return { holdings, prices, symbolInfo, tradesByAsset, errors };
+}
+
+// Carrega as cotações diárias das moedas de cotação/taxa usadas em `trades` (desde o 1º trade de cada uma),
+// para rateToUSDTAt converter na data do trade. Quem chama rateToUSDTAt sobre trades precisa chamar isto antes.
+// Falhas vão para `errors` (a conversão cai para a cotação atual).
+export async function loadRatesForTrades(trades, symbolInfo, prices, errors = []) {
 	const earliestByAsset = {};
-	for (const trades of Object.values(tradesByAsset)) {
-		for (const t of trades) {
-			const { quoteAsset } = resolveSymbol(t.symbol, symbolInfo);
-			for (const a of [quoteAsset, t.commissionAsset]) {
-				if (!a || USD_STABLES.has(a)) continue;
-				earliestByAsset[a] = Math.min(earliestByAsset[a] ?? Infinity, t.time);
-			}
+	for (const t of trades) {
+		const { quoteAsset } = resolveSymbol(t.symbol, symbolInfo);
+		for (const a of [quoteAsset, t.commissionAsset]) {
+			if (!a || USD_STABLES.has(a)) continue;
+			earliestByAsset[a] = Math.min(earliestByAsset[a] ?? Infinity, t.time);
 		}
 	}
 	await mapLimit(Object.entries(earliestByAsset), 4, ([a, start]) =>
@@ -125,6 +131,4 @@ async function fetchTradeHistory() {
 			errors.push({ symbol: `${a} (histórico)`, error: err.message })
 		)
 	);
-
-	return { holdings, prices, symbolInfo, tradesByAsset, errors };
 }

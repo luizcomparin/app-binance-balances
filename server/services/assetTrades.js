@@ -4,7 +4,7 @@
 import { getAllMyTrades } from "../binance/account.js";
 import { getAllPrices, getSymbolInfo } from "../binance/market.js";
 import { cached, mapLimit } from "../lib/cache.js";
-import { PNL_QUOTES, rateToUSDTAt } from "./tradeHistory.js";
+import { loadRatesForTrades, PNL_QUOTES, rateToUSDTAt } from "./tradeHistory.js";
 
 const CACHE_MS = 30 * 1000;
 
@@ -18,37 +18,42 @@ async function computeAssetTrades(asset) {
 		.filter(([, info]) => info.baseAsset === asset && PNL_QUOTES.includes(info.quoteAsset))
 		.map(([symbol]) => symbol);
 
-	const trades = [];
+	const raw = [];
 	const errors = [];
 	await mapLimit(symbols, 4, async (symbol) => {
 		try {
-			const list = await getAllMyTrades(symbol, { tradable: symbolInfo[symbol]?.status === "TRADING" });
-			const { quoteAsset } = symbolInfo[symbol];
-			for (const t of list) {
-				const quoteQty = Number(t.quoteQty);
-				// cotação da moeda de cotação no dia do trade (BRL, BTC...); USDT/estáveis = 1
-				const rate = rateToUSDTAt(quoteAsset, t.time, prices);
-				trades.push({
-					id: t.id,
-					orderId: t.orderId,
-					symbol,
-					baseAsset: asset,
-					quoteAsset,
-					time: t.time,
-					side: t.isBuyer ? "BUY" : "SELL",
-					price: Number(t.price),
-					qty: Number(t.qty),
-					quoteQty,
-					totalUSDT: rate ? quoteQty * rate : null,
-					commission: Number(t.commission),
-					commissionAsset: t.commissionAsset,
-					isMaker: t.isMaker,
-				});
-			}
+			raw.push(...(await getAllMyTrades(symbol, { tradable: symbolInfo[symbol]?.status === "TRADING" })));
 		} catch (err) {
 			if (err.status === 429 || err.status === 418) throw err;
 			errors.push({ symbol, error: err.message });
 		}
+	});
+
+	// cotações diárias das moedas de cotação (BRL, BTC...) antes de converter: sem isso, se o P&L ainda não
+	// tivesse carregado o histórico delas, os trades seriam convertidos pela cotação de hoje
+	await loadRatesForTrades(raw, symbolInfo, prices, errors);
+
+	const trades = raw.map((t) => {
+		const { quoteAsset } = symbolInfo[t.symbol];
+		const quoteQty = Number(t.quoteQty);
+		// cotação da moeda de cotação no dia do trade; USDT/estáveis = 1
+		const rate = rateToUSDTAt(quoteAsset, t.time, prices);
+		return {
+			id: t.id,
+			orderId: t.orderId,
+			symbol: t.symbol,
+			baseAsset: asset,
+			quoteAsset,
+			time: t.time,
+			side: t.isBuyer ? "BUY" : "SELL",
+			price: Number(t.price),
+			qty: Number(t.qty),
+			quoteQty,
+			totalUSDT: rate ? quoteQty * rate : null,
+			commission: Number(t.commission),
+			commissionAsset: t.commissionAsset,
+			isMaker: t.isMaker,
+		};
 	});
 
 	trades.sort((a, b) => b.time - a.time);

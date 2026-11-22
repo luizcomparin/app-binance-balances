@@ -21,7 +21,7 @@ O container é `#price-chart-orders`. Os botões `.pco-tab[data-pco-tab="open|tr
 
 ## Histórico de trades (`tradeHistoryTable.js`)
 
-- Server: `GET /trade-history/:asset` → `services/assetTrades.js`. Para cada par `<asset>/<PNL_QUOTES>`, chama `getAllMyTrades` (o cache incremental do P&L) e converte com `totalUSDT = quoteQty × rateToUSDTAt(quote, time)` (`null` sem cotação). Cache de 30 s.
+- Server: `GET /trade-history/:asset` → `services/assetTrades.js`. Para cada par `<asset>/<PNL_QUOTES>`, chama `getAllMyTrades` (o cache incremental do P&L), carrega as cotações diárias das moedas de cotação (`loadRatesForTrades`) e converte com `totalUSDT = quoteQty × rateToUSDTAt(quote, time)` (`null` sem cotação). Cache de 30 s.
 - Colunas: nº da ordem, data, par, lado, preço, executado, taxa, função (Maker/Taker), total na cotação e total em USDT ("≈"). Ordenável por time, side e total.
 - O período padrão é **1 mês** e o cache no cliente vale 30 s.
 
@@ -42,7 +42,6 @@ O container é `#price-chart-orders`. Os botões `.pco-tab[data-pco-tab="open|tr
 ## Casos de borda
 
 - O histórico de ordens só traz as últimas 1000 ordens **por par** (limite da Binance sem paginação no código).
-- `/trade-history` pode converter BRL/BTC pelo preço atual se o cache de cotações diárias ainda não tiver sido carregado pelo P&L (ver débitos).
 - As duas tabelas de histórico têm estrutura quase idêntica (ver débitos).
 
 ## Como verificar

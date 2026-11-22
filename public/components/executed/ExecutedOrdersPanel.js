@@ -109,7 +109,7 @@ function renderExecutedOrders() {
             <td>${formatPrice(o.avgPrice)} ${o.quoteAsset}</td>
             <td>${formatQty(o.qty)}</td>
             <td>${isUsdtQuote ? o.quoteQty.toFixed(2).formatCurrency() : formatQty(o.quoteQty)} ${o.quoteAsset}</td>
-            <td>${o.totalUSDT.toFixed(2).formatCurrency()} USDT</td>
+            <td>${o.totalUSDT === null ? '<span title="Sem cotação para USDT na data">--</span>' : `${o.totalUSDT.toFixed(2).formatCurrency()} USDT`}</td>
             <td>${formatPrice(o.feeUSDT)}</td>
           </tr>
         `;
@@ -118,8 +118,9 @@ function renderExecutedOrders() {
   }
 
   // resumo do que está filtrado
-  const buys = rows.filter((o) => o.side === "BUY").reduce((acc, o) => acc + o.totalUSDT, 0);
-  const sells = rows.filter((o) => o.side === "SELL").reduce((acc, o) => acc + o.totalUSDT, 0);
+  // ordens sem cotação (totalUSDT null) ficam fora dos somatórios
+  const buys = rows.filter((o) => o.side === "BUY").reduce((acc, o) => acc + (o.totalUSDT ?? 0), 0);
+  const sells = rows.filter((o) => o.side === "SELL").reduce((acc, o) => acc + (o.totalUSDT ?? 0), 0);
   const set = (id, text) => {
     const el = document.getElementById(id);
     if (el) el.textContent = text;

@@ -96,7 +96,7 @@ Só cobre as moedas **em carteira**, excluindo stablecoins em USD, BRL e `LD*`. 
 `{ asset, trades: [{ id, orderId, symbol, baseAsset, quoteAsset, time, side, price, qty, quoteQty, totalUSDT | null, commission, commissionAsset, isMaker }], errors, generatedAt }`, ordenados por `time` desc.
 
 ### `GET /executed-orders`
-`{ orders: [{ symbol, orderId, baseAsset, quoteAsset, side, qty, quoteQty, totalUSDT, fees: {asset: qty}, feeUSDT, fills, time, avgPrice }], errors, generatedAt }`. São os trades agrupados por ordem, **só das moedas em carteira**.
+`{ orders: [{ symbol, orderId, baseAsset, quoteAsset, side, qty, quoteQty, totalUSDT | null (sem cotação), fees: {asset: qty}, feeUSDT, fills, time, avgPrice }], errors, generatedAt }`. São os trades agrupados por ordem, **só das moedas em carteira**.
 
 ### `GET /price-chart/:asset`
 Parâmetros:

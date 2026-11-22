@@ -32,6 +32,8 @@ export async function buildExecutedOrders() {
 			}
 
 			const quoteRate = rateToUSDTAt(order.quoteAsset, t.time, prices);
+			// sem cotação (nem histórica nem atual) o valor em USDT é desconhecido: vira null no fim, não 0
+			if (!quoteRate) order.unpriced = true;
 			const commission = Number(t.commission || 0);
 
 			order.qty += Number(t.qty);
@@ -49,7 +51,11 @@ export async function buildExecutedOrders() {
 	}
 
 	const orders = [...byOrder.values()]
-		.map((o) => ({ ...o, avgPrice: o.qty ? o.quoteQty / o.qty : 0 }))
+		.map(({ unpriced, ...o }) => ({
+			...o,
+			totalUSDT: unpriced ? null : o.totalUSDT,
+			avgPrice: o.qty ? o.quoteQty / o.qty : 0,
+		}))
 		.sort((a, b) => b.time - a.time);
 
 	return { orders, errors, generatedAt: Date.now() };

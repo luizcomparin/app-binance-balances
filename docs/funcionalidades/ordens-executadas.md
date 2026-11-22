@@ -42,7 +42,7 @@ A mesma rota alimenta os **marcadores das suas ordens** no gráfico de preço (`
 
 ## Casos de borda
 
-- Sem cotação histórica nem atual, `rateToUSDTAt` devolve **0** e o `totalUSDT` vira 0 em silêncio (diferente de `/trade-history`, que devolve `null`; ver débitos).
+- Sem cotação histórica nem atual da moeda de cotação, a ordem vem com `totalUSDT: null`. A tabela mostra `--`, ela fica fora dos somatórios e não vira marcador no gráfico de preço (`chartData.ordersOnChart` a ignora, senão o marcador cairia no preço 0).
 - A primeira carga pode demorar (histórico de trades), por isso aparece o spinner "a primeira carga pode levar alguns segundos".
 
 ## Checklist ao alterar

@@ -69,7 +69,7 @@ config.js            .env, chaves em memória, gravação no .env, constantes (B
 ## Conversão para USDT
 
 - **Preço atual** (`getPriceInUSDT`): tenta, nesta ordem, o par `XUSDT`; o par invertido `USDTX` (ex.: BRL); a ponte via BTC/ETH/BNB/FDUSD/USDC; o ativo do Earn `LDX` → `X`; e, para BUSD, o valor 1. Sem nada disso, devolve `null` (a moeda fica "sem cotação").
-- **Na data do trade** (`rateToUSDTAt` em `tradeHistory.js`): usa o fechamento diário da moeda de cotação ou de taxa naquele dia. Esse cache é carregado por `loadTradeHistory`. Sem histórico, cai para o preço atual e, sem preço atual, para 0. Stablecoins em USD (`USDT, FDUSD, USDC, BUSD`) valem 1.
+- **Na data do trade** (`rateToUSDTAt` em `tradeHistory.js`): usa o fechamento diário da moeda de cotação ou de taxa naquele dia. Esse cache é carregado por `loadRatesForTrades(trades, symbolInfo, prices, errors)`, que **todo serviço que chama `rateToUSDTAt` sobre trades precisa chamar antes** (`loadTradeHistory` e `assetTrades` já chamam). Sem histórico, cai para o preço atual e, sem preço atual, para 0. Quem exibe valores deve tratar o 0 como "sem cotação": `executedOrders` devolve `totalUSDT: null` e `assetTrades` também. Stablecoins em USD (`USDT, FDUSD, USDC, BUSD`) valem 1.
 
 ## Como adicionar algo no server
 

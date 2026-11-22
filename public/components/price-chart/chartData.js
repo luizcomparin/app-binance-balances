@@ -84,7 +84,8 @@ export function ordersOnChart(points, asset) {
   const last = points.at(-1).time + step;
 
   for (const o of myOrders.list) {
-    if (o.baseAsset !== asset || !o.qty || o.time < first || o.time > last) continue;
+    // sem valor em USDT (sem cotação) não há preço para posicionar o marcador
+    if (o.baseAsset !== asset || !o.qty || o.totalUSDT == null || o.time < first || o.time > last) continue;
     // busca binária: última vela com time <= o.time
     let lo = 0;
     let hi = points.length - 1;
