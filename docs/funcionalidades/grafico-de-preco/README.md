@@ -86,8 +86,13 @@ Fica em `PriceChartPanel.js`, no nível do módulo.
    - atualiza o título, a watchlist e as abas de ordens;
    - `loadChart()`;
    - em paralelo, `loadMyOrders()` e `reloadOpenOrders(asset)`.
-4. **`loadChart({ keepWindow })`**: carrega as velas que cobrem a janela (ver [velas-e-timeframe](velas-e-timeframe.md)) e depois chama `render({ window })` e `renderInfo()`.
-5. **`render(extra)`**: monta **todas** as opções e chama `chart.update(opts)`. É chamado sempre que algo muda (dados, camada, posição, ordens). O `createChart` decide o que redesenhar: só recria a série ao trocar Linha/Velas, e só refaz os dados quando `points` muda.
+4. **`refreshPriceChart()`**, chamada pelo "Atualizar" do topo (`Topbar.js`):
+   - descarta o cache do cliente da moeda aberta (`invalidateAssetCache`);
+   - busca de novo as ordens abertas, as executadas e a aba de histórico visível;
+   - `refreshLayers(asset)`: recarrega as camadas ligadas (vol, DCA, mapa, futuros, liquidações) e zera as desligadas;
+   - com a aba na tela, chama `loadChart({ keepWindow: true })`.
+5. **`loadChart({ keepWindow })`**: carrega as velas que cobrem a janela (ver [velas-e-timeframe](velas-e-timeframe.md)) e depois chama `render({ window })` e `renderInfo()`.
+6. **`render(extra)`**: monta **todas** as opções e chama `chart.update(opts)`. É chamado sempre que algo muda (dados, camada, posição, ordens). O `createChart` decide o que redesenhar: só recria a série ao trocar Linha/Velas, e só refaz os dados quando `points` muda.
 
 `chart.update(opts)` recebe: `asset, points, interval, mode, avg, avgSell, orders, openOrders, projectedAvg, projectedSellAvg, statBand, fixedAvg, dcaAvg, indicators, summary, liquidation, futures, liquidations` e, opcionalmente, `window` / `prepended`.
 
@@ -98,7 +103,7 @@ Mostra o preço atual, o **preço médio dinâmico de compra**, "Vs. preço méd
 ## Como adicionar uma camada
 
 1. Em `PriceChartPanel.html`, adicione um `<label class="price-chart-sim-toggle pc-chip" id="price-chart-x-label"><input type="checkbox" id="price-chart-x">…` dentro de `#price-chart-layers`. Se a camada tiver texto, crie também uma caixa `<div class="price-chart-stats" id="price-chart-x-box" data-title="…" hidden>`.
-2. Em `PriceChartPanel.js`, adicione a constante `X_STORAGE_KEY`, `view.showX = readStored(...) === "1"` e `view.x`. Ligue o checkbox em `initPriceChartPanel()`. Em `openPriceChart()`, zere e recarregue. Crie `loadX(asset)` com proteção de corrida (`if (view.asset !== asset) return`) e `renderX()` para a caixa.
+2. Em `PriceChartPanel.js`, adicione a constante `X_STORAGE_KEY`, `view.showX = readStored(...) === "1"` e `view.x`. Ligue o checkbox em `initPriceChartPanel()`. Em `openPriceChart()` e em `refreshLayers()` (Atualizar do topo), zere e recarregue. Crie `loadX(asset)` com proteção de corrida (`if (view.asset !== asset) return`) e `renderX()` para a caixa.
 3. Em `render()`, passe o dado novo para `chart.update`.
 4. Em `chart/createChart.js` `update()`, desenhe usando uma linha de preço (`overlays.drawPriceLines`), um primitive anexado à série (padrão de `LiquidationOverlay`/`BandFill`) ou um painel (`futuresPanes`). Lembre de limpar em `clear()`.
 5. Se a camada usar dado novo do server, siga o [checklist de rota](../../arquitetura/convencoes.md#nova-rota).

@@ -981,7 +981,8 @@ export function openPriceChart(asset) {
 }
 
 // Botão Atualizar do topo: busca de novo, da moeda aberta, as ordens abertas, as executadas (pontos no
-// gráfico), as abas de histórico e, com a aba visível, as velas (mantendo o trecho que está na tela).
+// gráfico), as abas de histórico, as camadas ligadas e, com a aba visível, as velas (mantendo o trecho
+// que está na tela).
 export function refreshPriceChart() {
   const asset = view.asset;
   if (!asset) return Promise.resolve();
@@ -993,9 +994,38 @@ export function refreshPriceChart() {
     }),
     reloadHistory(ordersTab === "history"),
     reloadTrades(ordersTab === "trades"),
+    ...refreshLayers(asset),
   ];
   if (isOpen()) tasks.push(loadChart({ keepWindow: true }));
   return Promise.allSettled(tasks);
+}
+
+// Camadas do gráfico no Atualizar: descarta o cache do cliente da moeda; as ligadas carregam de novo,
+// as desligadas ficam vazias e carregam frescas quando forem ligadas. (O server ainda pode responder
+// do cache curto dele.)
+function refreshLayers(asset) {
+  const dropAsset = (cache) => {
+    for (const key of cache.keys()) if (key.startsWith(`${asset}|`)) cache.delete(key);
+  };
+  liqCache.delete(asset);
+  dropAsset(futCache);
+  dropAsset(liqRealCache);
+
+  const tasks = [];
+  // faixa estatística (velas diárias) e compra mensal fixa (suas compras executadas + velas diárias)
+  if (view.showStats) tasks.push(loadVolatility(asset));
+  else view.vol = null;
+  if (view.showDca) tasks.push(loadDca(asset));
+  else view.dca = null;
+  // mapa de liquidação estimado
+  if (view.showLiq) tasks.push(loadLiquidation(asset));
+  else view.liq = null;
+  // painéis de futuros e de liquidações reais (as funções de carga usam a moeda/vela atuais)
+  if (view.showFut) tasks.push(loadFutures());
+  else view.fut = null;
+  if (view.showLiqReal) tasks.push(loadLiquidations());
+  else view.liqReal = null;
+  return tasks;
 }
 
 // carrega as ordens abertas da moeda (na troca de moeda, no "Tentar de novo" da tabela e no Atualizar do topo)

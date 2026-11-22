@@ -12,7 +12,7 @@ storage: []
 ## O que faz
 
 - **Topbar:** título, o texto "Atualizado há X min", o botão **Atualizar**, "Simular Valorização" e ⚙ Configurações.
-  - **Atualizar** recarrega de uma vez tudo o que a tela mostra: carteira + P&L, ordens abertas, ordens executadas (se a aba já foi aberta) e, no gráfico de preço, a moeda aberta (ordens abertas, pontos das ordens executadas, aba de histórico visível e, com a aba na tela, as velas mantendo o trecho visível).
+  - **Atualizar** recarrega de uma vez tudo o que a tela mostra: carteira + P&L, ordens abertas, ordens executadas (se a aba já foi aberta) e, no gráfico de preço, a moeda aberta (ordens abertas, pontos das ordens executadas, aba de histórico visível, as camadas ligadas em ⚙ (faixa estatística, compra mensal fixa, mapa de liquidação, dados de futuros e liquidações) e, com a aba na tela, as velas mantendo o trecho visível).
   - "Atualizado há X min" mostra quando a carteira chegou pela última vez (boot, Atualizar ou recarga depois de salvar a chave). O texto é refeito a cada 30 s, e o horário exato fica no `title`.
 - **Cards do topo:**
   - **Total da carteira:** USDT, BRL e variação de 24h.
@@ -71,7 +71,7 @@ O dono do fetch de `/balances` é o BalancesPanel (ver [saldos-e-pnl](saldos-e-p
 `npm run dev`, abra `/site` e confira:
 
 - se o total do card bate com a soma da aba Saldos;
-- se o "Atualizar" atualiza cards, faixa, gráficos, aba Saldos, ordens abertas, ordens executadas (se já abertas) e as ordens do gráfico de preço;
+- se o "Atualizar" atualiza cards, faixa, gráficos, aba Saldos, ordens abertas, ordens executadas (se já abertas), as ordens do gráfico de preço e as camadas ligadas (ex.: o DCA reflete uma compra nova);
 - se o botão mostra "Atualizando..." e fica desabilitado durante a carga;
 - se "Atualizado agora" aparece depois da carga e vira "há 1 min" após um minuto;
 - se o BRL aparece.
