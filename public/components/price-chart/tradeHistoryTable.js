@@ -137,6 +137,13 @@ export function setTradesAsset(asset, visible) {
   if (visible) showTrades();
 }
 
+/** Botão Atualizar do topo: descarta o cache da moeda atual e, se a aba estiver visível, busca de novo. */
+export function reloadTrades(visible) {
+  if (!st.asset) return Promise.resolve();
+  st.cache.delete(st.asset);
+  return visible ? load(st.asset) : Promise.resolve();
+}
+
 /** A aba ficou visível: carrega (ou usa o cache) da moeda atual. */
 export function showTrades() {
   if (!st.asset) return;

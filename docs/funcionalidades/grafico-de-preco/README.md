@@ -36,7 +36,7 @@ Qualquer parte do app abre uma moeda aqui com `window.openPriceChart(asset)`.
 |---|---|---|
 | `PriceChartPanel.js` | Orquestrador: estado `view`, controles, cargas, `render()` → `chart.update()` | este doc |
 | `chart/createChart.js` | Cria o Lightweight Charts **uma vez**. `update(opts)`, `clear()`, `fit()`, `getVisibleWindow()`. Séries, indicadores, crosshair/tooltip, histórico sob demanda | este doc e os subdocs |
-| `chartData.js` | Cache no cliente: `getKlines`, `loadMyOrders`, `loadOpenOrders`, `ordersOnChart` | [velas-e-timeframe](velas-e-timeframe.md), [sobreposicoes-e-legenda](sobreposicoes-e-legenda.md) |
+| `chartData.js` | Cache no cliente: `getKlines`, `loadMyOrders`, `loadOpenOrders`, `ordersOnChart`, `invalidateAssetCache` | [velas-e-timeframe](velas-e-timeframe.md), [sobreposicoes-e-legenda](sobreposicoes-e-legenda.md) |
 | `timeframe.js`, `chart/axis.js` | Período × vela; tempo/fuso e formato de preço | [velas-e-timeframe](velas-e-timeframe.md) |
 | `chart/overlays.js`, `chart/legend.js`, `chart/tooltip.js` | Linhas de preço, marcadores, legenda, tooltip | [sobreposicoes-e-legenda](sobreposicoes-e-legenda.md) |
 | `indicatorControls.js`, `chart/movingAverage.js`, `chart/bollinger.js` | Indicadores | [indicadores](indicadores.md) |

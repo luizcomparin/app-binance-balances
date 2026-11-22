@@ -2,6 +2,7 @@
 import { showLoading, hideLoading } from "./core/dom.js";
 import { initAppShell } from "./components/app/AppShell.js";
 import { initTabs } from "./components/tabs/Tabs.js";
+import { initTopbar } from "./components/topbar/Topbar.js";
 import { initBalancesPanel, loadBalances, sortBalances } from "./components/balances/BalancesPanel.js";
 import { initOrdersPanel, loadOrders, applyOrderFilters, sortOrders } from "./components/orders/OrdersPanel.js";
 import { initOrderSimulation } from "./components/orders/orderSimulation.js";
@@ -25,7 +26,6 @@ async function boot() {
   window.loadOrders = loadOrders;
   window.applyOrderFilters = applyOrderFilters;
   window.sortOrders = sortOrders;
-  window.loadBalances = loadBalances;
   window.sortBalances = sortBalances;
   window.openSimulationDialog = openSimulationDialog;
   window.closeSimulationDialog = closeSimulationDialog;
@@ -35,6 +35,7 @@ async function boot() {
   window.openPriceChart = openPriceChart;
 
   // componentes passam a escutar os eventos de dados antes do primeiro carregamento
+  initTopbar();
   initBalancesPanel();
   initOrdersPanel();
   initStatGrid();

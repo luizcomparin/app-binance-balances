@@ -51,4 +51,4 @@ O app tem **duas camadas de cache**: memória do server, que se perde ao reinici
 | Histórico de trades | `st.cache` por moeda | 30 s | `tradeHistoryTable.js` |
 | Posições | `request` em andamento (dedupe) | — (só evita chamadas paralelas) | `core/positions.js` |
 
-Os botões "Recarregar" das abas refazem o fetch, mas o server ainda pode responder do cache dele (15 s ou mais). Isso é intencional, para poupar o peso da API.
+Os botões "Recarregar" das abas e o "Atualizar" do topo refazem o fetch, mas o server ainda pode responder do cache dele (15 s ou mais). Isso é intencional, para poupar o peso da API. O "Atualizar" também descarta o cache do cliente da moeda aberta no gráfico de preço (velas mais recentes, ordens abertas, `myOrders`, `hist.cache` e o cache de trades); as páginas antigas de velas ficam.

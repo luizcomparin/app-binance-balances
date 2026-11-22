@@ -46,7 +46,7 @@ Severidade: **Alta** = pode mostrar número errado ou quebrar uma funcionalidade
 
 | # | Onde | Inconsistência | Padrão a adotar |
 |---|---|---|---|
-| P1 | Front inteiro | Eventos por `onclick="fn()"` com funções em `window.*` (Topbar, cabeçalhos de tabela, Recarregar, Simulação) **e** por `addEventListener` (componentes novos) | `addEventListener` no `init*()`, eliminando os `window.*` aos poucos |
+| P1 | Front inteiro | Eventos por `onclick="fn()"` com funções em `window.*` (Simular Valorização do Topbar, cabeçalhos de tabela, Recarregar das abas, Simulação) **e** por `addEventListener` (componentes novos) | `addEventListener` no `init*()`, eliminando os `window.*` aos poucos |
 | P2 | `public/api/binance.js` | `fetchBalances` e `fetchRaw` sem checagem de erro (`fetchRaw` ainda engole o erro em `null`); `fetchPositions` duplicado; as outras usam `getJson` | `getJson` em todas |
 | P3 | Ordenação | `core/sort.toggleSort` com `{ key, asc }` (Saldos, Ordens, Executadas) × `{ key, dir: ±1 }` implementado em cada tabela do gráfico | Um só util |
 | P4 | Modais | Simulação: `style.display`, `alert()`, sem Esc e sem clique fora. Configurações: atributo `hidden`, Esc, clique fora, `role="dialog"` | Padrão das Configurações |

@@ -7,7 +7,7 @@ import { state } from "../../core/state.js";
 import { formatPrice } from "../../core/format.js";
 import { BALANCES_UPDATED, COINALYZE_KEY_CHANGED, on, POSITIONS_UPDATED, TAB_CHANGED } from "../../core/events.js";
 import { isTabActive, showTab } from "../tabs/Tabs.js";
-import { getKlines, KLINES_PAGE, loadMyOrders, loadOpenOrders, ordersOnChart } from "./chartData.js";
+import { getKlines, KLINES_PAGE, loadMyOrders, loadOpenOrders, ordersOnChart, invalidateAssetCache } from "./chartData.js";
 import { createPriceChart } from "./chart/createChart.js";
 import { avgAfterBuys, avgAfterSells, initBuySimulator, setSimContext, updateSimAvailability } from "./buySimulator.js";
 import { initAssetPicker } from "./assetPicker.js";
@@ -19,8 +19,8 @@ import { fetchFuturesData, fetchLiquidationMap, fetchLiquidations } from "../../
 import { openSettings } from "../settings/SettingsModal.js";
 import { formatUsdShort } from "./chart/liquidationOverlay.js";
 import { FUTURES_HELP, PANE_LOADING } from "./chart/futuresPanes.js";
-import { initOrderHistory, setHistoryAsset, showHistory } from "./orderHistoryTable.js";
-import { initTradeHistory, setTradesAsset, showTrades } from "./tradeHistoryTable.js";
+import { initOrderHistory, setHistoryAsset, showHistory, reloadHistory } from "./orderHistoryTable.js";
+import { initTradeHistory, setTradesAsset, showTrades, reloadTrades } from "./tradeHistoryTable.js";
 import { annualizedPct, dailyVolatility, priceBand, touchProbability } from "./volatility.js";
 import {
   clampWindow,
@@ -980,13 +980,31 @@ export function openPriceChart(asset) {
   reloadOpenOrders(asset);
 }
 
-// carrega as ordens abertas da moeda (na troca de moeda e no "Tentar de novo" da tabela)
+// Botão Atualizar do topo: busca de novo, da moeda aberta, as ordens abertas, as executadas (pontos no
+// gráfico), as abas de histórico e, com a aba visível, as velas (mantendo o trecho que está na tela).
+export function refreshPriceChart() {
+  const asset = view.asset;
+  if (!asset) return Promise.resolve();
+  invalidateAssetCache(asset);
+  const tasks = [
+    reloadOpenOrders(asset),
+    loadMyOrders().then(() => {
+      if (view.asset === asset && view.points && isOpen()) render();
+    }),
+    reloadHistory(ordersTab === "history"),
+    reloadTrades(ordersTab === "trades"),
+  ];
+  if (isOpen()) tasks.push(loadChart({ keepWindow: true }));
+  return Promise.allSettled(tasks);
+}
+
+// carrega as ordens abertas da moeda (na troca de moeda, no "Tentar de novo" da tabela e no Atualizar do topo)
 function reloadOpenOrders(asset) {
   if (view.openOrders?.all === null) {
     view.openOrders = null; // tentando de novo depois de um erro: volta a mostrar "carregando"
     renderOrdersTable();
   }
-  loadOpenOrders(asset).then((openOrders) => {
+  return loadOpenOrders(asset).then((openOrders) => {
     if (view.asset !== asset) return;
     view.openOrders = openOrders;
     updateProjectedAvailability();

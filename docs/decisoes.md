@@ -28,7 +28,7 @@ São comportamentos que **parecem** errados ou incompletos, mas são escolhas do
 | **Sem build, sem framework, sem TypeScript**; bibliotecas por CDN com versão fixa | Projeto pessoal e local, de manutenção simples | `public/index.html` |
 | **Chaves editáveis pelo dashboard**, gravadas no `.env` **depois** de responder | O nodemon reinicia o server ao ver o `.env` mudar | `routes.js`, `config.js` |
 | O secret **nunca volta** para a página (só `keyHint`) | Segurança | `apiKeySettings.js` |
-| Cache curto no server (15 s ou mais) mesmo quando a pessoa clica em "Recarregar" | Proteger o limite de peso da Binance em recargas seguidas | `lib/cache.js` |
+| Cache curto no server (15 s ou mais) mesmo quando a pessoa clica em "Recarregar" ou "Atualizar" | Proteger o limite de peso da Binance em recargas seguidas | `lib/cache.js` |
 | Cache **incremental** de `myTrades` em memória (sem disco) | A primeira carga é cara, as seguintes são baratas. Reiniciar o server refaz tudo | `binance/account.js` |
 | Serviços de futuros e liquidações respondem **200 + `available: false`** em vez de erro | O front mostra uma mensagem específica por `reason` sem tratar exceção | `futuresData.js`, `liquidationMap.js`, `liquidations.js` |
 | Rotas `/site/<slug>` servem o mesmo `index.html` | Cada aba tem URL própria (F5 e link direto) sem roteador no front | `server.js`, `Tabs.js` |

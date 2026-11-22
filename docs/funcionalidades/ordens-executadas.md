@@ -26,6 +26,7 @@ A aba `data-tab="executed"` (URL `/site/ordens-executadas`) tem:
   - Estado próprio: `executed = { orders, filtered, sort: { key: "time", asc: false }, loaded, loading }`.
   - `initExecutedOrdersPanel()` escuta `TAB_CHANGED` (`"executed"` e ainda não carregado → `loadExecutedOrders()`), liga o `pairCombo` e os chips.
   - `loadExecutedOrders()` (exposta em `window`, botão Recarregar) deduplica a carga em andamento.
+  - `refreshExecutedOrders()` é chamada pelo "Atualizar" do topo: só recarrega se a aba já foi carregada (senão a carga acontece ao entrar nela).
   - `applyExecutedFilters()`, `sortExecutedOrders(key)` (via `onclick`) e `renderExecutedOrders()`.
 - Ids: `#executedPairSearch`, `#executedPairList`, `#executedSideBuy`, `#executedSideSell`, `#executed-count`, `#executed-buys`, `#executed-sells`, `#executed-status`, `#table-body-executed`.
 

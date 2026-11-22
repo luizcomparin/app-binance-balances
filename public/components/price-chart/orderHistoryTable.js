@@ -207,6 +207,13 @@ export function setHistoryAsset(asset, visible) {
   if (visible) showHistory();
 }
 
+/** Botão Atualizar do topo: descarta o cache da moeda atual e, se a aba estiver visível, busca de novo. */
+export function reloadHistory(visible) {
+  if (!hist.asset) return Promise.resolve();
+  hist.cache.delete(hist.asset);
+  return visible ? load(hist.asset) : Promise.resolve();
+}
+
 /** A aba ficou visível: carrega (ou usa o cache) da moeda atual. */
 export function showHistory() {
   if (!hist.asset) return;

@@ -71,6 +71,16 @@ export async function loadOpenOrders(asset) {
   return data;
 }
 
+// Botão Atualizar do topo: descarta o cache do cliente da moeda (velas mais recentes e ordens abertas)
+// e das suas ordens executadas. Páginas antigas de velas ficam, porque não mudam mais.
+export function invalidateAssetCache(asset) {
+  for (const key of chartCache.keys()) {
+    if (key.startsWith(`${asset}|`) && key.endsWith("|")) chartCache.delete(key);
+  }
+  openOrdersCache.delete(asset);
+  myOrders.at = 0;
+}
+
 /**
  * Encaixa cada ordem da moeda na vela/ponto do gráfico em que ela aconteceu.
  * Retorna { buys, sells }, cada item = { idx (índice da vela), y (preço USDT), order }.

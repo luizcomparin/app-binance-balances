@@ -30,3 +30,31 @@
   display: flex;
   gap: 10px;
 }
+
+.actions {
+  align-items: center;
+}
+
+/* "Atualizado há X min": texto discreto à esquerda do botão Atualizar */
+.last-update {
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.refresh-btn:disabled {
+  cursor: progress;
+  opacity: 0.7;
+  transform: none;
+}
+
+/* ícone gira enquanto a atualização está em andamento */
+.refresh-btn.is-loading svg {
+  animation: spin 1s linear infinite;
+}

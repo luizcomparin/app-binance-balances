@@ -1,7 +1,7 @@
 ---
 titulo: Carteira, cards do topo e faixa de ativos
 resumo: /balances calcula a carteira em USDT/BRL com variação de 24h; os cards fixos (total, USDT, BTC, XRP, ETH, Outros) e a faixa "Ativos" mostram o resultado.
-arquivos: [server/services/wallet.js, server/binance/market.js, server/binance/account.js, public/components/stats/StatGrid.js, public/components/stats/StatGrid.html, public/components/stats/StatGrid.css, public/components/asset-strip/AssetStrip.js, public/components/asset-strip/AssetStrip.html, public/components/asset-strip/AssetStrip.css, public/components/topbar/Topbar.html, public/components/topbar/Topbar.css]
+arquivos: [server/services/wallet.js, server/binance/market.js, server/binance/account.js, public/components/stats/StatGrid.js, public/components/stats/StatGrid.html, public/components/stats/StatGrid.css, public/components/asset-strip/AssetStrip.js, public/components/asset-strip/AssetStrip.html, public/components/asset-strip/AssetStrip.css, public/components/topbar/Topbar.html, public/components/topbar/Topbar.css, public/components/topbar/Topbar.js]
 rotas: [GET /balances]
 eventos: [BALANCES_UPDATED]
 storage: []
@@ -11,7 +11,9 @@ storage: []
 
 ## O que faz
 
-- **Topbar:** título e os botões "Recarregar Ordens", "Recarregar Carteira", "Simular Valorização" e ⚙ Configurações.
+- **Topbar:** título, o texto "Atualizado há X min", o botão **Atualizar**, "Simular Valorização" e ⚙ Configurações.
+  - **Atualizar** recarrega de uma vez tudo o que a tela mostra: carteira + P&L, ordens abertas, ordens executadas (se a aba já foi aberta) e, no gráfico de preço, a moeda aberta (ordens abertas, pontos das ordens executadas, aba de histórico visível e, com a aba na tela, as velas mantendo o trecho visível).
+  - "Atualizado há X min" mostra quando a carteira chegou pela última vez (boot, Atualizar ou recarga depois de salvar a chave). O texto é refeito a cada 30 s, e o horário exato fica no `title`.
 - **Cards do topo:**
   - **Total da carteira:** USDT, BRL e variação de 24h.
   - **Um card fixo para cada uma de USDT, BTC, XRP e ETH:** % da carteira, USDT, BRL e 24h.
@@ -20,7 +22,10 @@ storage: []
 
 ## Página
 
-- `Topbar.html` é estático. Os botões usam `onclick` → `window.loadOrders`, `window.loadBalances` e `window.openSimulationDialog`. O botão `#settings-btn` é ligado pelo `SettingsModal.js`.
+- `Topbar.js` → `initTopbar()` liga `#refresh-all-btn` a `refreshAll()` e escuta `BALANCES_UPDATED` para atualizar `#last-update`.
+  - `refreshAll()` chama em paralelo `loadBalances()`, `loadOrders()`, `refreshExecutedOrders()` (ExecutedOrdersPanel) e `refreshPriceChart()` (PriceChartPanel). Enquanto roda, o botão fica desabilitado com o ícone girando; cliques repetidos esperam a mesma atualização.
+  - `refreshPriceChart()` descarta o cache do cliente da moeda (`invalidateAssetCache` em `chartData.js`, `reloadHistory`/`reloadTrades` nas tabelas) antes de buscar de novo. O cache curto do server continua valendo (ver [decisoes](../decisoes.md)).
+- "Simular Valorização" usa `onclick` → `window.openSimulationDialog`. O botão `#settings-btn` é ligado pelo `SettingsModal.js`.
 - `StatGrid.js` → `initStatGrid()` escuta `BALANCES_UPDATED` → `renderStatCards(data)`.
   - A constante `FIXED_CARD_ASSETS = ["USDT", "BTC", "XRP", "ETH"]` é **intencional** (ver [decisoes](../decisoes.md)).
   - Ids: `#total-balance`, `#total-brl`, `#total-change-24h` e, para cada moeda, `#<moeda>-percent|usdt|brl|change-24h` (em minúsculas), além de `#others-*`.
@@ -43,7 +48,7 @@ O formato da resposta está em [api.md](../referencia/api.md#get-balances).
 
 ## Fluxo
 
-1. Quem dispara: `index.js` no boot, o botão "Recarregar Carteira" ou a recarga depois de salvar a chave.
+1. Quem dispara: `index.js` no boot, o botão "Atualizar" do topo ou a recarga depois de salvar a chave.
 2. `BalancesPanel.loadBalances()` busca `/balances`, preenche `state.usdtBrlPrice` e `state.currentAssets` e emite `BALANCES_UPDATED`.
 3. StatGrid, AssetStrip, ChartsPanel, orderSimulation e a watchlist do gráfico redesenham.
 
@@ -66,5 +71,7 @@ O dono do fetch de `/balances` é o BalancesPanel (ver [saldos-e-pnl](saldos-e-p
 `npm run dev`, abra `/site` e confira:
 
 - se o total do card bate com a soma da aba Saldos;
-- se o "Recarregar Carteira" atualiza cards, faixa e gráficos;
+- se o "Atualizar" atualiza cards, faixa, gráficos, aba Saldos, ordens abertas, ordens executadas (se já abertas) e as ordens do gráfico de preço;
+- se o botão mostra "Atualizando..." e fica desabilitado durante a carga;
+- se "Atualizado agora" aparece depois da carga e vira "há 1 min" após um minuto;
 - se o BRL aparece.

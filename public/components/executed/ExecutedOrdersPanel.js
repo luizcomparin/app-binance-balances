@@ -38,6 +38,11 @@ export function initExecutedOrdersPanel() {
   }
 }
 
+// Botão Atualizar do topo: só recarrega se a aba já foi aberta (senão carrega ao entrar nela)
+export function refreshExecutedOrders() {
+  return executed.loaded ? loadExecutedOrders() : Promise.resolve();
+}
+
 export async function loadExecutedOrders() {
   if (executed.loading) return executed.loading;
 

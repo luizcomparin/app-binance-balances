@@ -29,7 +29,7 @@ A aba `data-tab="orders"` (URL `/site/ordens-abertas`) tem:
 
 - `OrdersPanel.js`:
   - `initOrdersPanel()` liga `pairCombo`, os chips, a delegação de clique em `#table-body-orders` e `#orders-expand-all`.
-  - `loadOrders()` (exposta em `window`, botão Recarregar e Topbar) busca `/orders` via `fetchOrders`. Achata o resultado em `state.orders` com `pair, side, type, quoteAsset, price, amount, totalQuote, total (USDT), totalUnknown, time, distancePct, marketValueUSDT`.
+  - `loadOrders()` (exposta em `window` para o botão Recarregar da aba; também chamada pelo "Atualizar" do topo em `Topbar.js`) busca `/orders` via `fetchOrders`. Achata o resultado em `state.orders` com `pair, side, type, quoteAsset, price, amount, totalQuote, total (USDT), totalUnknown, time, distancePct, marketValueUSDT`.
   - `applyOrderFilters()` preenche `state.filteredOrders` e chama `renderOrders()`.
   - `renderOrders()`: `groupedOrders()` → `summarize()` por par → `groupRow` + `orderRow`. Também atualiza o resumo e chama `renderOrderSimulation()`.
   - `sortOrders(key)` (via `onclick` nos `<th>`): o mapa `GROUP_SORT` define como cada coluna ordena os grupos.

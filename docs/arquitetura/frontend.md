@@ -29,7 +29,7 @@ public/components/<pasta>/
 - O JS acha os elementos por `id` (`document.getElementById`). Os ids de cada funcionalidade estão listados no doc dela.
 - O render é feito com **template strings em `innerHTML`**. Não há virtual DOM: cada render substitui o conteúdo.
 - Os eventos são ligados de dois jeitos (inconsistente, ver débitos):
-  - `onclick="fn()"` no HTML, chamando funções expostas em `window.*` por `index.js`. É usado em Topbar, cabeçalhos de ordenação das tabelas, botões Recarregar e na Simulação.
+  - `onclick="fn()"` no HTML, chamando funções expostas em `window.*` por `index.js`. É usado no "Simular Valorização" do Topbar, cabeçalhos de ordenação das tabelas, botões Recarregar e na Simulação.
   - `addEventListener` no `init*()`. É o padrão nos componentes mais novos (gráfico de preço, Configurações, Ordens).
 
 ## Comunicação entre componentes

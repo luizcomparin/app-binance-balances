@@ -11,6 +11,8 @@ storage: [priceChartOrdersTab]
 
 O container é `#price-chart-orders`. Os botões `.pco-tab[data-pco-tab="open|trades|history"]` alternam os painéis `.pco-pane[data-pco-pane]`. A aba escolhida fica em `priceChartOrdersTab`. Os históricos só carregam quando a aba é aberta (`showOrdersTab` → `showHistory`/`showTrades`).
 
+O botão "Atualizar" do topo chama `refreshPriceChart()` (PriceChartPanel), que busca de novo as ordens abertas da moeda e chama `reloadHistory(visível)` / `reloadTrades(visível)`: descartam o cache da moeda e só buscam de novo a aba de histórico que estiver visível (a outra busca ao ser aberta).
+
 ## Ordens abertas (`openOrdersTable.js`)
 
 - Dados: `view.openOrders.all`, que vem de `/orders/:asset` via `chartData.loadOpenOrders` (o mesmo dado das linhas de ordens no gráfico).
@@ -49,3 +51,4 @@ O container é `#price-chart-orders`. Os botões `.pco-tab[data-pco-tab="open|tr
 1. Numa moeda com histórico, abra cada aba.
 2. Troque o período e expanda uma ordem executada.
 3. Simule um erro (pare o server): deve aparecer "Tentar de novo".
+4. Com uma aba de histórico visível, clique em "Atualizar" no topo: a lista deve mostrar o carregamento e voltar.
