@@ -107,7 +107,7 @@ Para achar o doc de um arquivo específico, faça um grep pelo caminho: `grep -r
 6. **PT-BR** em comentários, textos de interface, mensagens de erro e documentação. Os nomes de código seguem em inglês, como já são.
 7. **Rode `npm test`** depois de mexer em regra de negócio (custo médio, timeframe, volatilidade, DCA, indicadores, simulador, formatação, cache, limitador). Funções puras novas ganham testes em `test/` (ver [convencoes.md](docs/arquitetura/convencoes.md#testes)). Não há build, e a interface não tem testes: verifique manualmente com `npm run dev`, abrindo a aba afetada e seguindo a seção "Como verificar" do doc da funcionalidade. Diga explicitamente o que foi e o que não foi verificado.
 8. **Sem dependências novas** sem pedir. No front, bibliotecas só por CDN com versão fixa, como as atuais.
-9. **Commits** só quando pedido, com mensagem em PT-BR no formato `feat: …` / `fix: …` / `docs: …` (ver `git log`).
+9. **Ao terminar uma tarefa, faça commit e push** na `main` (`git push origin main`), sem esperar pedido. Antes: verificação feita (`npm test` e o que mais couber) e docs atualizados no mesmo commit. Inclua só os arquivos da tarefa (nunca o `.env`). Mensagem em PT-BR no formato `feat: …` / `fix: …` / `docs: …` / `test: …` (ver `git log`), com um resumo do que mudou. Se a verificação falhou ou a tarefa ficou pela metade, **não** faça commit: explique o que falta.
 
 ## Receitas rápidas
 
