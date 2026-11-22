@@ -72,7 +72,6 @@ qty < 1e-12 → qty = cost = 0
 - Trades em cotações fora de `PNL_QUOTES` (EUR, TRY…), Convert, P2P e Earn **não entram**.
 - Moeda zerada não aparece (só as holdings atuais).
 - Sem histórico diário de uma moeda de cotação, a conversão cai para o preço **atual**, o que distorce trades antigos em BRL/BTC.
-- ⚠ Uma corrida entre sincronizações de trades pode duplicar trades no cache (ver [debitos-tecnicos](../debitos-tecnicos.md#bugs-e-logicas-potencialmente-quebradas)).
 
 ## Checklist ao alterar
 

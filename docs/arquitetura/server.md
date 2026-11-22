@@ -64,7 +64,7 @@ config.js            .env, chaves em memória, gravação no .env, constantes (B
   - par com trades: 5 min.
 - `clearTradesCache()` só roda quando a chave da Binance muda.
 - Quem usa: `tradeHistory.js` (P&L e ordens executadas), `orderHistory.js` e `assetTrades.js`.
-- ⚠ Não há trava por símbolo contra sincronizações simultâneas (ver [debitos-tecnicos](../debitos-tecnicos.md#bugs-e-logicas-potencialmente-quebradas)).
+- Chamadas simultâneas para o mesmo símbolo compartilham a mesma sincronização (`Map syncing` de promises em andamento). Sem isso, duas buscas a partir do mesmo `fromId` duplicariam trades no cache. Não remova essa trava.
 
 ## Conversão para USDT
 

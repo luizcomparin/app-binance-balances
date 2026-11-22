@@ -67,7 +67,7 @@ O mesmo serviço atende `/orders/:asset`, usado pelo gráfico de preço (ver [ab
 
 - Ordem em par sem cotação para USDT: `total = 0` nos somatórios, e a linha mostra `-- (total na moeda de cotação)`.
 - Pares não-USDT: o preço aparece com 8 casas na moeda de cotação.
-- Se `/orders` responder com erro (ex.: 401 sem chave), o código não verifica `res.ok` (ver [debitos-tecnicos](../debitos-tecnicos.md)).
+- Se `/orders` responder com erro (ex.: 401 sem chave), `fetchOrders` (via `getJson`) lança a mensagem do server e a tabela mostra `Erro: <mensagem>`.
 
 ## Checklist ao alterar
 

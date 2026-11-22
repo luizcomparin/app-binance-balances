@@ -58,7 +58,7 @@ loadBalances() ── fetch /balances ──► state.currentAssets ──► em
 
 - `apiFetch(url)`: em **erro de rede** (o server reiniciando pelo nodemon), tenta de novo a cada 500 ms por até 15 s. Respostas HTTP de erro voltam normalmente.
 - `getJson(url)`: `apiFetch` + `res.json()` e lança `Error(json.error)` quando `!res.ok` ou quando existe `json.error`. É o padrão das funções novas.
-- As funções antigas (`fetchBalances`, `fetchOrders`, `fetchRaw`, `fetchPositions`) **não** usam `getJson` e tratam erro de formas diferentes (ver débitos).
+- As funções antigas (`fetchBalances`, `fetchRaw`, `fetchPositions`) **não** usam `getJson` e tratam erro de formas diferentes (ver débitos).
 - `saveApiKey` e `saveCoinalyzeKey` usam `fetch` direto (sem retry), com POST JSON.
 
 O mapa função → rota está em [api](../referencia/api.md).

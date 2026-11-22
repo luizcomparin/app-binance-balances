@@ -32,13 +32,24 @@ export async function getAllOrders(symbol) {
 const TRADES_TTL_MS = 5 * 60 * 1000;
 const EMPTY_TRADES_TTL_MS = 30 * 60 * 1000;
 const tradesCache = new Map(); // symbol -> { trades, lastSync }
+// sincronização em andamento por símbolo: chamadas simultâneas (P&L, histórico de trades, histórico de
+// ordens) esperam a mesma em vez de buscar a mesma página duas vezes e duplicar os trades no cache
+const syncing = new Map(); // symbol -> promise
 
 // as chaves da API mudaram: os trades guardados eram de outra conta
 export function clearTradesCache() {
 	tradesCache.clear();
 }
 
-export async function getAllMyTrades(symbol, { tradable = true } = {}) {
+export function getAllMyTrades(symbol, opts) {
+	const running = syncing.get(symbol);
+	if (running) return running;
+	const promise = syncTrades(symbol, opts).finally(() => syncing.delete(symbol));
+	syncing.set(symbol, promise);
+	return promise;
+}
+
+async function syncTrades(symbol, { tradable = true } = {}) {
 	const entry = tradesCache.get(symbol) || { trades: [], lastSync: 0 };
 	if (entry.lastSync && !tradable) return entry.trades;
 	const ttl = entry.trades.length ? TRADES_TTL_MS : EMPTY_TRADES_TTL_MS;

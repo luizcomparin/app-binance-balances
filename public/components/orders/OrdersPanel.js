@@ -129,7 +129,7 @@ export async function loadOrders() {
     applyOrderFilters();
   } catch (e) {
     if (tbody) {
-      tbody.innerHTML = `<tr><td colspan="7" style="color:red;">Erro: ${e}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" style="color:red;">Erro: ${e.message || e}</td></tr>`;
     }
   }
 }

@@ -118,6 +118,7 @@ export async function fetchOpenOrdersForAsset(asset) {
   return Array.isArray(json) ? json : [];
 }
 
+// erro da API (sem chave, falha na Binance) vira exceção com a mensagem do servidor
 export async function fetchOrders() {
-  return apiFetch("/orders").then((x) => x.json());
+  return getJson("/orders");
 }
