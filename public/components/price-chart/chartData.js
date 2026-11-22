@@ -55,7 +55,9 @@ export async function loadOpenOrders(asset) {
     error = err?.message || "erro desconhecido";
     return null;
   });
-  if (!raw) return hit?.data || { buys: [], sells: [], all: null, error };
+  // falhou: sem cache, all = null (a tabela mostra o erro); com cache, devolve os dados antigos marcados
+  // como desatualizados (stale + horário + motivo), para a tabela avisar em vez de mostrá-los como atuais
+  if (!raw) return hit ? { ...hit.data, stale: true, staleAt: hit.at, error } : { buys: [], sells: [], all: null, error };
 
   const buys = [];
   const sells = [];

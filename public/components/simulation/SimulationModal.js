@@ -1,5 +1,10 @@
 ﻿import { state } from "../../core/state.js";
 
+// liga a busca uma vez só (antes era ligada a cada abertura do modal e os listeners se acumulavam)
+export function initSimulationModal() {
+  document.getElementById("simulation-search")?.addEventListener("input", filterAssets);
+}
+
 export function openSimulationDialog() {
   if (!state.currentAssets.length) {
     alert("Carregue a carteira primeiro.");
@@ -26,10 +31,9 @@ export function openSimulationDialog() {
   const inputs = inputsDiv.querySelectorAll("input[type='number']");
   inputs.forEach((input) => input.addEventListener("input", calculateSimulation));
 
+  // a lista é recriada a cada abertura: limpa a busca da vez anterior para não ficar um filtro sem efeito
   const searchInput = document.getElementById("simulation-search");
-  if (searchInput) {
-    searchInput.addEventListener("input", filterAssets);
-  }
+  if (searchInput) searchInput.value = "";
 
   const modal = document.getElementById("simulation-modal");
   if (modal) {

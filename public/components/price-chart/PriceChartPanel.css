@@ -819,6 +819,11 @@
   cursor: pointer;
 }
 
+/* aviso acima de dados antigos (a atualização falhou): staleNoticeHtml em loadError.js */
+.price-chart-orders .pco-stale {
+  margin-bottom: 10px;
+}
+
 .price-chart-orders .pco-empty .mini-spinner {
   display: inline-block;
   width: 12px;

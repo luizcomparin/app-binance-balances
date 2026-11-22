@@ -11,7 +11,7 @@ storage: []
 
 ## `.env`
 
-O arquivo é lido por `process.loadEnvFile()` na **pasta atual** (`path.resolve(".env")`), então o server precisa ser iniciado da raiz do projeto. Se o arquivo não existir, `loadEnvFile` lança erro e o server não sobe.
+O arquivo é lido por `process.loadEnvFile(ENV_PATH)` na **raiz do projeto** (ao lado do `server.js`, resolvido a partir de `server/config.js`), então o server funciona iniciado de qualquer pasta. A gravação das chaves usa o mesmo caminho. Se o arquivo não existir, o server mostra onde ele deveria estar e como criá-lo (copiar o `.env.example`) e sai com código 1.
 
 | Variável | Obrigatória | Uso |
 |---|---|---|

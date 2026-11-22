@@ -9,7 +9,7 @@ import { initOrderSimulation } from "./components/orders/orderSimulation.js";
 import { initStatGrid } from "./components/stats/StatGrid.js";
 import { initChartsPanel } from "./components/charts/ChartsPanel.js";
 import { initAssetStrip } from "./components/asset-strip/AssetStrip.js";
-import { openSimulationDialog, closeSimulationDialog } from "./components/simulation/SimulationModal.js";
+import { initSimulationModal, openSimulationDialog, closeSimulationDialog } from "./components/simulation/SimulationModal.js";
 import {
   initExecutedOrdersPanel,
   loadExecutedOrders,
@@ -42,6 +42,7 @@ async function boot() {
   initChartsPanel();
   initAssetStrip();
   initOrderSimulation();
+  initSimulationModal();
   initExecutedOrdersPanel();
   initPriceChartPanel();
 

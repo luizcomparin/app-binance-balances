@@ -1052,7 +1052,8 @@ function renderOrdersTable() {
     orders,
     view.asset,
     document.getElementById("pco-open-count"),
-    view.openOrders?.error
+    view.openOrders?.error,
+    view.openOrders?.stale ? view.openOrders.staleAt : null
   );
 }
 

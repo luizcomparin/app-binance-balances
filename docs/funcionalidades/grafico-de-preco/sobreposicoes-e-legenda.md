@@ -49,7 +49,7 @@ A prioridade em `subscribeCrosshairMove` é esta:
 ## Dados e cache
 
 - `loadMyOrders()`: lista de **todas** as moedas, 60 s, uma requisição em andamento por vez. Em erro, devolve a lista anterior ou `[]`.
-- `loadOpenOrders(asset)`: 60 s por moeda. Converte o preço para USDT (`price × quotePriceUSDT`) e ignora ordens sem cotação. Em erro sem cache: `{ all: null, error }`. Em erro **com** cache: devolve o cache sem `error`.
+- `loadOpenOrders(asset)`: 60 s por moeda. Converte o preço para USDT (`price × quotePriceUSDT`) e ignora ordens sem cotação. Em erro sem cache: `{ all: null, error }`. Em erro **com** cache: devolve os dados antigos com `stale: true`, `staleAt` (horário da última carga boa) e `error`. A tabela de ordens abertas mostra um aviso e as linhas do gráfico continuam com esses dados.
 
 ## Casos de borda
 

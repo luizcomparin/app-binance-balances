@@ -18,7 +18,7 @@ O botão "Atualizar" do topo chama `refreshPriceChart()` (PriceChartPanel), que 
 - Dados: `view.openOrders.all`, que vem de `/orders/:asset` via `chartData.loadOpenOrders` (o mesmo dado das linhas de ordens no gráfico).
 - Colunas: data, par, tipo (`TYPE_LABELS`, com tag OCO), lado, preço ("Mercado" se for 0), quantidade, iceberg, % executado, total (preço × quantidade original, ou o gatilho nas ordens a mercado) e condição de gatilho (`triggerText`: "Último preço <= x").
 - A ordenação é feita clicando no `<th data-sort>` (time, type, side, price). O padrão é preço crescente.
-- `renderOpenOrdersTable(el, orders, asset, countEl, error)`: `undefined` = carregando, `null` = erro com "Tentar de novo" (`loadError.js`). A contagem vai para `#pco-open-count`.
+- `renderOpenOrdersTable(el, orders, asset, countEl, error, staleAt)`: `undefined` = carregando, `null` = erro com "Tentar de novo" (`loadErrorHtml` em `loadError.js`). Com `staleAt`, a última atualização falhou e a lista é a da carga desse horário: aparece "⚠ Não foi possível atualizar… Mostrando os dados de HH:MM" com "Tentar de novo" (`staleNoticeHtml`) acima da tabela. A contagem vai para `#pco-open-count`.
 - Exporta `typeLabel`, `triggerText` e `quoteAmount`, que são reutilizados pelas outras duas tabelas.
 
 ## Histórico de trades (`tradeHistoryTable.js`)

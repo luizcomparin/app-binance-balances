@@ -18,7 +18,8 @@ O botão **Simular Valorização** (Topbar) abre um modal. Nele há um campo de 
 ## Página
 
 - `SimulationModal.js`:
-  - `openSimulationDialog()` (`window`, via `onclick`): sem saldos carregados, mostra `alert("Carregue a carteira primeiro.")`. Senão, monta um `<input id="sim-<MOEDA>">` para cada item de `state.currentAssets`, liga os listeners e exibe o modal (`style.display = "flex"`).
+  - `initSimulationModal()` (no boot, em `index.js`): liga a busca `#simulation-search` uma vez só.
+  - `openSimulationDialog()` (`window`, via `onclick`): sem saldos carregados, mostra `alert("Carregue a carteira primeiro.")`. Senão, monta um `<input id="sim-<MOEDA>">` para cada item de `state.currentAssets`, liga os campos ao cálculo, limpa a busca e exibe o modal (`style.display = "flex"`).
   - `calculateSimulation()`: `Σ totalUSDT × (1 + %/100)`.
   - `filterAssets()` esconde as linhas que não batem com a busca.
   - `closeSimulationDialog()` (`window`, botão ×).
@@ -28,7 +29,6 @@ Não usa server nem eventos: lê `state.currentAssets` no momento em que abre.
 
 ## Casos de borda e armadilhas
 
-- A cada abertura, um **novo** listener `input` é adicionado em `#simulation-search` (acumula; ver débitos).
 - Os ids `sim-<MOEDA>` dividem o prefixo com `#sim-sells`, `#sim-buys`, `#sim-usdt` e `#sim-total` da simulação de ordens. Hoje não colidem só porque os ids diferenciam maiúsculas de minúsculas.
 - Não fecha com Esc nem com clique fora (o modal de Configurações fecha). Usa `style.display`, enquanto Configurações usa o atributo `hidden`.
 

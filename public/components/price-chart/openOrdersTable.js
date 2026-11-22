@@ -1,6 +1,6 @@
 // Aba "Ordens abertas" abaixo do gráfico: as ordens em aberto da moeda, no estilo da tabela da Binance.
 import { formatDateTime, formatPrice, formatQty } from "../../core/format.js";
-import { loadErrorHtml, onLoadRetry } from "./loadError.js";
+import { loadErrorHtml, onLoadRetry, staleNoticeHtml } from "./loadError.js";
 
 const TYPE_LABELS = {
   LIMIT: "Limite",
@@ -80,12 +80,13 @@ function headerHtml() {
 /**
  * Desenha a tabela em `el` e o total no rótulo da aba (`countEl`). orders: lista crua de
  * /orders/:asset (com baseAsset/quoteAsset), undefined = carregando, null = erro (error = motivo).
+ * staleAt (ms): a última atualização falhou e `orders` é da carga desse horário → aviso acima da lista.
  */
-export function renderOpenOrdersTable(el, orders, asset, countEl, error = null) {
+export function renderOpenOrdersTable(el, orders, asset, countEl, error = null, staleAt = null) {
   if (!el) return;
-  last = { el, orders, asset, countEl, error };
+  last = { el, orders, asset, countEl, error, staleAt };
   if (countEl) countEl.textContent = Array.isArray(orders) ? `(${orders.length})` : "";
-  const title = "";
+  const title = staleAt && orders ? staleNoticeHtml("as ordens abertas", error, staleAt) : "";
 
   if (orders === undefined) {
     el.innerHTML = `${title}<p class="pco-empty"><span class="mini-spinner"></span> Carregando ordens abertas...</p>`;
@@ -120,6 +121,6 @@ export function initOpenOrdersTable(el, { onRetry } = {}) {
     if (!key) return;
     sort.dir = sort.key === key ? -sort.dir : key === "time" ? -1 : 1;
     sort.key = key;
-    if (last.el) renderOpenOrdersTable(last.el, last.orders, last.asset, last.countEl, last.error);
+    if (last.el) renderOpenOrdersTable(last.el, last.orders, last.asset, last.countEl, last.error, last.staleAt);
   });
 }

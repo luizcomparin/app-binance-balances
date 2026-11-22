@@ -2,10 +2,21 @@
 // então o .env já está carregado quando os outros módulos usam as chaves.
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const ENV_PATH = path.resolve(".env"); // o mesmo arquivo que process.loadEnvFile() lê (pasta atual)
+// .env na raiz do projeto (ao lado do server.js), qualquer que seja a pasta de onde o server foi iniciado
+const ENV_PATH = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", ".env");
 
-process.loadEnvFile();
+if (!fs.existsSync(ENV_PATH)) {
+	console.error(
+		`Erro: arquivo .env não encontrado em ${ENV_PATH}\n` +
+			"Copie o .env.example para .env (na raiz do projeto) e defina PORT. As chaves da API podem ficar " +
+			"vazias e ser informadas depois em Configurações, no dashboard."
+	);
+	process.exit(1);
+}
+
+process.loadEnvFile(ENV_PATH);
 
 export const PORT = Number(process.env.PORT);
 

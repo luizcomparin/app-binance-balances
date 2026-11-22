@@ -15,9 +15,6 @@ Severidade: **Alta** = pode mostrar número errado ou quebrar uma funcionalidade
 
 | # | Sev. | Onde | Problema | Cenário | Sugestão |
 |---|---|---|---|---|---|
-| B5 | Média | `public/components/simulation/SimulationModal.js` | `openSimulationDialog` adiciona um novo listener `input` em `#simulation-search` **a cada abertura** | Abrir o modal N vezes faz `filterAssets` rodar N vezes por tecla (funciona, mas acumula) | Ligar o listener uma vez, num `init` |
-| B6 | Média | `public/components/price-chart/chartData.js` `loadOpenOrders` | Em erro com cache antigo, devolve o cache **sem** `error` e sem avisar | Falha temporária: a tabela mostra ordens possivelmente desatualizadas como se fossem atuais | Devolver os dados com `stale: true` / `error` |
-| B8 | Média | `server/config.js` | `process.loadEnvFile()` lança `ENOENT` sem mensagem amigável se não houver `.env`. Os caminhos são relativos à pasta atual (`path.resolve(".env")`) | `npm start` rodado de outra pasta, ou o primeiro uso sem copiar o `.env.example` | Checar a existência, mostrar uma mensagem clara e resolver o caminho relativo a `server.js` |
 | B9 | Baixa | `server/services/orderHistory.js` | `allOrders` traz só as **últimas 1000 ordens por par**, sem paginação | Conta com muitas ordens num par: o histórico antigo some | Paginar por `orderId` |
 
 ## Código replicado
@@ -72,7 +69,6 @@ Severidade: **Alta** = pode mostrar número errado ou quebrar uma funcionalidade
 | M3 | `GET /avg-buy-prices` | Rota "compat" sem consumidor |
 | M4 | `PriceChartPanel.openPriceChart` | `if (!view.interval) ...`: `view.interval` sempre tem valor |
 | M5 | `StatGrid.renderStatCards` | `document.querySelectorAll("#total-balance")` (o id é único) |
-| M6 | `openOrdersTable.renderOpenOrdersTable` | `const title = ""` concatenado em todos os retornos (sobra de refatoração) |
 | M7 | `chart/liquidationOverlay.js` | `HEAT_RGB` é usado só no texto dos rótulos. O nome sugere a cor do mapa (que vem de `LOW_RGB`/`HIGH_RGB`) |
 
 ## Arquitetura e manutenção
