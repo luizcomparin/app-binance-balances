@@ -97,7 +97,6 @@ export function createPriceChart(els, handlers = {}) {
     getSeries: () => s.series,
     getPoints: () => s.points,
     getInterval: () => s.interval,
-    formatPrice: (p) => formatAxisPrice(p, s.precision),
     isBusy: () => measure.busy(),
     onToolChange: (tool) => toolbar.setActive(tool),
   });

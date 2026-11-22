@@ -27,8 +27,10 @@ Uso:
 - Clicar num desenho seleciona. Arrastar pelo corpo move; arrastar pelas bolinhas edita.
 - **Del/Backspace** apaga o selecionado (ignorado dentro de inputs). **Esc** cancela o desenho em andamento ou tira a seleção.
 - Os pontos são guardados como `{ ms, price }` (instante, não índice). Por isso valem em qualquer tamanho de vela e não se deslocam quando o histórico antigo carrega. Antes ou depois dos dados, o índice é extrapolado pela duração da vela.
-- O desenho é feito num primitive anexado à série principal (`drawings.primitive`). A linha horizontal mostra a etiqueta do preço no eixo.
-- `createDrawings(chart, { container, getSeries, getPoints, getInterval, formatPrice, isBusy, onToolChange })` devolve `{ primitive, setTool, move(param), setAsset(asset) }`.
+- O desenho é feito num primitive anexado à série principal (`drawings.primitive`).
+- A etiqueta de preço no eixo de cada linha horizontal é uma **linha de preço nativa invisível** (`createPriceLine` com `lineVisible: false`), mantida por `syncAxisLabels()`: criada, movida (ao arrastar) e removida junto com o desenho, e recriada na série nova quando o modo Linha/Velas muda (no `attached` do primitive).
+  - **Não use `priceAxisViews` no primitive.** O Lightweight Charts 5.0.8 não encaixa essas etiquetas no arranjo que afasta as etiquetas sobrepostas, e com elas presentes as outras (ordens abertas, preços médios, médias) iam parar empilhadas no topo do eixo, longe das suas linhas. O problema aparecia só nas moedas com linhas horizontais desenhadas.
+- `createDrawings(chart, { container, getSeries, getPoints, getInterval, isBusy, onToolChange })` devolve `{ primitive, setTool, move(param), setAsset(asset) }`.
 
 **Barra** (`chart/drawingToolbar.js`): flutua sobre o gráfico e pode ser arrastada pela alça. A posição fica em `price-chart-draw-toolbar`. `createDrawingToolbar(wrap, onSelect)` devolve `{ setActive }`.
 

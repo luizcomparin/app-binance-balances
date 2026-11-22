@@ -15,6 +15,7 @@ Severidade: **Alta** = pode mostrar número errado ou quebrar uma funcionalidade
 
 | # | Sev. | Onde | Problema | Cenário | Sugestão |
 |---|---|---|---|---|---|
+| B14 | Baixa | `chart/createChart.js` (barra `.lwc-topbar`) e `chart/chart.css` | A barra da legenda fica por cima do topo do gráfico e cobre a parte dentro do gráfico (título) da etiqueta de uma linha de preço que cai bem no topo, como uma ordem de venda aberta logo abaixo do limite da escala. O valor no eixo continua visível | Moeda com muitas camadas e legenda em 2 ou mais linhas: o título "V 0,00033 · 49,30 USDT" fica meio apagado atrás da legenda | Limitar a largura da barra para não alcançar a borda direita do gráfico, ou reservar margem no topo da escala (`scaleMargins.top`) do tamanho da legenda |
 | B9 | Baixa | `server/services/orderHistory.js` | `allOrders` traz só as **últimas 1000 ordens por par**, sem paginação | Conta com muitas ordens num par: o histórico antigo some | Paginar por `orderId` |
 
 ## Código replicado

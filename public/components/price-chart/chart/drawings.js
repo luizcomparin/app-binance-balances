@@ -64,11 +64,11 @@ function loadAll() {
 
 /**
  * chart: instância do Lightweight Charts; container: elemento do gráfico
- * getSeries/getPoints/getInterval: estado atual; formatPrice: texto da etiqueta no eixo
+ * getSeries/getPoints/getInterval: estado atual (a etiqueta no eixo usa o formato de preço da série)
  * isBusy(): régua de medição em andamento (ela tem prioridade nos cliques)
  * onToolChange(tool|null): ferramenta ativa mudou (para a barra de ferramentas)
  */
-export function createDrawings(chart, { container, getSeries, getPoints, getInterval, formatPrice, isBusy, onToolChange }) {
+export function createDrawings(chart, { container, getSeries, getPoints, getInterval, isBusy, onToolChange }) {
   let asset = null;
   let items = []; // { id, type, points: [{ ms, price }], dp? (canal: distância de preço da linha paralela) }
   let selected = null;
@@ -78,7 +78,50 @@ export function createDrawings(chart, { container, getSeries, getPoints, getInte
   let drag = null;
   let requestUpdate = null;
 
-  const redraw = () => requestUpdate?.();
+  // Etiqueta de preço no eixo de cada linha horizontal: uma linha de preço nativa e invisível (só a etiqueta).
+  // Não usa priceAxisViews do primitive: o Lightweight Charts não encaixa essas etiquetas no arranjo que afasta
+  // as etiquetas sobrepostas, e com elas presentes as demais (ordens abertas, preços médios) iam parar
+  // empilhadas no topo do eixo, longe das suas linhas.
+  const axisLabels = new Map(); // id do desenho -> { line, price }
+  let labelSeries = null; // série que tem as linhas de preço (trocar Linha/Velas cria outra série)
+
+  function syncAxisLabels() {
+    const series = getSeries();
+    if (series !== labelSeries) {
+      axisLabels.clear(); // a série anterior foi removida junto com as linhas de preço dela
+      labelSeries = series;
+    }
+    if (!series) return;
+    const wanted = new Map(items.filter((d) => d.type === "hline").map((d) => [d.id, d.points[0].price]));
+    for (const [id, label] of axisLabels) {
+      if (wanted.has(id)) continue;
+      series.removePriceLine(label.line);
+      axisLabels.delete(id);
+    }
+    for (const [id, price] of wanted) {
+      const label = axisLabels.get(id);
+      if (!label) {
+        const line = series.createPriceLine({
+          price,
+          color: COLOR,
+          lineVisible: false, // a linha é desenhada pelo primitive (selecionável e arrastável)
+          axisLabelVisible: true,
+          axisLabelColor: COLOR,
+          axisLabelTextColor: "#fff",
+          title: "",
+        });
+        axisLabels.set(id, { line, price });
+      } else if (label.price !== price) {
+        label.line.applyOptions({ price }); // arrastando a linha
+        label.price = price;
+      }
+    }
+  }
+
+  const redraw = () => {
+    syncAxisLabels();
+    requestUpdate?.();
+  };
   const ready = () => !!getSeries() && getPoints()?.length > 0;
   const ts = () => chart.timeScale();
   const step = () => INTERVAL_MS[getInterval()] || 24 * 3600 * 1000;
@@ -253,27 +296,14 @@ export function createDrawings(chart, { container, getSeries, getPoints, getInte
   const primitive = {
     attached(p) {
       requestUpdate = p.requestUpdate;
+      syncAxisLabels(); // anexado a uma série nova (troca Linha/Velas): recria as etiquetas nela
     },
     detached() {
       requestUpdate = null;
     },
     updateAllViews() {},
     paneViews: () => [view],
-    // etiqueta de preço no eixo para cada linha horizontal
-    priceAxisViews: () =>
-      items
-        .filter((d) => d.type === "hline")
-        .map((d) => {
-          const y = () => getSeries()?.priceToCoordinate(d.points[0].price) ?? null;
-          return {
-            coordinate: () => y() ?? 0,
-            text: () => formatPrice(d.points[0].price),
-            textColor: () => "#fff",
-            backColor: () => COLOR,
-            visible: () => y() !== null,
-            tickVisible: () => true,
-          };
-        }),
+    // (etiquetas no eixo das linhas horizontais: syncAxisLabels, com linhas de preço nativas)
   };
 
   // ---------------------------------------------------------------------------
