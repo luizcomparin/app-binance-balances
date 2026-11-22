@@ -45,7 +45,7 @@ O app tem **duas camadas de cache**: memória do server, que se perde ao reinici
 | Suas ordens executadas (todas) | `myOrders` | 60 s | `price-chart/chartData.js` |
 | Ordens abertas por moeda | `Map openOrdersCache` | 60 s (falhas não entram) | `price-chart/chartData.js` |
 | Mapa de liquidação | `Map liqCache` por moeda | 2 min | `PriceChartPanel.js` |
-| Dados de futuros | `Map futCache` `asset\|período` | 2 min (usa a constante `LIQ_CACHE_MS`) | `PriceChartPanel.js` |
+| Dados de futuros | `Map futCache` `asset\|período` | 2 min (`FUT_CACHE_MS`) | `PriceChartPanel.js` |
 | Liquidações reais | `Map liqRealCache` `asset\|vela` | 5 min (só sucesso ou `no-market`) | `PriceChartPanel.js` |
 | Histórico de ordens | `hist.cache` por moeda | 60 s | `orderHistoryTable.js` |
 | Histórico de trades | `st.cache` por moeda | 30 s | `tradeHistoryTable.js` |

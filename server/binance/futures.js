@@ -40,7 +40,8 @@ async function getPerpetuals() {
 }
 
 // Moedas de preço muito baixo são negociadas em lotes: 1000PEPE, 1000000MOG, 1MBABYDOGE...
-const PREFIXES = [
+// [prefixo do contrato, quantas moedas cada unidade representa]; também usado em services/liquidations.js
+export const LOT_PREFIXES = [
 	["", 1],
 	["1000", 1000],
 	["1000000", 1000000],
@@ -53,7 +54,7 @@ const PREFIXES = [
  */
 export async function getPerpetualFor(asset) {
 	const map = await getPerpetuals();
-	for (const [prefix, multiplier] of PREFIXES) {
+	for (const [prefix, multiplier] of LOT_PREFIXES) {
 		const symbol = map.get(`${prefix}${asset}`);
 		if (symbol) return { symbol, multiplier };
 	}

@@ -41,7 +41,7 @@ O formato da resposta está em [api.md](../../referencia/api.md#get-liquidation-
 
 - `PriceChartPanel.loadLiquidation(asset)` tem cache de 2 min por moeda (`liqCache`) e `renderLiq()` preenche a caixa. O `render()` passa `liquidation` só com `available`.
 - `chart/liquidationOverlay.js` → `LiquidationOverlay`, um primitive anexado à série principal com `zOrder: "bottom"`. Recebe `timeToX(ms)` do `createChart`, que interpola dentro da vela porque o mapa é horário e o gráfico pode estar em D. A intensidade é normalizada pelo **percentil 98**, e abaixo de 6% a faixa não é desenhada.
-- `formatUsdShort` (≈ "100,6M") é exportado daqui e usado em vários módulos (ver débitos).
+- Os rótulos de valor usam `formatUsdShort` (≈ "100,6M"), de `core/format.js`.
 
 ## Como verificar
 

@@ -52,8 +52,7 @@ export async function loadBalances() {
   loadPositions();
 
   try {
-    const data = await fetchBalances();
-    if (data.error) throw new Error(data.error);
+    const data = await fetchBalances(); // erro da API vira exceção (getJson)
 
     state.usdtBrlPrice = Number(data.usdt_brl_price || 0);
     state.currentAssets = data.assets.slice();

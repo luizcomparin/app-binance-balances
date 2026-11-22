@@ -6,6 +6,7 @@ import { renderOrderSimulation } from "./orderSimulation.js";
 import { escapeHtml } from "../../core/dom.js";
 import { createPairCombo } from "../../core/pairCombo.js";
 
+const COLUMNS = 7; // colunas da tabela (colspan das linhas de aviso)
 let pairCombo = null; // filtro de par com busca
 let loaded = false;
 
@@ -96,7 +97,7 @@ function updateExpandAllLabel() {
 export async function loadOrders() {
   const tbody = document.querySelector("#table-body-orders");
   if (tbody) {
-    tbody.innerHTML = "<tr><td colspan='7'>Carregando...</td></tr>";
+    tbody.innerHTML = `<tr><td colspan='${COLUMNS}'>Carregando...</td></tr>`;
   }
 
   try {
@@ -130,7 +131,7 @@ export async function loadOrders() {
     applyOrderFilters();
   } catch (e) {
     if (tbody) {
-      tbody.innerHTML = `<tr><td colspan="7" style="color:red;">Erro: ${escapeHtml(e.message || e)}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="${COLUMNS}" style="color:red;">Erro: ${escapeHtml(e.message || e)}</td></tr>`;
     }
   }
 }
@@ -143,20 +144,12 @@ export function applyOrderFilters() {
 
   state.filteredOrders = state.orders.filter((o) => (pair === "" || o.pair === pair) && sides.has(o.side));
 
-  state.totalsByPair = calculateTotalsByPair(state.filteredOrders);
   renderOrders();
 }
 
 export function sortOrders(key) {
   toggleSort(state.orderSort, key);
   renderOrders();
-}
-
-function calculateTotalsByPair(orders) {
-  return orders.reduce((totals, order) => {
-    totals[order.pair] = (totals[order.pair] || 0) + order.total;
-    return totals;
-  }, {});
 }
 
 // ---------------------------------------------------------------------------
@@ -294,12 +287,11 @@ function renderOrders() {
   const tbody = document.querySelector("#table-body-orders");
   if (!tbody) return;
 
-  state.totalsByPair = calculateTotalsByPair(state.filteredOrders);
   const groups = groupedOrders(state.filteredOrders);
 
   tbody.innerHTML = groups.length
     ? groups.map((g) => groupRow(g) + g.orders.map(orderRow).join("")).join("")
-    : "<tr><td colspan='7'>Nenhuma ordem encontrada para os filtros.</td></tr>";
+    : `<tr><td colspan='${COLUMNS}'>Nenhuma ordem encontrada para os filtros.</td></tr>`;
 
   // resumo do que está filtrado: compras e vendas separadas (somar as duas não diz nada)
   const set = (id, text) => {

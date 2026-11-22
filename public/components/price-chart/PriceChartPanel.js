@@ -17,7 +17,7 @@ import { initOpenOrdersTable, renderOpenOrdersTable } from "./openOrdersTable.js
 import { getIndicators, initIndicatorControls } from "./indicatorControls.js";
 import { fetchFuturesData, fetchLiquidationMap, fetchLiquidations } from "../../api/binance.js";
 import { openSettings } from "../settings/SettingsModal.js";
-import { formatUsdShort } from "./chart/liquidationOverlay.js";
+import { formatUsdShort } from "../../core/format.js";
 import { FUTURES_HELP, PANE_LOADING } from "./chart/futuresPanes.js";
 import { initOrderHistory, setHistoryAsset, showHistory, reloadHistory } from "./orderHistoryTable.js";
 import { initTradeHistory, setTradesAsset, showTrades, reloadTrades } from "./tradeHistoryTable.js";
@@ -49,7 +49,8 @@ const PANEL_TAB = "price-chart";
 const STATS_DAYS_STORAGE_KEY = "priceChartStatsDays";
 const DCA_STORAGE_KEY = "priceChartDca";
 const LIQ_STORAGE_KEY = "priceChartLiquidation";
-const LIQ_CACHE_MS = 2 * 60 * 1000;
+const LIQ_CACHE_MS = 2 * 60 * 1000; // mapa de liquidação no cliente
+const FUT_CACHE_MS = 2 * 60 * 1000; // dados de futuros no cliente
 const FUT_STORAGE_KEY = "priceChartFutures";
 // período dos dados de futuros por tamanho de vela (a Binance tem 1h/4h/1d; S e M usam o diário)
 const FUT_PERIOD = { "1h": "1h", "4h": "4h" };
@@ -211,14 +212,18 @@ function updateProjectedAvailability() {
 const INTERVAL_LABELS = { "1h": "1h", "4h": "4h", "1d": "Diário", "1w": "Semanal", "1M": "Mensal" };
 const RANGE_LABELS = { "7d": "7 dias", "30d": "30 dias", "90d": "90 dias", "6m": "6 meses", "1y": "1 ano", "2y": "2 anos", all: "Tudo" };
 
+// período personalizado ("3m") → "3 meses"; null se não for personalizado
+function customRangeLabel(range) {
+  const custom = /^(\d+)([dmy])$/.exec(range);
+  if (!custom) return null;
+  const n = Number(custom[1]);
+  const unit = { d: ["dia", "dias"], m: ["mês", "meses"], y: ["ano", "anos"] }[custom[2]];
+  return `${n} ${unit[n === 1 ? 0 : 1]}`;
+}
+
 function chartSummary() {
   if (!view.asset) return "";
-  let range = RANGE_LABELS[view.range];
-  const custom = !range && /^(\d+)([dmy])$/.exec(view.range);
-  if (custom) {
-    const n = Number(custom[1]);
-    range = `${n} ${{ d: ["dia", "dias"], m: ["mês", "meses"], y: ["ano", "anos"] }[custom[2]][n === 1 ? 0 : 1]}`;
-  }
+  const range = RANGE_LABELS[view.range] || customRangeLabel(view.range);
   return [`${view.asset}/USDT`, INTERVAL_LABELS[view.interval] || view.interval, range].filter(Boolean).join(" · ");
 }
 
@@ -425,7 +430,7 @@ async function loadFutures() {
   const key = futKey();
   const [asset, period] = key.split("|");
   const hit = futCache.get(key);
-  if (hit && Date.now() - hit.at < LIQ_CACHE_MS) {
+  if (hit && Date.now() - hit.at < FUT_CACHE_MS) {
     view.fut = { key, data: hit.data };
     updateFuturesAvailability();
     return;
@@ -712,9 +717,7 @@ function highlightRange() {
   if (custom) {
     document.getElementById("price-chart-custom-value").value = custom[1];
     document.getElementById("price-chart-custom-unit").value = custom[2];
-    const n = Number(custom[1]);
-    const unit = { d: ["dia", "dias"], m: ["mês", "meses"], y: ["ano", "anos"] }[custom[2]];
-    if (label) label.textContent = `${n} ${unit[n === 1 ? 0 : 1]}`;
+    if (label) label.textContent = customRangeLabel(view.range);
   } else if (label) {
     label.textContent = "Personalizado";
   }
@@ -957,7 +960,6 @@ export function openPriceChart(asset) {
   view.liq = null;
   if (view.showLiq) loadLiquidation(asset);
   else renderLiq();
-  if (!view.interval) view.interval = recommendedInterval(rangeDays(view.range));
 
   document.getElementById("price-chart-title").innerText = `${asset} / USDT`;
   watchlist?.refresh(); // destaca a moeda aberta

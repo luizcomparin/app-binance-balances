@@ -51,21 +51,17 @@ export async function saveCoinalyzeKey(apiKey) {
   return json;
 }
 
+// erro da API (sem chave, falha na Binance) vira exceção com a mensagem do servidor, como nas demais
 export async function fetchBalances() {
-  return apiFetch("/balances").then((x) => x.json());
+  return getJson("/balances");
 }
 
 export async function fetchRaw() {
-  return apiFetch("/raw")
-    .then((x) => x.json())
-    .catch(() => null);
+  return getJson("/raw");
 }
 
 export async function fetchPositions() {
-  const res = await apiFetch("/positions");
-  const json = await res.json();
-  if (!res.ok || json.error) throw new Error(json.error || res.statusText);
-  return json;
+  return getJson("/positions");
 }
 
 async function getJson(url) {

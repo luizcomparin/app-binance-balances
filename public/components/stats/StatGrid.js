@@ -26,9 +26,7 @@ function change24hHtml(pct, usdt) {
 function renderStatCards(data) {
   const totalUSDT = Number(data.total_usdt || 0);
 
-  document.querySelectorAll("#total-balance").forEach((el) => {
-    el.innerText = `${totalUSDT.toFixed(2).formatCurrency()} USDT`;
-  });
+  setText("total-balance", `${totalUSDT.toFixed(2).formatCurrency()} USDT`);
   setText("total-brl", brlText(totalUSDT));
   setHtml("total-change-24h", change24hHtml(data.change_24h_pct, data.change_24h_usdt));
 

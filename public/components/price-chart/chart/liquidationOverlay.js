@@ -2,8 +2,9 @@
 //   - mapa de calor: cada nível estimado é uma faixa horizontal desde que as posições foram abertas até
 //     o preço passar por ele (liquidadas) ou até agora; quanto mais forte, mais dinheiro estimado ali;
 //   - perfil à direita: o que ainda está pendente, com o valor das maiores concentrações.
+import { formatUsdShort } from "../../../core/format.js";
 
-const HEAT_RGB = "255, 196, 0";
+const LABEL_RGB = "255, 196, 0"; // cor do texto dos rótulos de valor (o mapa usa LOW_RGB → HIGH_RGB)
 // escala do mapa de calor: pouco dinheiro = roxo apagado → muito = amarelo forte
 const LOW_RGB = [80, 50, 160];
 const HIGH_RGB = [255, 210, 0];
@@ -17,13 +18,6 @@ function heatColor(v) {
 const PROFILE_MAX_WIDTH = 150; // px (CSS)
 const LABELS_PER_SIDE = 3;
 
-// "≈ 100,6M" / "≈ 850K"
-export function formatUsdShort(v) {
-  if (v >= 1e9) return `${(v / 1e9).toFixed(1).replace(".", ",")}B`;
-  if (v >= 1e6) return `${(v / 1e6).toFixed(1).replace(".", ",")}M`;
-  if (v >= 1e3) return `${Math.round(v / 1e3)}K`;
-  return String(Math.round(v));
-}
 
 export class LiquidationOverlay {
   /** timeToX(ms) → coordenada x (CSS) do instante no eixo de tempo, ou null */
@@ -133,7 +127,7 @@ export class LiquidationOverlay {
           ctx.fillStyle = "rgba(11, 16, 36, 0.8)";
           const tw = ctx.measureText(text).width;
           ctx.fillRect(x - tw - 4 * hr, l.yc * vr - 8 * vr, tw + 8 * hr, 16 * vr);
-          ctx.fillStyle = `rgb(${HEAT_RGB})`;
+          ctx.fillStyle = `rgb(${LABEL_RGB})`;
           ctx.fillText(text, x, l.yc * vr);
         }
       };

@@ -25,8 +25,6 @@ storage: []
 | `orders` | `OrdersPanel.loadOrders` | OrdersPanel, pairCombo | Ordens abertas normalizadas (`pair, side, price, amount, total, distancePct…`) |
 | `filteredOrders` | `OrdersPanel.applyOrderFilters` | OrdersPanel, orderSimulation | Ordens depois dos filtros de par/lado |
 | `orderSort` / `balanceSort` | `core/sort.toggleSort` | OrdersPanel / BalancesPanel | `{ key, asc }` |
-| `totalsByPair` | `OrdersPanel` | **ninguém** (código morto) | — |
-| `pairs` | **ninguém** | **ninguém** (código morto) | — |
 
 Os componentes também guardam estado **próprio**, que não fica em `state`:
 

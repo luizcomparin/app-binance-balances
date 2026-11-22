@@ -21,7 +21,7 @@ O código existente nem sempre segue estes padrões ([debitos-tecnicos](../debit
 
 ## Server
 
-- **Rota:** valida a entrada em `routes.js` (moeda: `String(req.params.asset).toUpperCase()` + `/^[A-Z0-9]{1,20}$/`; enums: `Set` exportado pelo serviço, como `CHART_INTERVALS` e `FUTURES_PERIODS`) e chama **um** serviço dentro de `handle(() => ...)`.
+- **Rota:** valida a entrada em `routes.js` (moeda: middleware `validAsset` na rota, que deixa a moeda normalizada em `req.asset`; enums: `Set` exportado pelo serviço, como `CHART_INTERVALS` e `FUTURES_PERIODS`) e chama **um** serviço dentro de `handle(() => ...)`.
 - **Serviço:** exporta `buildX(...)`, que normalmente é só `cached(key, TTL, () => computeX(...))`. A conta fica em `computeX`, que não é exportada.
 - **Falta de dado esperada** (moeda sem perpétuo, sem chave da Coinalyze): responda `{ available: false, reason: "<código-kebab>" }` com 200, sem lançar erro. Documente os `reason` no doc da funcionalidade.
 - **Falha parcial** em loops por par: acumule `errors.push({ symbol, error })` e continue. Só relance 429/418 (`if (err.status === 429 || err.status === 418) throw err`).
@@ -54,7 +54,7 @@ O código existente nem sempre segue estes padrões ([debitos-tecnicos](../debit
 ### Nova rota
 
 1. Serviço em `server/services/<x>.js` (com `cached` se chamar API externa).
-2. Rota em `server/routes.js`: validação + `handle`.
+2. Rota em `server/routes.js`: `validAsset` (se tiver `:asset`) + validação dos outros parâmetros + `handle`.
 3. Se for relevante, acrescente na lista impressa por `app.listen` em `server.js`.
 4. Função em `public/api/binance.js` usando `getJson`.
 5. Docs: [api.md](../referencia/api.md), [cache.md](../referencia/cache.md) se tiver TTL, e o doc da funcionalidade (cabeçalho `rotas:`).

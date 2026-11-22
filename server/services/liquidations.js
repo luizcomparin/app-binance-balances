@@ -8,6 +8,7 @@
 import { cached } from "../lib/cache.js";
 import { coinalyzeGet } from "../coinalyze/client.js";
 import { getCoinalyzeKey } from "../config.js";
+import { LOT_PREFIXES } from "../binance/futures.js";
 
 const DAY = 24 * 60 * 60 * 1000;
 const CACHE_MS = 5 * 60 * 1000;
@@ -32,7 +33,7 @@ export const LIQUIDATION_INTERVALS = new Set(Object.keys(INTERVALS));
 const DAILY_FROM = Date.UTC(2019, 0, 1); // antes disso quase não há dado de futuros
 
 // moedas de preço muito baixo são negociadas em lotes nos futuros: 1000PEPE, 1000000MOG, 1MBABYDOGE...
-const PREFIXES = ["", "1000", "1000000", "1M"];
+const PREFIXES = LOT_PREFIXES.map(([prefix]) => prefix);
 
 /** Contrato perpétuo USDT da moeda em cada corretora: [{ name, symbol }] (código da Coinalyze, ex.: BTCUSDT_PERP.A) */
 function marketsFor(asset) {

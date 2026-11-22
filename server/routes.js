@@ -21,9 +21,19 @@ const handle = (fn) => async (req, res) => {
 	try {
 		res.json(await fn(req, res));
 	} catch (e) {
-		res.status(e.code === "API_KEY_MISSING" ? 401 : 500).json({ error: e.toString(), code: e.code });
+		// e.message (sem o prefixo "Error: " do toString), como nas rotas de Configurações
+		res.status(e.code === "API_KEY_MISSING" ? 401 : 500).json({ error: e.message || String(e), code: e.code });
 	}
 };
+
+// Moeda da URL (:asset): maiúsculas, só letras e números, até 20 caracteres; vai para req.asset.
+// Impede injetar parâmetros nas URLs da Binance.
+function validAsset(req, res, next) {
+	const asset = String(req.params.asset).toUpperCase();
+	if (!/^[A-Z0-9]{1,20}$/.test(asset)) return res.status(400).json({ error: "Moeda inválida" });
+	req.asset = asset;
+	next();
+}
 
 // Só o próprio dashboard pode trocar a chave: Origin (quando vem) tem de ser o dashboard e o corpo
 // tem de ser JSON (o navegador exige pré-checagem de CORS, então outro site não consegue enviar)
@@ -100,54 +110,34 @@ export function registerRoutes(app) {
 	// Ordens abertas de uma moeda
 	app.get(
 		"/orders/:asset",
+		validAsset,
 		handle(async (req) => {
-			const asset = req.params.asset.toUpperCase();
 			const grouped = groupOrdersByAsset(await buildOpenOrders());
-			return grouped[asset] || [];
+			return grouped[req.asset] || [];
 		})
 	);
 
 	// Histórico de ordens de uma moeda (executadas, canceladas, expiradas), com as execuções de cada uma
-	app.get("/order-history/:asset", (req, res, next) => {
-		const asset = String(req.params.asset).toUpperCase();
-		if (!/^[A-Z0-9]{1,20}$/.test(asset)) {
-			return res.status(400).json({ error: "Moeda inválida" });
-		}
-		return handle(() => buildOrderHistory(asset))(req, res, next);
-	});
+	app.get("/order-history/:asset", validAsset, handle((req) => buildOrderHistory(req.asset)));
 
 	// Histórico de trades (execuções) de uma moeda, com taxa, maker/taker e total em USDT
-	app.get("/trade-history/:asset", (req, res, next) => {
-		const asset = String(req.params.asset).toUpperCase();
-		if (!/^[A-Z0-9]{1,20}$/.test(asset)) return res.status(400).json({ error: "Moeda inválida" });
-		return handle(() => buildAssetTrades(asset))(req, res, next);
-	});
+	app.get("/trade-history/:asset", validAsset, handle((req) => buildAssetTrades(req.asset)));
 
 	// Mapa de liquidação estimado de uma moeda (futuros perpétuos: open interest + long/short, 30 dias)
-	app.get("/liquidation-map/:asset", (req, res, next) => {
-		const asset = String(req.params.asset).toUpperCase();
-		if (!/^[A-Z0-9]{1,20}$/.test(asset)) {
-			return res.status(400).json({ error: "Moeda inválida" });
-		}
-		return handle(() => buildLiquidationMap(asset))(req, res, next);
-	});
+	app.get("/liquidation-map/:asset", validAsset, handle((req) => buildLiquidationMap(req.asset)));
 
 	// Dados de futuros de uma moeda: open interest, long/short e funding (?period=1h|4h|1d)
-	app.get("/futures-data/:asset", (req, res, next) => {
-		const asset = String(req.params.asset).toUpperCase();
+	app.get("/futures-data/:asset", validAsset, (req, res, next) => {
 		const period = String(req.query.period || "1d");
-		if (!/^[A-Z0-9]{1,20}$/.test(asset)) return res.status(400).json({ error: "Moeda inválida" });
 		if (!FUTURES_PERIODS.has(period)) return res.status(400).json({ error: "Período inválido" });
-		return handle(() => buildFuturesData(asset, period))(req, res, next);
+		return handle(() => buildFuturesData(req.asset, period))(req, res, next);
 	});
 
 	// Liquidações reais (Binance + Bybit + OKX, via Coinalyze) por período (?interval=1h|4h|1d|1w|1M)
-	app.get("/liquidations/:asset", (req, res, next) => {
-		const asset = String(req.params.asset).toUpperCase();
+	app.get("/liquidations/:asset", validAsset, (req, res, next) => {
 		const interval = String(req.query.interval || "1d");
-		if (!/^[A-Z0-9]{1,20}$/.test(asset)) return res.status(400).json({ error: "Moeda inválida" });
 		if (!LIQUIDATION_INTERVALS.has(interval)) return res.status(400).json({ error: "Intervalo inválido" });
-		return handle(() => buildLiquidations(asset, interval))(req, res, next);
+		return handle(() => buildLiquidations(req.asset, interval))(req, res, next);
 	});
 
 	// Ordens executadas (agrupadas a partir dos trades)
@@ -156,11 +146,7 @@ export function registerRoutes(app) {
 	// Série de preços de uma moeda em USDT.
 	//   ?interval=1h|4h|1d|1w|1M [&limit=1..1000] [&before=ms]  → velas desse tamanho (usado pelo gráfico)
 	//   ?range=7d|30d|90d|1y|all ou <n>d|<n>m|<n>y [&before=ms] → tamanho escolhido pelo período (compat.)
-	app.get("/price-chart/:asset", (req, res, next) => {
-		const asset = String(req.params.asset).toUpperCase();
-		if (!/^[A-Z0-9]{1,20}$/.test(asset)) {
-			return res.status(400).json({ error: "Moeda inválida" });
-		}
+	app.get("/price-chart/:asset", validAsset, (req, res, next) => {
 		const interval = req.query.interval ? String(req.query.interval) : null;
 		if (interval && !CHART_INTERVALS.has(interval)) {
 			return res.status(400).json({ error: "Intervalo inválido" });
@@ -169,7 +155,7 @@ export function registerRoutes(app) {
 		const limit = Number(req.query.limit);
 
 		return handle(() =>
-			buildPriceChart(asset, {
+			buildPriceChart(req.asset, {
 				range: String(req.query.range || "30d"),
 				interval,
 				limit: Number.isInteger(limit) ? Math.min(1000, Math.max(1, limit)) : null,

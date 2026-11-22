@@ -1,7 +1,7 @@
 // Formatação pt-BR (public/core/format.js), escapeHtml (public/core/dom.js) e eixos (chart/axis.js).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { formatPct, formatPrice, formatQty, formatSigned, signClass } from "../../public/core/format.js";
+import { formatPct, formatPrice, formatQty, formatSigned, formatUsdShort, signClass } from "../../public/core/format.js";
 import { escapeHtml } from "../../public/core/dom.js";
 import { formatAxisPrice, fromChartTime, priceFormatFor, toChartTime } from "../../public/components/price-chart/chart/axis.js";
 
@@ -36,6 +36,14 @@ test("formatSigned, formatPct e signClass", () => {
   assert.equal(signClass(-1), "pnl-neg");
   assert.equal(signClass(0.001), "");
   assert.equal(signClass(null), "");
+});
+
+test("formatUsdShort: dólar abreviado em B, M e K", () => {
+  assert.equal(formatUsdShort(1.23e9), "1,2B");
+  assert.equal(formatUsdShort(100.6e6), "100,6M");
+  assert.equal(formatUsdShort(850e3), "850K");
+  assert.equal(formatUsdShort(1499), "1K");
+  assert.equal(formatUsdShort(42.4), "42");
 });
 
 test("escapeHtml", () => {

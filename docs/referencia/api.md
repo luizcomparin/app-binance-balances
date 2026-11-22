@@ -11,7 +11,7 @@ storage: []
 
 Todas as rotas estão em `server/routes.js`. Do lado da página, as funções correspondentes estão em `public/api/binance.js`. Formato de erro e o `handle()`: ver [visao-geral](../arquitetura/visao-geral.md#contrato-de-erro).
 
-**Validação comum de `:asset`:** `String(param).toUpperCase()` + `/^[A-Z0-9]{1,20}$/`, senão `400 { error: "Moeda inválida" }`. Só `/orders/:asset` **não** valida (ver débitos).
+**Validação comum de `:asset`:** o middleware `validAsset` (em `routes.js`) faz `String(param).toUpperCase()` + `/^[A-Z0-9]{1,20}$/`, senão responde `400 { error: "Moeda inválida" }`. A moeda normalizada fica em `req.asset`. Vale para todas as rotas com `:asset`.
 
 **Sem chave da Binance:** as rotas que chamam `signedGet` respondem `401 { code: "API_KEY_MISSING" }`. São elas `/raw`, `/balances`, `/positions`, `/avg-buy-prices`, `/orders*`, `/order-history`, `/trade-history` e `/executed-orders`. As rotas de mercado (`/price-chart`, `/liquidation-map`, `/futures-data`) funcionam sem chave.
 

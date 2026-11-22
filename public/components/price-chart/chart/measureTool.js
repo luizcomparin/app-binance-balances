@@ -2,7 +2,7 @@
 // um clique fixa a medida e o próximo clique apaga. Esc cancela.
 // Mostra a variação de preço (valor e %), quantas velas, o tempo e o volume (USDT) entre os dois pontos.
 import { formatPrice } from "../../../core/format.js";
-import { formatUsdShort } from "./liquidationOverlay.js";
+import { formatUsdShort } from "../../../core/format.js";
 import { INTERVAL_MS } from "../timeframe.js";
 
 const UP = { fill: "rgba(41, 98, 255, 0.2)", line: "#2962ff", box: "rgba(41, 98, 255, 0.92)" };

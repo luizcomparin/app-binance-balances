@@ -58,6 +58,14 @@ export function formatPct(value) {
   return `${value >= 0 ? "+" : ""}${value.toFixed(2).formatCurrency()}%`;
 }
 
+// Valor em dólar abreviado: "100,6M" / "850K" / "1,2B" (eixos e rótulos do gráfico de preço)
+export function formatUsdShort(v) {
+  if (v >= 1e9) return `${(v / 1e9).toFixed(1).replace(".", ",")}B`;
+  if (v >= 1e6) return `${(v / 1e6).toFixed(1).replace(".", ",")}M`;
+  if (v >= 1e3) return `${Math.round(v / 1e3)}K`;
+  return String(Math.round(v));
+}
+
 // Data e hora curtas no fuso local: "19/11/26, 14:05"
 export function formatDateTime(ms) {
   return new Date(ms).toLocaleString("pt-BR", {

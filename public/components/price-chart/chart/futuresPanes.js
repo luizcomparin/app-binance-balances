@@ -3,7 +3,7 @@
 //   2. Open interest (USDT)   3. Long/Short (% comprados: contas e top traders)   4. Taxa de funding
 //   5. Liquidações reais (longs e shorts liquidados em US$; independente dos de futuros, sempre por último)
 // Os de futuros vêm em períodos próprios (1h/4h/1d e funding a cada 8h) e são encaixados nas velas do gráfico.
-import { formatUsdShort } from "./liquidationOverlay.js";
+import { formatUsdShort } from "../../../core/format.js";
 import { toChartTime } from "./axis.js";
 import { movingAverage, maColor, maLabel } from "./movingAverage.js";
 

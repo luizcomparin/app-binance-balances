@@ -51,14 +51,14 @@ Algumas abas só carregam os dados quando abertas: Ordens Executadas e o própri
 componente (public/components/...)
   └─ public/api/binance.js        apiFetch(): tenta de novo por 15 s se o server estiver reiniciando
        └─ HTTP GET /rota
-            └─ server/routes.js   valida a entrada (ex.: :asset ^[A-Z0-9]{1,20}$) → handle(fn)
+            └─ server/routes.js   valida a entrada (validAsset: :asset ^[A-Z0-9]{1,20}$) → handle(fn)
                  └─ server/services/x.js      regra de negócio, geralmente com cached(key, ttl, fn)
                       └─ server/binance/*.js | server/coinalyze/client.js   chamadas externas
 ```
 
 ## Contrato de erro
 
-- As rotas registradas com `handle(fn)` respondem com o JSON retornado. Em caso de erro, respondem `500 { error: e.toString(), code }`. Sem chave da Binance, a resposta é **`401 { code: "API_KEY_MISSING" }`**. `e.toString()` inclui o prefixo `"Error: "` e, nos erros da Binance, o corpo cru da resposta.
+- As rotas registradas com `handle(fn)` respondem com o JSON retornado. Em caso de erro, respondem `500 { error: e.message, code }`. Sem chave da Binance, a resposta é **`401 { code: "API_KEY_MISSING" }`**. Nos erros da Binance, `e.message` é o corpo cru da resposta (JSON com `code` e `msg`).
 - Rotas de validação respondem `400 { error: "Moeda inválida" }` ou `"Intervalo inválido"`, ou outra mensagem do tipo.
 - As rotas `POST /settings/*` respondem `400 { error: <mensagem amigável> }` ou `403` quando a origem ou o content-type não passam.
 - Alguns serviços **não** lançam erro e respondem `200` com `{ available: false, reason }`: `liquidationMap`, `futuresData` e `liquidations`. O front trata o `reason` (ver cada doc).

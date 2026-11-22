@@ -115,7 +115,7 @@ Os detalhes ficam em [convencoes.md](docs/arquitetura/convencoes.md#checklists).
 
 - **Nova rota:**
   1. Serviço em `server/services/`.
-  2. Rota em `server/routes.js`, com `handle()` e validação de `:asset`.
+  2. Rota em `server/routes.js`, com o middleware `validAsset` (se tiver `:asset`) e `handle()`.
   3. Função em `public/api/binance.js`, usando `getJson`.
   4. Entrada em [api.md](docs/referencia/api.md) e no doc da funcionalidade.
 - **Novo componente:**

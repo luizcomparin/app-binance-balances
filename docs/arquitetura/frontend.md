@@ -58,7 +58,7 @@ loadBalances() ── fetch /balances ──► state.currentAssets ──► em
 
 - `apiFetch(url)`: em **erro de rede** (o server reiniciando pelo nodemon), tenta de novo a cada 500 ms por até 15 s. Respostas HTTP de erro voltam normalmente.
 - `getJson(url)`: `apiFetch` + `res.json()` e lança `Error(json.error)` quando `!res.ok` ou quando existe `json.error`. É o padrão das funções novas.
-- As funções antigas (`fetchBalances`, `fetchRaw`, `fetchPositions`) **não** usam `getJson` e tratam erro de formas diferentes (ver débitos).
+- Todas as funções de leitura usam `getJson`, então um erro da API (sem chave, falha na Binance) chega como exceção com a mensagem do server.
 - `saveApiKey` e `saveCoinalyzeKey` usam `fetch` direto (sem retry), com POST JSON.
 
 O mapa função → rota está em [api](../referencia/api.md).
@@ -67,14 +67,14 @@ O mapa função → rota está em [api](../referencia/api.md).
 
 | Arquivo | Para quê |
 |---|---|
-| `format.js` | **Estende `String.prototype` e `Number.prototype` com `formatCurrency()`** (2 casas, pt-BR). Também exporta `formatPrice` (casas adaptativas), `formatQty`, `formatSigned`, `formatPct`, `signClass` (`pnl-pos`/`pnl-neg`) e `formatDateTime`. É importado primeiro em `index.js` por causa do efeito colateral. |
+| `format.js` | **Estende `String.prototype` e `Number.prototype` com `formatCurrency()`** (2 casas, pt-BR). Também exporta `formatPrice` (casas adaptativas), `formatQty`, `formatSigned`, `formatPct`, `signClass` (`pnl-pos`/`pnl-neg`), `formatUsdShort` ("100,6M") e `formatDateTime`. É importado primeiro em `index.js` por causa do efeito colateral. |
 | `dom.js` | `showLoading`, `hideLoading`, `setText`, `setHtml` (ignoram id inexistente). |
 | `sort.js` | `toggleSort(state, key)` (mesma coluna inverte; coluna nova começa decrescente) e `compareValues`. |
 | `pairCombo.js` | Campo de busca de par com lista (teclado ↑ ↓ Enter Esc), usado em Ordens Abertas e Executadas. |
 | `positions.js` | `loadPositions()`: carga única compartilhada de `/positions` → `state` + `POSITIONS_UPDATED`. |
 | `base.css` | Variáveis de cor (`--bg`, `--card`, `--text`, `--muted`, `--accent`…), layout, tabelas, botões (`.pc-btn`, `.pc-chip`), `.filter-bar`, `.pair-combo`, `.pnl-pos/.pnl-neg`. |
 
-Classes usadas em todo o app, mas definidas no CSS de um componente: `.help-tip` (dica no hover via `data-tip`), `.mini-spinner` e `.asset-link`, todas em `BalancesPanel.css` (ver débitos).
+Classes usadas em todo o app ficam em `core/base.css`: `.help-tip` (dica no hover via `data-tip`), `.mini-spinner`, `.asset-link` e a animação `spin`. As variações de contexto (dica que abre para cima nos painéis do gráfico, tamanho do spinner em cada caixa) ficam no CSS do componente, com seletores mais específicos.
 
 ## Estilo visual
 

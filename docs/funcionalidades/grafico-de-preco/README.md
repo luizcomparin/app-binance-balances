@@ -44,7 +44,7 @@ Qualquer parte do app abre uma moeda aqui com `window.openPriceChart(asset)`.
 | `buySimulator.js` | Simulador de compra e médios projetados | [simulador-e-projecoes](simulador-e-projecoes.md) |
 | `volatility.js` | Faixa estatística | [faixa-estatistica](faixa-estatistica.md) |
 | `dca.js` | Comparação com compra mensal fixa | [comparacao-dca](comparacao-dca.md) |
-| `chart/liquidationOverlay.js` | Mapa de liquidação desenhado (e `formatUsdShort`) | [mapa-de-liquidacao](mapa-de-liquidacao.md) |
+| `chart/liquidationOverlay.js` | Mapa de liquidação desenhado | [mapa-de-liquidacao](mapa-de-liquidacao.md) |
 | `chart/futuresPanes.js` | Painéis de volume, OI, L/S, funding e liquidações | [paineis-de-futuros](paineis-de-futuros.md), [liquidacoes-reais](liquidacoes-reais.md) |
 | `watchlist.js`, `assetPicker.js` | Lista lateral e seletor do título | [watchlist-e-seletor](watchlist-e-seletor.md) |
 | `openOrdersTable.js`, `orderHistoryTable.js`, `tradeHistoryTable.js`, `periodFilter.js`, `loadError.js` | Abas abaixo do gráfico | [abas-de-ordens](abas-de-ordens.md) |

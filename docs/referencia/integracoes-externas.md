@@ -47,7 +47,7 @@ Dados **públicos**, sem chave. O cliente é `fapiGet` em `server/binance/future
   - Em 429/418, pausa pelo `Retry-After` e tenta de novo uma vez.
   - Esperas acima de 15 s não seguram a requisição: falham na hora com status 429 e a mensagem "Limite de requisições da Binance Futures atingido (tente em Ns)". O painel mostra "indisponíveis".
 - Perpétuos: `GET /fapi/v1/exchangeInfo` (cache de 6 h). Filtra `contractType=PERPETUAL`, `quoteAsset=USDT` e `status=TRADING`.
-- Moedas de preço muito baixo são negociadas em lotes. `getPerpetualFor(asset)` tenta os prefixos `""`, `"1000"`, `"1000000"` e `"1M"` e devolve `multiplier` (preço do contrato = preço spot × multiplier).
+- Moedas de preço muito baixo são negociadas em lotes. `getPerpetualFor(asset)` tenta os prefixos de `LOT_PREFIXES` (`""`, `"1000"`, `"1000000"` e `"1M"`, também usados pelas liquidações reais) e devolve `multiplier` (preço do contrato = preço spot × multiplier).
 - Séries `/futures/data/openInterestHist`, `/globalLongShortAccountRatio` e `/topLongShortPositionRatio`: no máximo 500 por requisição e **só 30 dias** de histórico. `futuresDataSeries` pagina para trás com `endTime`.
 - `GET /fapi/v1/fundingRate?limit=1000` (cerca de 333 dias), `GET /fapi/v1/premiumIndex` (próximo funding) e `GET /fapi/v1/klines` (mapa de liquidação, em horas).
 

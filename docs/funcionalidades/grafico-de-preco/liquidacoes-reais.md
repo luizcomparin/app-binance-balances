@@ -22,7 +22,7 @@ O checkbox `#price-chart-liqreal` ("Liquidações") adiciona o **último** paine
 ## Server (`services/liquidations.js`)
 
 1. Sem chave: `{ available: false, reason: "no-key" }`, sem chamar a API.
-2. `marketsFor(asset)`: busca `/exchanges` e `/future-markets` (cache de 24 h) e encontra o perpétuo USDT em Binance, Bybit e OKX (prefixos `""`, `1000`, `1000000`, `1M`). Sem nenhum: `reason: "no-market"`.
+2. `marketsFor(asset)`: busca `/exchanges` e `/future-markets` (cache de 24 h) e encontra o perpétuo USDT em Binance, Bybit e OKX (prefixos `LOT_PREFIXES` de `binance/futures.js`: `""`, `1000`, `1000000`, `1M`). Sem nenhum: `reason: "no-market"`.
 3. `GET /liquidation-history` com `convert_to_usd=true`. O intervalo depende da vela:
 
    | Vela | Intervalo na Coinalyze | Período pedido |

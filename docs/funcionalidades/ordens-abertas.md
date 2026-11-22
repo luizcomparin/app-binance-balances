@@ -72,7 +72,7 @@ O mesmo serviço atende `/orders/:asset`, usado pelo gráfico de preço (ver [ab
 ## Checklist ao alterar
 
 - Campo novo: `services/openOrders.js` → normalização em `loadOrders` → `summarize`/`groupRow`/`orderRow` → `GROUP_SORT` se for ordenável.
-- O `colspan='7'` aparece fixo em três lugares.
+- Coluna nova: ajuste `COLUMNS` (colspan das linhas de aviso) no topo de `OrdersPanel.js`.
 
 ## Como verificar
 
