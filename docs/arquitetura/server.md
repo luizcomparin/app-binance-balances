@@ -1,7 +1,7 @@
 ---
 titulo: Arquitetura do server
 resumo: Camadas config → clientes externos → cache → serviços → rotas, e a responsabilidade de cada arquivo.
-arquivos: [server.js, server/config.js, server/routes.js, server/lib/cache.js, server/binance/client.js, server/binance/account.js, server/binance/market.js, server/binance/futures.js, server/coinalyze/client.js]
+arquivos: [server.js, server/config.js, server/routes.js, server/lib/cache.js, server/lib/rateLimit.js, server/binance/client.js, server/binance/account.js, server/binance/market.js, server/binance/futures.js, server/coinalyze/client.js]
 rotas: []
 eventos: []
 storage: []
@@ -17,6 +17,7 @@ Cada camada só importa as que estão abaixo dela.
 routes.js            HTTP: valida a entrada, chama 1 serviço e formata o erro (handle, sameOriginJson)
 services/*.js        regra de negócio; um arquivo por funcionalidade/rota
 lib/cache.js         cached(), mapLimit(), clearCache()
+lib/rateLimit.js     limitador de requisições da fapi e da Coinalyze
 binance/*.js         clientes da Binance (spot assinado/público, futures público)
 coinalyze/client.js  cliente da Coinalyze
 config.js            .env, chaves em memória, gravação no .env, constantes (BASE_URL, DAY_MS)
@@ -32,8 +33,9 @@ config.js            .env, chaves em memória, gravação no .env, constantes (B
 | `binance/client.js` | `publicGet` e `signedGet`/`signedGetWith` (HMAC-SHA256, `recvWindow` de 10 s, timestamp corrigido pelo offset do relógio). Controle de peso (`X-MBX-USED-WEIGHT-1M`, pausa perto de 5000/6000). Em 429/418 respeita o `Retry-After` e tenta 1 vez. Em `-1021` ressincroniza e tenta 1 vez. `MissingCredentialsError` (code `API_KEY_MISSING`) | `publicGet`, `signedGet`, `signedGetWith`, `MissingCredentialsError` |
 | `binance/account.js` | Endpoints assinados: `/api/v3/account` (15 s), `/api/v3/openOrders` (15 s), `/api/v3/allOrders` por símbolo (60 s). `myTrades` com **cache incremental por símbolo** (ver abaixo) | `getRawBinanceAccount`, `getAccountBalances`, `getOpenOrders`, `getAllOrders`, `getAllMyTrades`, `clearTradesCache` |
 | `binance/market.js` | Cotações (`ticker/price`, 15 s), ticker 24h MINI (15 s), `exchangeInfo` (6 h). `getPriceInUSDT(asset, prices)` converte para USDT. `resolveSymbol` separa base/quote | `getAllPrices`, `getTickers24h`, `getSymbolInfo`, `getPriceInUSDT`, `resolveSymbol` |
-| `binance/futures.js` | `fapiGet` (público, **sem** controle de peso). Mapa de perpétuos USDT (6 h). `getPerpetualFor(asset)` resolve prefixos de lote (`1000PEPE`…). `futuresDataSeries` pagina `/futures/data/*` para trás (500 por página, 30 dias no máximo) | `fapiGet`, `getPerpetualFor`, `futuresDataSeries` |
-| `coinalyze/client.js` | `coinalyzeGet(path, params, key)` com header `api_key`. Erros com `code` `COINALYZE_KEY_MISSING`, `COINALYZE_KEY_INVALID` (401), `COINALYZE_RATE_LIMIT` (429) ou `COINALYZE_ERROR` | `coinalyzeGet` |
+| `lib/rateLimit.js` | `createRateLimiter({ name, maxRequests, windowMs, weightHeader, maxWeight, maxWaitMs })`: teto por janela, teto de peso informado pela API e pausa em 429/418 pelo `Retry-After`. Esperas acima de `maxWaitMs` (15 s) lançam `RateLimitError` (status 429) na hora. `limitedFetch(limiters, url, options)` passa por todos os limitadores e tenta de novo uma vez depois de um 429/418 | `createRateLimiter`, `limitedFetch`, `RateLimitError` |
+| `binance/futures.js` | `fapiGet` (público, via `lib/rateLimit.js`: peso de até 2000/2400 por minuto e, em `/futures/data/*`, até 900/1000 requisições a cada 5 min). Mapa de perpétuos USDT (6 h). `getPerpetualFor(asset)` resolve prefixos de lote (`1000PEPE`…). `futuresDataSeries` pagina `/futures/data/*` para trás (500 por página, 30 dias no máximo) | `fapiGet`, `getPerpetualFor`, `futuresDataSeries` |
+| `coinalyze/client.js` | `coinalyzeGet(path, params, key)` com header `api_key`, via `lib/rateLimit.js` (um limitador por chave, com até 38 de 40 requisições por minuto). Erros com `code` `COINALYZE_KEY_MISSING`, `COINALYZE_KEY_INVALID` (401), `COINALYZE_RATE_LIMIT` (429) ou `COINALYZE_ERROR` | `coinalyzeGet` |
 
 ### Serviços
 

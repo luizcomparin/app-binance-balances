@@ -36,6 +36,7 @@ server/
   config.js                .env (PORT, chaves), troca de chaves em memória + gravação no .env
   routes.js                todas as rotas HTTP (validam a entrada e chamam um serviço)
   lib/cache.js             cached() (memoização com TTL e promise compartilhada) e mapLimit()
+  lib/rateLimit.js         limitador de requisições (fapi e Coinalyze): teto por janela/peso, 429 + Retry-After
   binance/client.js        GET público/assinado, limite de peso, 429/418, sincronização de relógio
   binance/account.js       conta, ordens abertas, allOrders, cache incremental de myTrades
   binance/market.js        cotações, ticker 24h, exchangeInfo, conversão p/ USDT
@@ -99,7 +100,7 @@ Para achar o doc de um arquivo específico, faça um grep pelo caminho: `grep -r
 1. **Escopo estrito.** Faça só o que foi pedido. Não refatore, não "melhore" e não corrija nada fora do pedido. Débitos encontrados vão para [debitos-tecnicos.md](docs/debitos-tecnicos.md), não para o código. Antes de mudar algo que parece errado, veja [decisoes.md](docs/decisoes.md). Os cards fixos USDT/BTC/XRP/ETH, por exemplo, são intencionais.
 2. **Nunca leia, exiba, copie ou commite o `.env`.** Ele tem as chaves reais da conta. O `.gitignore` já o exclui. Use `.env.example` como referência.
 3. **Só leitura na Binance.** O app nunca cria, cancela ou altera ordens, e assim deve continuar. Não adicione chamadas que não sejam GET a endpoints de leitura.
-4. **Respeite os limites das APIs.** Toda chamada à Binance spot passa por `publicGet`/`signedGet` (em `server/binance/client.js`), que controlam o peso. Novas chamadas caras precisam de cache (`cached`). Veja [integracoes-externas.md](docs/referencia/integracoes-externas.md).
+4. **Respeite os limites das APIs.** Toda chamada à Binance spot passa por `publicGet`/`signedGet` (em `server/binance/client.js`), que controlam o peso. A fapi passa por `fapiGet` e a Coinalyze por `coinalyzeGet`, que usam `server/lib/rateLimit.js`. Nunca chame essas APIs com `fetch` direto. Novas chamadas caras precisam de cache (`cached`). Veja [integracoes-externas.md](docs/referencia/integracoes-externas.md).
 5. **Mudança que atravessa front e server:** atualize os dois lados *e* os dois docs de referência ([api.md](docs/referencia/api.md) e o doc da funcionalidade).
 6. **PT-BR** em comentários, textos de interface, mensagens de erro e documentação. Os nomes de código seguem em inglês, como já são.
 7. **Sem testes automatizados e sem build.** A verificação é manual: rode `npm run dev`, abra a aba afetada e siga a seção "Como verificar" do doc da funcionalidade. Diga explicitamente o que foi e o que não foi verificado.

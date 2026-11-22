@@ -1,7 +1,7 @@
 ---
 titulo: Integrações externas
 resumo: Endpoints da Binance spot, Binance Futures e Coinalyze usados, limites, tratamento de erros e bibliotecas de CDN.
-arquivos: [server/binance/client.js, server/binance/account.js, server/binance/market.js, server/binance/futures.js, server/coinalyze/client.js, public/index.html]
+arquivos: [server/lib/rateLimit.js, server/binance/client.js, server/binance/account.js, server/binance/market.js, server/binance/futures.js, server/coinalyze/client.js, public/index.html]
 rotas: []
 eventos: []
 storage: []
@@ -41,7 +41,11 @@ A operação mais cara é a primeira carga de `/positions`: um `myTrades` para c
 
 Dados **públicos**, sem chave. O cliente é `fapiGet` em `server/binance/futures.js`.
 
-- ⚠ **Não passa** pelo controle de peso nem trata 429 (ver débitos). O limite dos futuros é separado do spot (2400/min).
+- **Limites** (separados do spot), controlados por `server/lib/rateLimit.js`:
+  - peso de 2400/min, lido de `X-MBX-USED-WEIGHT-1M` (o app espera o minuto virar ao passar de 2000);
+  - séries `/futures/data/*`: 1000 requisições a cada 5 min (o app para em 900).
+  - Em 429/418, pausa pelo `Retry-After` e tenta de novo uma vez.
+  - Esperas acima de 15 s não seguram a requisição: falham na hora com status 429 e a mensagem "Limite de requisições da Binance Futures atingido (tente em Ns)". O painel mostra "indisponíveis".
 - Perpétuos: `GET /fapi/v1/exchangeInfo` (cache de 6 h). Filtra `contractType=PERPETUAL`, `quoteAsset=USDT` e `status=TRADING`.
 - Moedas de preço muito baixo são negociadas em lotes. `getPerpetualFor(asset)` tenta os prefixos `""`, `"1000"`, `"1000000"` e `"1M"` e devolve `multiplier` (preço do contrato = preço spot × multiplier).
 - Séries `/futures/data/openInterestHist`, `/globalLongShortAccountRatio` e `/topLongShortPositionRatio`: no máximo 500 por requisição e **só 30 dias** de histórico. `futuresDataSeries` pagina para trás com `endTime`.
@@ -54,7 +58,8 @@ Agregador de derivativos. É **opcional**: só o painel de Liquidações reais u
 - `GET /exchanges` serve para testar a chave e mapear os códigos das corretoras.
 - `GET /future-markets` traz os mercados perpétuos (cache de 24 h).
 - `GET /liquidation-history?symbols&interval&from&to&convert_to_usd=true`.
-- Os erros chegam com `code`: `COINALYZE_KEY_MISSING`, `COINALYZE_KEY_INVALID` (401), `COINALYZE_RATE_LIMIT` (429) e `COINALYZE_ERROR`. Não há retry.
+- Os erros chegam com `code`: `COINALYZE_KEY_MISSING`, `COINALYZE_KEY_INVALID` (401), `COINALYZE_RATE_LIMIT` (429) e `COINALYZE_ERROR`.
+- **Limite:** `lib/rateLimit.js` usa um limitador por chave, com até 38 requisições por minuto. Em 429, espera o `Retry-After` e tenta de novo uma vez. Esperas acima de 15 s viram `COINALYZE_RATE_LIMIT` na hora.
 - O histórico intradiário (1h/4h) da Coinalyze é curto. O app pede 120 dias em 1h e 2 anos em 4h; o diário vai desde 2019.
 
 ## Bibliotecas por CDN (`public/index.html`)

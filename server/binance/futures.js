@@ -1,10 +1,17 @@
 // Dados públicos dos futuros USDⓈ-M da Binance (fapi): sem chave, só leitura de mercado.
-import fetch from "node-fetch";
+import { createRateLimiter, limitedFetch } from "../lib/rateLimit.js";
 
 const FAPI_URL = "https://fapi.binance.com";
 
+// Limites da fapi (por IP, separados do spot): peso de 2400 por minuto, informado em cada resposta
+// (X-MBX-USED-WEIGHT-1M), e as séries /futures/data/* com teto próprio de 1000 requisições a cada 5 min.
+// Ficamos abaixo dos dois com folga.
+const weightLimiter = createRateLimiter({ name: "Binance Futures", weightHeader: "x-mbx-used-weight-1m", maxWeight: 2000 });
+const dataLimiter = createRateLimiter({ name: "Binance Futures", maxRequests: 900, windowMs: 5 * 60 * 1000 });
+
 export async function fapiGet(pathAndQuery) {
-	const res = await fetch(`${FAPI_URL}${pathAndQuery}`);
+	const limiters = pathAndQuery.startsWith("/futures/data/") ? [weightLimiter, dataLimiter] : [weightLimiter];
+	const res = await limitedFetch(limiters, `${FAPI_URL}${pathAndQuery}`);
 	if (!res.ok) {
 		const err = new Error(await res.text());
 		err.status = res.status;
