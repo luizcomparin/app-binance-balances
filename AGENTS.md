@@ -22,6 +22,7 @@ São duas partes:
 npm install
 npm run dev      # nodemon (reinicia o server ao salvar server/, server.js ou .env) + livereload da página
 npm start        # node server.js (sem livereload)
+npm test         # testes automatizados (node --test, em test/)
 ```
 
 - Requer Node **≥ 20.12** por causa do `process.loadEnvFile()` (testado no 22).
@@ -50,6 +51,7 @@ public/
   core/                    state, eventos, formatação, ordenação, pairCombo, carga de posições
   components/<nome>/       cada componente = <Nome>.html + .css + .js
   components/price-chart/  gráfico de preço (o maior módulo; ver docs/funcionalidades/grafico-de-preco)
+test/                      testes das funções puras (server/ e public/), rodados por npm test
 docs/                      documentação oficial (índice em docs/README.md)
 ```
 
@@ -103,7 +105,7 @@ Para achar o doc de um arquivo específico, faça um grep pelo caminho: `grep -r
 4. **Respeite os limites das APIs.** Toda chamada à Binance spot passa por `publicGet`/`signedGet` (em `server/binance/client.js`), que controlam o peso. A fapi passa por `fapiGet` e a Coinalyze por `coinalyzeGet`, que usam `server/lib/rateLimit.js`. Nunca chame essas APIs com `fetch` direto. Novas chamadas caras precisam de cache (`cached`). Veja [integracoes-externas.md](docs/referencia/integracoes-externas.md).
 5. **Mudança que atravessa front e server:** atualize os dois lados *e* os dois docs de referência ([api.md](docs/referencia/api.md) e o doc da funcionalidade).
 6. **PT-BR** em comentários, textos de interface, mensagens de erro e documentação. Os nomes de código seguem em inglês, como já são.
-7. **Sem testes automatizados e sem build.** A verificação é manual: rode `npm run dev`, abra a aba afetada e siga a seção "Como verificar" do doc da funcionalidade. Diga explicitamente o que foi e o que não foi verificado.
+7. **Rode `npm test`** depois de mexer em regra de negócio (custo médio, timeframe, volatilidade, DCA, indicadores, simulador, formatação, cache, limitador). Funções puras novas ganham testes em `test/` (ver [convencoes.md](docs/arquitetura/convencoes.md#testes)). Não há build, e a interface não tem testes: verifique manualmente com `npm run dev`, abrindo a aba afetada e seguindo a seção "Como verificar" do doc da funcionalidade. Diga explicitamente o que foi e o que não foi verificado.
 8. **Sem dependências novas** sem pedir. No front, bibliotecas só por CDN com versão fixa, como as atuais.
 9. **Commits** só quando pedido, com mensagem em PT-BR no formato `feat: …` / `fix: …` / `docs: …` (ver `git log`).
 

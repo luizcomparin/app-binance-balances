@@ -19,7 +19,7 @@ storage: []
 | Gráficos | Chart.js 4.4.1 (aba Distribuição) e TradingView Lightweight Charts 5.0.8 (gráfico de preço) | Vêm de CDN (jsDelivr), carregados em `public/index.html` e usados como globais `Chart` e `window.LightweightCharts`. |
 | Dados | API spot da Binance (assinada), Binance Futures `fapi` (pública), Coinalyze (opcional) | Ver [integracoes-externas](../referencia/integracoes-externas.md). |
 
-Não há banco de dados, testes, lint nem build. Todo o estado do server fica **em memória** (caches) e se perde ao reiniciar. O único arquivo que o server grava é o `.env`, quando a pessoa troca as chaves pelo dashboard.
+Não há banco de dados, lint nem build. Os testes automatizados (`npm test`) cobrem só as funções puras; a interface é verificada à mão (ver [convencoes](convencoes.md#testes)). Todo o estado do server fica **em memória** (caches) e se perde ao reiniciar. O único arquivo que o server grava é o `.env`, quando a pessoa troca as chaves pelo dashboard.
 
 ## Boot do server (`server.js`)
 

@@ -41,6 +41,14 @@ O código existente nem sempre segue estes padrões ([debitos-tecnicos](../debit
 - **HTML com texto vindo de fora** (mensagem de erro do server, nomes vindos da API): escape antes de colocar em `innerHTML` com `escapeHtml` de `public/core/dom.js`.
 - **Spinner inline:** `<span class="mini-spinner"></span> Carregando...`. Estado de checkbox carregando ou indisponível: classes `is-loading` / `disabled` no `<label>` (ver `update*Availability` em `PriceChartPanel.js`).
 
+## Testes
+
+- `npm test` roda `node --test`, que acha sozinho os arquivos `*.test.js` em `test/`. Não há dependência nova: só `node:test` e `node:assert`.
+- `test/server/` e `test/public/` espelham as pastas do código. Um arquivo de teste por módulo, com o nome do módulo.
+- **Só módulos puros**: sem DOM, sem rede e sem `.env`. Hoje são cobertos `positionMath`, `lib/cache`, `lib/rateLimit` (contra um servidor HTTP local), `timeframe`, `volatility`, `dca`, `movingAverage`, `bollinger`, `buySimulator`, `core/format`, `escapeHtml` e `chart/axis`.
+- Módulos que importam o cliente da Binance (`server/binance/*`, a maioria dos serviços) **não** podem ser importados nos testes: o import lê o `.env` e sincroniza o relógio pela rede. Para testar uma regra de negócio que mora num deles, extraia a conta para um módulo puro, com as dependências recebidas como parâmetro. Foi o que se fez com `computePosition` em `server/services/positionMath.js`.
+- Módulos do front que usam `window` ou `document` no topo (ex.: `chart/overlays.js`, que lê `window.LightweightCharts`) também não carregam no Node. Funções que só usam o DOM quando chamadas (ex.: `core/dom.js`) carregam.
+- Datas nos testes: monte no calendário local (`new Date(a, m, d)`) quando o código usa o fuso local, e em UTC quando ele usa UTC.
 ## Checklists
 
 ### Nova rota
@@ -78,4 +86,5 @@ Ver [grafico-de-preco/README](../funcionalidades/grafico-de-preco/README.md#como
 ### Toda mudança
 
 - Atualize o cabeçalho YAML e o corpo do doc da funcionalidade no mesmo commit.
+- Rode `npm test`. Se mexeu numa função pura, ajuste ou acrescente o teste dela.
 - Verifique manualmente (seção "Como verificar" do doc) e diga o que foi testado.

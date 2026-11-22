@@ -1,7 +1,7 @@
 ---
 titulo: Saldos por moeda, preço médio e P&L
 resumo: Aba Saldos com tabela por moeda e resumo de P&L; /positions calcula custo médio dinâmico, P&L realizado/não realizado e cobertura a partir do histórico de trades.
-arquivos: [server/services/positions.js, server/services/tradeHistory.js, server/binance/account.js, public/core/positions.js, public/components/balances/BalancesPanel.js, public/components/balances/BalancesPanel.html, public/components/balances/BalancesPanel.css]
+arquivos: [server/services/positions.js, server/services/positionMath.js, server/services/tradeHistory.js, server/binance/account.js, public/core/positions.js, public/components/balances/BalancesPanel.js, public/components/balances/BalancesPanel.html, public/components/balances/BalancesPanel.css]
 rotas: [GET /positions, GET /avg-buy-prices, GET /balances]
 eventos: [BALANCES_UPDATED, POSITIONS_UPDATED]
 storage: [balances-simple-view]
@@ -40,7 +40,7 @@ O **mesmo** P&L alimenta os gráficos de P&L ([graficos-de-distribuicao](grafico
 2. **Holdings:** moedas com `qty > 0`, **exceto** USDT/FDUSD/USDC/BUSD/BRL e `LD*`.
 3. Para cada holding, cada par `<moeda>/<cotação>` existente com cotação em `PNL_QUOTES` (`USDT, FDUSD, USDC, BUSD, BRL, BTC, ETH, BNB`) → `getAllMyTrades(symbol)`, com `mapLimit` 4. Falhas por par vão para `errors`. 429/418 aborta tudo.
 4. Carrega os **fechamentos diários** de cada moeda de cotação e de taxa não estável, desde o primeiro trade (`loadDailyRates`), para `rateToUSDTAt(asset, time)` converter na data do trade.
-5. `computePosition` percorre os trades ordenados por `(time, id)`. O resultado de `/positions` está em [api.md](../referencia/api.md#get-positions).
+5. `computePosition` (em `positionMath.js`, função pura, testada em `test/server/positionMath.test.js`) percorre os trades ordenados por `(time, id)`. Recebe `quoteAssetOf(symbol)` e `rateAt(asset, time)`, que `positions.js` monta com `resolveSymbol` e `rateToUSDTAt`. O resultado de `/positions` está em [api.md](../referencia/api.md#get-positions).
 
 ## Regras de negócio (`computePosition`)
 

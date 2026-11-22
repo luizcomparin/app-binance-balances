@@ -44,6 +44,7 @@ config.js            .env, chaves em memória, gravação no .env, constantes (B
 | `wallet.js` | `/balances` | [carteira-e-cards](../funcionalidades/carteira-e-cards.md) |
 | `tradeHistory.js` (base compartilhada) | — | [saldos-e-pnl](../funcionalidades/saldos-e-pnl.md) |
 | `positions.js` | `/positions`, `/avg-buy-prices` | [saldos-e-pnl](../funcionalidades/saldos-e-pnl.md) |
+| `positionMath.js` (pura, usada por `positions.js`) | — | [saldos-e-pnl](../funcionalidades/saldos-e-pnl.md) |
 | `openOrders.js` | `/orders`, `/orders/:asset` | [ordens-abertas](../funcionalidades/ordens-abertas.md) |
 | `executedOrders.js` | `/executed-orders` | [ordens-executadas](../funcionalidades/ordens-executadas.md) |
 | `priceChart.js` | `/price-chart/:asset` | [velas-e-timeframe](../funcionalidades/grafico-de-preco/velas-e-timeframe.md) |

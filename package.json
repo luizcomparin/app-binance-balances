@@ -10,7 +10,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js --livereload"
+    "dev": "nodemon server.js --livereload",
+    "test": "node --test"
   },
   "engines": {
     "node": ">=20.12"

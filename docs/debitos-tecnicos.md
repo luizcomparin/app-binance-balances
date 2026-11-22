@@ -77,7 +77,6 @@ Severidade: **Alta** = pode mostrar número errado ou quebrar uma funcionalidade
 |---|---|---|---|
 | A1 | Média | `PriceChartPanel.js` tem cerca de 1200 linhas e concentra o estado, os controles, 6 camadas, as cargas e as caixas de texto | Extrair cada camada para um módulo (`layers/stats.js`, `layers/dca.js`, `layers/liquidation.js`…) com `{ init, onAsset, chartOpts, renderBox }` |
 | A2 | Média | `chart/createChart.js` (cerca de 560 linhas) e `chart/futuresPanes.js` (cerca de 600) | Separar os indicadores (`drawIndicators`) e o crosshair/tooltip em módulos |
-| A3 | Média | Sem testes. As funções puras (`timeframe`, `volatility`, `dca`, `movingAverage`, `bollinger`, `positions.computePosition`, `buySimulator`) seriam fáceis de testar | `node --test` sem dependências novas |
 | A4 | Baixa | `core/format.js` estende `String.prototype` e `Number.prototype` (`formatCurrency`) | Funções puras (`formatMoney(v)`) |
 | A5 | Baixa | Sem ESLint e Prettier. O server usa tabs e o front usa espaços | Configurar um formatador (se a pessoa quiser) |
 

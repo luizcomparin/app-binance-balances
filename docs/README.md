@@ -108,7 +108,7 @@ As seções aparecem sempre nesta ordem; quando uma não se aplica, ela é omiti
 | `server/binance/futures.js` | [paineis-de-futuros](funcionalidades/grafico-de-preco/paineis-de-futuros.md), [mapa-de-liquidacao](funcionalidades/grafico-de-preco/mapa-de-liquidacao.md) |
 | `server/coinalyze/client.js` | [liquidacoes-reais](funcionalidades/grafico-de-preco/liquidacoes-reais.md) |
 | `server/services/wallet.js` | [carteira-e-cards](funcionalidades/carteira-e-cards.md) |
-| `server/services/positions.js`, `tradeHistory.js` | [saldos-e-pnl](funcionalidades/saldos-e-pnl.md) |
+| `server/services/positions.js`, `positionMath.js`, `tradeHistory.js` | [saldos-e-pnl](funcionalidades/saldos-e-pnl.md) |
 | `server/services/openOrders.js` | [ordens-abertas](funcionalidades/ordens-abertas.md) |
 | `server/services/executedOrders.js` | [ordens-executadas](funcionalidades/ordens-executadas.md) |
 | `server/services/priceChart.js` | [velas-e-timeframe](funcionalidades/grafico-de-preco/velas-e-timeframe.md) |
