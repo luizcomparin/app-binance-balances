@@ -32,7 +32,8 @@ const LWC = window.LightweightCharts;
  *                        indicators: [{ id, kind: "ma"|"bb"|"vma", period, type?, mult?, color, opacity, visible }],
  *                        ("vma" = média do volume, desenhada no painel de volume)
  *                        liquidation: resposta de /liquidation-map | null,
- *                        futures: resposta de /futures-data | null (painéis de OI, long/short e funding) }
+ *                        futures: resposta de /futures-data | null (painéis de OI, long/short e funding),
+ *                        liquidations: resposta de /liquidations | null (painel de liquidações reais) }
  *   window: { fromMs, toMs } → mostra essa janela de tempo (novo período/moeda/vela); null → tudo
  *   prepended: n → n velas antigas foram adicionadas no início (mantém a posição da tela)
  */
@@ -513,9 +514,12 @@ export function createPriceChart(els, handlers = {}) {
       summary.hidden = !opts.summary;
       liquidation.setData(opts.liquidation || null);
       // primeiro a altura final do gráfico, depois os painéis (as alturas deles partem dela)
-      // (1 painel de volume sempre que há velas + 3 de futuros quando há dados)
-      wrap.style.setProperty("--sub-panes", (s.points?.length ? 1 : 0) + (opts.futures ? 3 : 0));
-      futures.update(s.points, s.interval, opts.futures || null);
+      // (1 painel de volume sempre que há velas + 3 de futuros quando há dados + 1 de liquidações reais)
+      wrap.style.setProperty(
+        "--sub-panes",
+        s.points?.length ? 1 + (opts.futures ? 3 : 0) + (opts.liquidations ? 1 : 0) : 0
+      );
+      futures.update(s.points, s.interval, opts.futures || null, opts.liquidations || null);
       futures.setVolumeAverages((opts.indicators || []).filter((m) => m.kind === "vma" && m.visible));
       scheduleOffscreen();
     },

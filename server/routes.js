@@ -10,6 +10,8 @@ import { buildAssetTrades } from "./services/assetTrades.js";
 import { buildLiquidationMap } from "./services/liquidationMap.js";
 import { buildFuturesData, FUTURES_PERIODS } from "./services/futuresData.js";
 import { apiKeyStatus, changeApiKey } from "./services/apiKeySettings.js";
+import { buildLiquidations, LIQUIDATION_INTERVALS } from "./services/liquidations.js";
+import { changeCoinalyzeKey, coinalyzeKeyStatus } from "./services/coinalyzeKeySettings.js";
 import { PORT } from "./config.js";
 import express from "express";
 
@@ -49,6 +51,24 @@ export function registerRoutes(app) {
 				}
 			});
 			res.json({ ...status, warnings });
+		} catch (e) {
+			res.status(e.status === 400 ? 400 : 500).json({ error: e.message });
+		}
+	});
+
+	// Chave da Coinalyze (opcional, liquidações reais no gráfico): status e troca (vazia = remove)
+	app.get("/settings/coinalyze-key", (req, res) => res.json(coinalyzeKeyStatus()));
+	app.post("/settings/coinalyze-key", sameOriginJson, express.json({ limit: "2kb" }), async (req, res) => {
+		try {
+			const { status, persist } = await changeCoinalyzeKey(req.body);
+			res.on("finish", () => {
+				try {
+					persist();
+				} catch (err) {
+					console.error("Erro ao gravar a chave da Coinalyze no .env:", err.message);
+				}
+			});
+			res.json(status);
 		} catch (e) {
 			res.status(e.status === 400 ? 400 : 500).json({ error: e.message });
 		}
@@ -119,6 +139,15 @@ export function registerRoutes(app) {
 		if (!/^[A-Z0-9]{1,20}$/.test(asset)) return res.status(400).json({ error: "Moeda inválida" });
 		if (!FUTURES_PERIODS.has(period)) return res.status(400).json({ error: "Período inválido" });
 		return handle(() => buildFuturesData(asset, period))(req, res, next);
+	});
+
+	// Liquidações reais (Binance + Bybit + OKX, via Coinalyze) por período (?interval=1h|4h|1d|1w|1M)
+	app.get("/liquidations/:asset", (req, res, next) => {
+		const asset = String(req.params.asset).toUpperCase();
+		const interval = String(req.query.interval || "1d");
+		if (!/^[A-Z0-9]{1,20}$/.test(asset)) return res.status(400).json({ error: "Moeda inválida" });
+		if (!LIQUIDATION_INTERVALS.has(interval)) return res.status(400).json({ error: "Intervalo inválido" });
+		return handle(() => buildLiquidations(asset, interval))(req, res, next);
 	});
 
 	// Ordens executadas (agrupadas a partir dos trades)

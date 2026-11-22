@@ -33,6 +33,24 @@ export async function saveApiKey(apiKey, apiSecret) {
   return json;
 }
 
+// ---- Configurações: chave da Coinalyze (opcional; liquidações reais no gráfico de preço) ----
+export async function fetchCoinalyzeKeyStatus() {
+  const res = await apiFetch("/settings/coinalyze-key");
+  return res.json();
+}
+
+// apiKey vazia = remove a chave
+export async function saveCoinalyzeKey(apiKey) {
+  const res = await fetch("/settings/coinalyze-key", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ apiKey }),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || res.statusText);
+  return json;
+}
+
 export async function fetchBalances() {
   return apiFetch("/balances").then((x) => x.json());
 }
@@ -82,6 +100,12 @@ export async function fetchLiquidationMap(asset) {
 // Dados de futuros (open interest, long/short, funding) no período 1h|4h|1d
 export async function fetchFuturesData(asset, period) {
   return getJson(`/futures-data/${encodeURIComponent(asset)}?period=${period}`);
+}
+
+// Liquidações reais (Binance + Bybit + OKX via Coinalyze) no intervalo 1h|4h|1d|1w|1M:
+// { available, exchanges, rows: [{ t, long, short, by }] } ou { available: false, reason }
+export async function fetchLiquidations(asset, interval) {
+  return getJson(`/liquidations/${encodeURIComponent(asset)}?interval=${encodeURIComponent(interval)}`);
 }
 
 // Histórico de trades (execuções) de uma moeda: { trades, errors }

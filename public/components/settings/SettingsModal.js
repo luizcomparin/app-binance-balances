@@ -1,7 +1,9 @@
 // Painel "Configurações" (engrenagem no topo): troca da chave da API da Binance.
 // A chave vai para o servidor local, que testa na Binance e grava no .env; a página só recebe
 // "configurada" e o final da chave (o secret nunca volta). Sem chave, o painel abre ao carregar.
-import { fetchApiKeyStatus, saveApiKey } from "../../api/binance.js";
+// Também a chave opcional da Coinalyze (liquidações reais no gráfico de preço).
+import { fetchApiKeyStatus, fetchCoinalyzeKeyStatus, saveApiKey, saveCoinalyzeKey } from "../../api/binance.js";
+import { COINALYZE_KEY_CHANGED, emit } from "../../core/events.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -25,15 +27,77 @@ function renderStatus(status) {
     : "Nenhuma chave configurada. Informe a API Key e a Secret Key para carregar a sua carteira.";
 }
 
-export function openSettings() {
+/** section: "coinalyze" abre já na chave da Coinalyze (com o passo a passo aberto se ainda não há chave) */
+export function openSettings(section = null) {
   const modal = $("settings-modal");
   if (!modal) return;
   modal.hidden = false;
+  setMessage("");
+  setCoinalyzeMessage("");
+  if (section === "coinalyze") {
+    const tutorial = $("settings-coinalyze-tutorial");
+    if (tutorial && !coinalyzeConfigured) tutorial.open = true;
+    $("settings-coinalyze")?.scrollIntoView({ block: "start" });
+    $("settings-coinalyze-key")?.focus();
+    return;
+  }
   // sem chave: tutorial já aberto
   const tutorial = $("settings-tutorial");
   if (tutorial && !configured) tutorial.open = true;
-  setMessage("");
   $("settings-api-key")?.focus();
+}
+
+// ---- chave da Coinalyze (opcional) ----
+let coinalyzeConfigured = false;
+
+function setCoinalyzeMessage(text, kind = "") {
+  const el = $("settings-coinalyze-message");
+  if (!el) return;
+  el.textContent = text;
+  el.className = `settings-message ${kind}`;
+  el.hidden = !text;
+}
+
+function renderCoinalyzeStatus(status) {
+  coinalyzeConfigured = !!status?.configured;
+  const el = $("settings-coinalyze-status");
+  if (el) {
+    el.className = `settings-status ${coinalyzeConfigured ? "ok" : "missing"}`;
+    el.textContent = coinalyzeConfigured
+      ? `Chave configurada (termina em ${status.keyHint}). Para trocar, informe uma nova abaixo.`
+      : "Nenhuma chave configurada. Sem ela, o painel Liquidações do gráfico fica desligado.";
+  }
+  const remove = $("settings-coinalyze-remove");
+  if (remove) remove.hidden = !coinalyzeConfigured;
+}
+
+async function submitCoinalyze(apiKey) {
+  const btn = $("settings-coinalyze-save");
+  const remove = $("settings-coinalyze-remove");
+  btn.disabled = remove.disabled = true;
+  btn.textContent = apiKey ? "Testando na Coinalyze..." : "Removendo...";
+  setCoinalyzeMessage("");
+  try {
+    renderCoinalyzeStatus(await saveCoinalyzeKey(apiKey));
+    $("settings-coinalyze-key").value = "";
+    setCoinalyzeMessage(apiKey ? "Chave salva e funcionando." : "Chave removida.", "ok");
+    emit(COINALYZE_KEY_CHANGED);
+  } catch (err) {
+    setCoinalyzeMessage(err.message, "error");
+  } finally {
+    btn.disabled = remove.disabled = false;
+    btn.textContent = "Testar e salvar";
+  }
+}
+
+function onCoinalyzeSubmit(e) {
+  e.preventDefault();
+  const apiKey = $("settings-coinalyze-key").value.trim();
+  if (!apiKey) {
+    setCoinalyzeMessage("Informe a chave da Coinalyze.", "error");
+    return;
+  }
+  submitCoinalyze(apiKey);
 }
 
 export function closeSettings() {
@@ -88,6 +152,12 @@ export async function initSettings() {
     e.currentTarget.textContent = show ? "Ocultar" : "Mostrar";
     e.currentTarget.setAttribute("aria-pressed", String(show));
   });
+
+  $("settings-coinalyze-form")?.addEventListener("submit", onCoinalyzeSubmit);
+  $("settings-coinalyze-remove")?.addEventListener("click", () => submitCoinalyze(""));
+  fetchCoinalyzeKeyStatus()
+    .then(renderCoinalyzeStatus)
+    .catch(() => renderCoinalyzeStatus(null));
 
   try {
     renderStatus(await fetchApiKeyStatus());

@@ -42,18 +42,40 @@ export function setCredentials(key, secret) {
 
 // Grava/atualiza as linhas no .env mantendo o resto do arquivo como está
 export function saveCredentialsToEnv(key, secret) {
-	let text = fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, "utf8") : "";
-	const eol = text.includes("\r\n") ? "\r\n" : "\n";
-	for (const [name, value] of [
+	saveEnvVars([
 		["BINANCE_API_KEY", key],
 		["BINANCE_API_SECRET", secret],
-	]) {
+	]);
+}
+
+// Grava/atualiza linhas NOME=valor no .env mantendo o resto do arquivo como está
+function saveEnvVars(entries) {
+	let text = fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, "utf8") : "";
+	const eol = text.includes("\r\n") ? "\r\n" : "\n";
+	for (const [name, value] of entries) {
 		const line = `${name}=${value}`;
 		const re = new RegExp(`^${name}=.*$`, "m");
 		if (re.test(text)) text = text.replace(re, () => line);
 		else text += (text && !text.endsWith("\n") ? eol : "") + line + eol;
 	}
 	fs.writeFileSync(ENV_PATH, text);
+}
+
+// ---- Chave da API da Coinalyze (opcional: histórico de liquidações reais no gráfico de preço) ----
+let coinalyzeKey = process.env.COINALYZE_API_KEY || "";
+
+export const getCoinalyzeKey = () => coinalyzeKey;
+
+// letras, números e hífen (o formato da Coinalyze é parecido com um UUID); impede quebrar linhas do .env
+export const COINALYZE_KEY_PATTERN = /^[A-Za-z0-9-]{16,128}$/;
+
+export function setCoinalyzeKey(key) {
+	coinalyzeKey = key;
+	process.env.COINALYZE_API_KEY = key;
+}
+
+export function saveCoinalyzeKeyToEnv(key) {
+	saveEnvVars([["COINALYZE_API_KEY", key]]);
 }
 
 export const BASE_URL = "https://api.binance.com";

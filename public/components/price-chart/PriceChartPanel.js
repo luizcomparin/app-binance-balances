@@ -5,7 +5,7 @@
 //   - período (7d, 30d, ..., Tudo, customizado): mostra essa janela e escolhe a vela recomendada.
 import { state } from "../../core/state.js";
 import { formatPrice } from "../../core/format.js";
-import { BALANCES_UPDATED, on, POSITIONS_UPDATED, TAB_CHANGED } from "../../core/events.js";
+import { BALANCES_UPDATED, COINALYZE_KEY_CHANGED, on, POSITIONS_UPDATED, TAB_CHANGED } from "../../core/events.js";
 import { isTabActive, showTab } from "../tabs/Tabs.js";
 import { getKlines, KLINES_PAGE, loadMyOrders, loadOpenOrders, ordersOnChart } from "./chartData.js";
 import { createPriceChart } from "./chart/createChart.js";
@@ -15,9 +15,10 @@ import { initWatchlist } from "./watchlist.js";
 import { buysOf, dcaComparison } from "./dca.js";
 import { initOpenOrdersTable, renderOpenOrdersTable } from "./openOrdersTable.js";
 import { getIndicators, initIndicatorControls } from "./indicatorControls.js";
-import { fetchFuturesData, fetchLiquidationMap } from "../../api/binance.js";
+import { fetchFuturesData, fetchLiquidationMap, fetchLiquidations } from "../../api/binance.js";
+import { openSettings } from "../settings/SettingsModal.js";
 import { formatUsdShort } from "./chart/liquidationOverlay.js";
-import { FUTURES_HELP } from "./chart/futuresPanes.js";
+import { FUTURES_HELP, PANE_LOADING } from "./chart/futuresPanes.js";
 import { initOrderHistory, setHistoryAsset, showHistory } from "./orderHistoryTable.js";
 import { initTradeHistory, setTradesAsset, showTrades } from "./tradeHistoryTable.js";
 import { annualizedPct, dailyVolatility, priceBand, touchProbability } from "./volatility.js";
@@ -52,6 +53,8 @@ const LIQ_CACHE_MS = 2 * 60 * 1000;
 const FUT_STORAGE_KEY = "priceChartFutures";
 // período dos dados de futuros por tamanho de vela (a Binance tem 1h/4h/1d; S e M usam o diário)
 const FUT_PERIOD = { "1h": "1h", "4h": "4h" };
+const LIQREAL_STORAGE_KEY = "priceChartRealLiquidations"; // painel de liquidações reais (Coinalyze)
+const LIQREAL_CACHE_MS = 5 * 60 * 1000;
 const ORDERS_TAB_STORAGE_KEY = "priceChartOrdersTab"; // aba abaixo do gráfico: open | history | trades
 
 let chart = null; // controlador do Lightweight Charts (criado uma vez no init)
@@ -82,6 +85,9 @@ const view = {
   // painéis de futuros: ligados? e dados (por moeda + período)
   showFut: readStored(FUT_STORAGE_KEY) === "1",
   fut: null, // { key, data } | { key, data: null (erro) } | { key, loading: true }
+  // painel de liquidações reais: ligado? e dados (por moeda + tamanho de vela)
+  showLiqReal: readStored(LIQREAL_STORAGE_KEY) === "1",
+  liqReal: null, // { key, data } | { key, data: null (erro) } | { key, loading: true }
 };
 
 function clampStatsDays(n) {
@@ -242,6 +248,7 @@ function render(extra = {}) {
     summary: chartSummary(),
     liquidation: view.showLiq && view.liq?.available ? view.liq : null,
     futures: futuresForChart(),
+    liquidations: liquidationsForChart(),
     ...extra,
   });
 }
@@ -405,14 +412,13 @@ function renderDca() {
 const futCache = new Map(); // "ASSET|período" -> { at, data }
 const futKey = () => `${view.asset}|${FUT_PERIOD[view.interval] || "1d"}`;
 
-// dados prontos para o gráfico (ou null); se faltam para a moeda/período atual, começa a carregar
+// dados prontos para o gráfico, PANE_LOADING (painéis ficam com spinner) ou null; se faltam para a
+// moeda/período atual, começa a carregar
 function futuresForChart() {
   if (!view.showFut || !view.asset) return null;
-  if (view.fut?.key !== futKey()) {
-    loadFutures();
-    return null;
-  }
-  return view.fut.data?.available ? view.fut.data : null;
+  if (view.fut?.key !== futKey()) loadFutures();
+  if (view.fut?.loading) return PANE_LOADING;
+  return view.fut?.data?.available ? view.fut.data : null;
 }
 
 async function loadFutures() {
@@ -454,6 +460,82 @@ function updateFuturesAvailability() {
         : "Dados de futuros indisponíveis"
       : "Dados de futuros";
 }
+
+// ---------------------------------------------------------------------------
+// liquidações reais (Binance + Bybit + OKX via Coinalyze; painel abaixo do gráfico)
+// ---------------------------------------------------------------------------
+
+const liqRealCache = new Map(); // "ASSET|vela" -> { at, data }
+const liqRealKey = () => `${view.asset}|${view.interval}`;
+
+// dados prontos para o gráfico, PANE_LOADING (painel fica com spinner) ou null; se faltam para a
+// moeda/vela atual, começa a carregar
+function liquidationsForChart() {
+  if (!view.showLiqReal || !view.asset) return null;
+  if (view.liqReal?.key !== liqRealKey()) loadLiquidations();
+  if (view.liqReal?.loading) return PANE_LOADING;
+  return view.liqReal?.data?.available ? view.liqReal.data : null;
+}
+
+async function loadLiquidations() {
+  const key = liqRealKey();
+  const [asset, interval] = key.split("|");
+  const hit = liqRealCache.get(key);
+  if (hit && Date.now() - hit.at < LIQREAL_CACHE_MS) {
+    view.liqReal = { key, data: hit.data };
+    updateLiquidationsAvailability();
+    return;
+  }
+  view.liqReal = { key, loading: true };
+  updateLiquidationsAvailability();
+  let data = null;
+  try {
+    data = await fetchLiquidations(asset, interval);
+    // só guarda o que deu certo (sem chave ou com erro, tenta de novo na próxima vez)
+    if (data.available || data.reason === "no-market") liqRealCache.set(key, { at: Date.now(), data });
+  } catch {}
+  if (liqRealKey() !== key) return; // trocou de moeda/vela no meio
+  view.liqReal = { key, data };
+  updateLiquidationsAvailability();
+  render();
+}
+
+// chave da Coinalyze salva ou removida nas Configurações: recarrega o painel
+function reloadLiquidations() {
+  liqRealCache.clear();
+  view.liqReal = null;
+  updateLiquidationsAvailability();
+  render();
+}
+
+const needsCoinalyzeKey = () => ["no-key", "invalid-key"].includes(view.liqReal?.data?.reason);
+
+// checkbox: spinner enquanto carrega; avisos sem chave, sem contrato ou com erro
+function updateLiquidationsAvailability() {
+  const label = document.getElementById("price-chart-liqreal-label");
+  const text = document.getElementById("price-chart-liqreal-text");
+  if (!label || !text) return;
+  const r = view.liqReal;
+  const loading = view.showLiqReal && !!r?.loading;
+  const unavailable = view.showLiqReal && r && !r.loading && !r.data?.available;
+  label.classList.toggle("is-loading", loading);
+  label.classList.toggle("disabled", unavailable);
+  const reason = r?.data?.reason;
+  text.textContent = loading
+    ? "Carregando liquidações..."
+    : !unavailable
+      ? "Liquidações"
+      : reason === "no-key"
+        ? "Liquidações: configure a chave da Coinalyze"
+        : reason === "invalid-key"
+          ? "Liquidações: chave da Coinalyze recusada"
+          : reason === "no-market"
+            ? `Liquidações: ${view.asset} sem contrato perpétuo`
+            : "Liquidações indisponíveis";
+  label.title = unavailable && r.data?.message ? r.data.message : LIQREAL_TITLE;
+}
+const LIQREAL_TITLE =
+  "Painel com as liquidações que de fato aconteceram nos futuros perpétuos (Binance + Bybit + OKX, dados da Coinalyze), abaixo do gráfico";
 
 // ---------------------------------------------------------------------------
 // mapa de liquidação estimado (futuros: open interest + long/short)
@@ -723,6 +805,21 @@ export function initPriceChartPanel() {
     view.showFut = futInput.checked;
     writeStored(FUT_STORAGE_KEY, view.showFut ? "1" : "0");
     updateFuturesAvailability();
+    render();
+  });
+
+  // liquidações reais: sem chave da Coinalyze, ligar abre as Configurações
+  on(COINALYZE_KEY_CHANGED, reloadLiquidations);
+  const liqRealInput = document.getElementById("price-chart-liqreal");
+  if (liqRealInput) liqRealInput.checked = view.showLiqReal;
+  liqRealInput?.addEventListener("change", () => {
+    view.showLiqReal = liqRealInput.checked;
+    writeStored(LIQREAL_STORAGE_KEY, view.showLiqReal ? "1" : "0");
+    if (view.showLiqReal && needsCoinalyzeKey()) {
+      openSettings("coinalyze");
+      view.liqReal = null; // tenta de novo (a chave pode ter sido salva enquanto isso)
+    }
+    updateLiquidationsAvailability();
     render();
   });
 

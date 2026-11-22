@@ -60,6 +60,18 @@
   display: none;
 }
 
+/* spinner no centro de um painel de baixo enquanto os dados dele carregam */
+.fp-loading {
+  position: absolute;
+  z-index: 4;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.fp-loading[hidden] {
+  display: none;
+}
+
 /* texto-chave com dica: sublinhado tracejado + "?" e a explicação no hover */
 .help-tip {
   position: relative;

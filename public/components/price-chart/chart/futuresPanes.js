@@ -1,6 +1,7 @@
 // Painéis abaixo do gráfico de preço (mesmo eixo de tempo: zoom, arrasto e mira sincronizados):
 //   1. Volume (USDT, sempre que há velas)
 //   2. Open interest (USDT)   3. Long/Short (% comprados: contas e top traders)   4. Taxa de funding
+//   5. Liquidações reais (longs e shorts liquidados em US$; independente dos de futuros, sempre por último)
 // Os de futuros vêm em períodos próprios (1h/4h/1d e funding a cada 8h) e são encaixados nas velas do gráfico.
 import { formatUsdShort } from "./liquidationOverlay.js";
 import { toChartTime } from "./axis.js";
@@ -8,6 +9,9 @@ import { movingAverage, maColor, maLabel } from "./movingAverage.js";
 
 const LWC = window.LightweightCharts;
 const PANE_HEIGHT = 96;
+
+// passado no lugar dos dados enquanto carregam: o painel continua no lugar, vazio e com spinner
+export const PANE_LOADING = Object.freeze({ loading: true });
 
 const COLORS = {
   volumeUp: "rgba(82, 255, 168, 0.5)",
@@ -17,6 +21,8 @@ const COLORS = {
   top: "#4dd4ff",
   fundingUp: "rgba(82, 255, 168, 0.8)",
   fundingDown: "rgba(255, 114, 114, 0.8)",
+  liqLong: "rgba(255, 114, 114, 0.85)",
+  liqShort: "rgba(82, 255, 168, 0.85)",
 };
 
 // Dicas (hover no título de cada painel)
@@ -55,6 +61,17 @@ export const FUTURES_HELP = {
     "• Positiva: quem está comprado paga → muita gente apostando na alta.",
     "• Negativa: quem está vendido paga → muita gente apostando na queda.",
     "• Normal: perto de +0,01%. Valores muito acima ou abaixo costumam aparecer perto de viradas.",
+  ].join("\n"),
+  liq: [
+    "Liquidações que de fato aconteceram nos futuros perpétuos (Binance + Bybit + OKX, dados da Coinalyze), em US$.",
+    "• Vermelho para cima: posições compradas (long) liquidadas, ou seja, vendas forçadas.",
+    "• Verde para baixo: posições vendidas (short) liquidadas, ou seja, compras forçadas.",
+    "",
+    "Como ler:",
+    "• Pico de longs liquidados numa queda: cascata de vendas forçadas, que muitas vezes marca um fundo de curto prazo.",
+    "• Pico de shorts liquidados numa alta: short squeeze, que muitas vezes marca um topo de curto prazo.",
+    "",
+    "Em velas de 1h e 4h o histórico é curto (a Coinalyze guarda pouco tempo de dado intradiário).",
   ].join("\n"),
 };
 
@@ -112,6 +129,7 @@ function alignToBars(points, rows, get, mode) {
     counts[i] += 1;
   }
   if (mode === "avg") return values.map((v, i) => (counts[i] ? sums[i] / counts[i] : null));
+  if (mode === "sum") return values.map((v, i) => (counts[i] ? sums[i] : null));
   if (mode === "ffill") {
     let last = null;
     return values.map((v) => (v === null ? last : (last = v)));
@@ -122,16 +140,45 @@ function alignToBars(points, rows, get, mode) {
 export function createFuturesPanes(chart, wrap) {
   // vol = série de volume (painel 1); series = séries de futuros (painéis 2 a 4, só com dados de futuros)
   // vmas = médias do volume (id -> { series, key, values, m }), no painel de volume
-  const st = { vol: null, vmas: new Map(), series: null, aligned: null, data: null, points: null, interval: null };
+  // liq = séries de liquidações reais ({ long, short }, último painel), liqData = resposta de /liquidations,
+  // liqAligned = valores por vela ({ long, short, by })
+  const st = {
+    vol: null,
+    vmas: new Map(),
+    series: null,
+    aligned: null,
+    data: null,
+    liq: null,
+    liqData: null,
+    liqAligned: null,
+    points: null,
+    interval: null,
+  };
 
-  // títulos dos painéis (HTML por cima do gráfico, com dica no hover): volume, OI, long/short, funding
-  const titles = [1, 2, 3, 4].map(() => {
+  // títulos dos painéis (HTML por cima do gráfico, com dica no hover): volume, OI, long/short, funding, liquidações
+  const titles = {};
+  for (const key of ["volume", "oi", "ls", "funding", "liq"]) {
     const el = document.createElement("div");
     el.className = "fp-title";
     el.hidden = true;
     wrap.appendChild(el);
-    return el;
-  });
+    titles[key] = el;
+  }
+  // spinner centralizado no painel enquanto os dados dele carregam (o volume vem junto com as velas)
+  const loaders = {};
+  for (const key of ["oi", "ls", "funding", "liq"]) {
+    const el = document.createElement("div");
+    el.className = "fp-loading mini-spinner";
+    el.hidden = true;
+    wrap.appendChild(el);
+    loaders[key] = el;
+  }
+  const isLoading = (key) => (key === "liq" ? st.liqData : st.data) === PANE_LOADING;
+  const hideTitles = (keys = Object.keys(titles)) =>
+    keys.forEach((k) => {
+      titles[k].hidden = true;
+      if (loaders[k]) loaders[k].hidden = true;
+    });
 
   // arrastar a divisória entre painéis muda a altura deles sem mudar o tamanho do gráfico:
   // observa cada painel para os títulos acompanharem
@@ -154,19 +201,33 @@ export function createFuturesPanes(chart, wrap) {
         for (const node of [paneEl, ...paneEl.children]) paneObserver.observe(node);
       }
     }
-    titles.forEach((el, k) => {
-      const pane = panes[k + 1];
-      const active = k === 0 ? st.vol : st.series;
-      const paneEl = active && pane ? pane.getHTMLElement() : null;
+    const keys = subKeys();
+    for (const [key, el] of Object.entries(titles)) {
+      const k = keys.indexOf(key);
+      const pane = k >= 0 ? panes[k + 1] : null;
+      const paneEl = pane ? pane.getHTMLElement() : null;
       el.hidden = !paneEl;
       if (paneEl) el.style.top = `${paneEl.getBoundingClientRect().top - wrapTop + 4}px`;
-    });
+      const loader = loaders[key];
+      if (!loader) continue;
+      loader.hidden = !paneEl || !isLoading(key);
+      if (!loader.hidden) {
+        const rect = paneEl.getBoundingClientRect();
+        const width = chart.paneSize(k + 1)?.width ?? rect.width;
+        loader.style.top = `${rect.top - wrapTop + rect.height / 2}px`;
+        loader.style.left = `${width / 2}px`;
+      }
+    }
   }
-  // quantos painéis abaixo do preço devem existir (volume + 3 de futuros)
-  const subCount = () => (st.vol ? 1 : 0) + (st.series ? 3 : 0);
 
   // painéis de baixo em uso, na ordem do gráfico
-  const subKeys = () => [...(st.vol ? ["volume"] : []), ...(st.series ? ["oi", "ls", "funding"] : [])];
+  const subKeys = () => [
+    ...(st.vol ? ["volume"] : []),
+    ...(st.series ? ["oi", "ls", "funding"] : []),
+    ...(st.liq ? ["liq"] : []),
+  ];
+  // quantos painéis abaixo do preço devem existir
+  const subCount = () => subKeys().length;
 
   // altura (px) de cada painel de baixo: PANE_HEIGHT até o usuário arrastar a divisória; daí fica a
   // escolhida (vale ao trocar de moeda, ligar/desligar futuros, redimensionar a janela e recarregar a página)
@@ -232,7 +293,85 @@ export function createFuturesPanes(chart, wrap) {
     relayout();
   }
 
+  // painel de liquidações: sempre o último (logo depois do volume, ou depois dos de futuros). Quando os de
+  // futuros entram ou saem, ele é recriado no lugar certo (withLiquidationsMoved)
+  function createLiquidationSeries() {
+    const pane = 2 + (st.series ? 3 : 0);
+    // sem etiqueta de último valor no eixo (as duas se sobrepõem; os valores já estão no título)
+    const opts = { ...base, lastValueVisible: false, priceFormat: usd, base: 0 };
+    st.liq = {
+      long: chart.addSeries(LWC.HistogramSeries, { ...opts, color: COLORS.liqLong }, pane),
+      short: chart.addSeries(LWC.HistogramSeries, { ...opts, color: COLORS.liqShort }, pane),
+    };
+    if (st.liqAligned) setLiquidationData();
+    relayout();
+  }
+
+  function removeLiquidationSeries() {
+    if (!st.liq) return;
+    chart.removeSeries(st.liq.long);
+    chart.removeSeries(st.liq.short);
+    st.liq = null;
+  }
+
+  // muda os painéis de futuros (fn) tirando antes o de liquidações e recolocando-o depois, por último
+  function withLiquidationsMoved(fn) {
+    const had = !!st.liq;
+    removeLiquidationSeries();
+    fn();
+    if (had) createLiquidationSeries();
+  }
+
+  function removeLiquidations() {
+    if (!st.liq && !st.liqData) return;
+    removeLiquidationSeries();
+    st.liqData = null;
+    st.liqAligned = null;
+    removeEmptyPanes();
+    hideTitles(["liq"]);
+  }
+
+  // soma as liquidações de cada vela (vela diária ou maior soma os dias; 1h/4h é 1 para 1)
+  function alignLiquidations() {
+    const { liqData, points } = st;
+    const long = alignToBars(points, liqData.rows, (r) => r.long, "sum");
+    const short = alignToBars(points, liqData.rows, (r) => r.short, "sum");
+    // dentro do período coberto, vela sem linha = nenhuma liquidação (a Coinalyze pode omitir períodos zerados)
+    const first = long.findIndex((v) => v !== null);
+    const last = long.findLastIndex((v) => v !== null);
+    for (let i = first; first >= 0 && i <= last; i++) {
+      long[i] ??= 0;
+      short[i] ??= 0;
+    }
+    const by = new Array(points.length).fill(null);
+    for (const row of liqData.rows) {
+      const i = barIndex(points, row.t);
+      if (i < 0) continue;
+      by[i] ||= {};
+      for (const [name, v] of Object.entries(row.by || {})) {
+        by[i][name] ||= { long: 0, short: 0 };
+        by[i][name].long += v.long;
+        by[i][name].short += v.short;
+      }
+    }
+    st.liqAligned = { long, short, by };
+  }
+
+  function setLiquidationData() {
+    const { points, interval } = st;
+    const times = points.map((p) => toChartTime(p.time, interval));
+    const { long, short } = st.liqAligned;
+    // (== null: logo depois de trocar as velas, os valores ainda podem ser das velas anteriores)
+    st.liq.long.setData(times.map((time, i) => (long[i] == null ? { time } : { time, value: long[i] })));
+    st.liq.short.setData(times.map((time, i) => (short[i] == null ? { time } : { time, value: -short[i] })));
+  }
+
   function createSeries() {
+    withLiquidationsMoved(addFuturesSeries);
+  }
+
+  function addFuturesSeries() {
+    removeEmptyPanes(); // sobra do painel de liquidações que estava logo depois do volume
     const percent = { type: "custom", minMove: 0.001, formatter: (v) => `${Math.round(v)}%` };
     const fundingFmt = { type: "custom", minMove: 0.000001, formatter: (v) => `${v.toFixed(3).replace(".", ",")}%` };
     st.series = {
@@ -256,12 +395,14 @@ export function createFuturesPanes(chart, wrap) {
 
   function removeFutures() {
     if (!st.series) return;
-    for (const s of Object.values(st.series)) chart.removeSeries(s);
-    st.series = null;
-    st.aligned = null;
-    st.data = null;
-    removeEmptyPanes();
-    titles.slice(1).forEach((el) => (el.hidden = true));
+    withLiquidationsMoved(() => {
+      for (const s of Object.values(st.series)) chart.removeSeries(s);
+      st.series = null;
+      st.aligned = null;
+      st.data = null;
+      removeEmptyPanes();
+    });
+    hideTitles(["oi", "ls", "funding"]);
   }
 
   function removeVolumeAverage(id) {
@@ -299,13 +440,41 @@ export function createFuturesPanes(chart, wrap) {
   }
 
   function remove() {
+    removeLiquidations();
     removeFutures();
     for (const id of [...st.vmas.keys()]) removeVolumeAverage(id);
     if (st.vol) chart.removeSeries(st.vol);
     st.vol = null;
     st.points = null;
     removeEmptyPanes();
-    titles.forEach((el) => (el.hidden = true));
+    hideTitles();
+  }
+
+  // título do painel de liquidações: longs e shorts da vela idx (mira) ou da última, e a divisão por corretora
+  function renderLiquidationTitle(idx) {
+    const a = st.liqAligned;
+    if (!st.liq) return;
+    const tip = `<span class="help-tip" data-tip="${FUTURES_HELP.liq}">Liquidações</span>`;
+    if (!a) {
+      titles.liq.innerHTML = tip; // carregando
+      return;
+    }
+    const n = a.long.length;
+    const i = idx !== null && idx >= 0 && idx < n ? idx : n - 1;
+    const long = a.long[i];
+    const short = a.short[i];
+    if (long == null && short == null) {
+      titles.liq.innerHTML = `${tip} <span class="muted">sem dados nesta vela</span>`;
+      return;
+    }
+    const by = Object.entries(a.by[i] || {})
+      .filter(([, v]) => v.long + v.short > 0)
+      .map(([name, v]) => `${name} ${formatUsdShort(v.long + v.short)}`)
+      .join(" · ");
+    titles.liq.innerHTML =
+      `${tip} <span style="color:${COLORS.liqLong}">Longs <b>${formatUsdShort(long || 0)}</b></span>` +
+      ` <span style="color:${COLORS.liqShort}">Shorts <b>${formatUsdShort(short || 0)}</b></span>` +
+      (by ? ` <span class="muted">${by}</span>` : "");
   }
 
   // títulos com o valor na vela idx (mira) ou o mais recente
@@ -322,10 +491,19 @@ export function createFuturesPanes(chart, wrap) {
           return `<span style="color:${maColor({ ...m, opacity: 1 })}">${maLabel(m)} ${a == null ? "--" : formatUsdShort(a)}</span>`;
         })
         .join(" ");
-      titles[0].innerHTML = `${tip("volume", "Volume")} <b class="${p.close >= p.open ? "pnl-pos" : "pnl-neg"}">${v == null ? "--" : formatUsdShort(v)}</b>${avgs ? ` ${avgs}` : ""}`;
+      titles.volume.innerHTML = `${tip("volume", "Volume")} <b class="${p.close >= p.open ? "pnl-pos" : "pnl-neg"}">${v == null ? "--" : formatUsdShort(v)}</b>${avgs ? ` ${avgs}` : ""}`;
     }
+    renderLiquidationTitle(idx);
     const a = st.aligned;
-    if (!a) return;
+    if (!a) {
+      // carregando: só os nomes (sem os valores da moeda/vela anterior)
+      if (st.series) {
+        titles.oi.innerHTML = tip("oi", "Open interest");
+        titles.ls.innerHTML = tip("ls", "Long/Short");
+        titles.funding.innerHTML = tip("funding", "Funding");
+      }
+      return;
+    }
     const at = (arr) => {
       if (idx !== null && idx >= 0 && idx < arr.length && arr[idx] !== null) return arr[idx];
       for (let i = arr.length - 1; i >= 0; i--) if (arr[i] !== null) return arr[i];
@@ -336,9 +514,9 @@ export function createFuturesPanes(chart, wrap) {
     const t = at(a.top);
     const f = at(a.funding);
     const next = st.data.nextFunding;
-    titles[1].innerHTML = `${tip("oi", "Open interest")} <b>${oi === null ? "--" : formatUsdShort(oi)}</b>`;
-    titles[2].innerHTML = `${tip("ls", "Long/Short")} <span style="color:${COLORS.global}">Contas ${g === null ? "--" : pct(g / 100)}</span> <span style="color:${COLORS.top}">Top traders ${t === null ? "--" : pct(t / 100)}</span>`;
-    titles[3].innerHTML = `${tip("funding", "Funding")} <b class="${f > 0 ? "pnl-pos" : f < 0 ? "pnl-neg" : ""}">${f === null ? "--" : fundingPct(f / 100)}</b>${
+    titles.oi.innerHTML = `${tip("oi", "Open interest")} <b>${oi === null ? "--" : formatUsdShort(oi)}</b>`;
+    titles.ls.innerHTML = `${tip("ls", "Long/Short")} <span style="color:${COLORS.global}">Contas ${g === null ? "--" : pct(g / 100)}</span> <span style="color:${COLORS.top}">Top traders ${t === null ? "--" : pct(t / 100)}</span>`;
+    titles.funding.innerHTML = `${tip("funding", "Funding")} <b class="${f > 0 ? "pnl-pos" : f < 0 ? "pnl-neg" : ""}">${f === null ? "--" : fundingPct(f / 100)}</b>${
       idx === null && next ? ` <span class="muted">· próxima ≈ ${fundingPct(next.r)}</span>` : ""
     }`;
   }
@@ -378,20 +556,41 @@ export function createFuturesPanes(chart, wrap) {
 
   return {
     /** points = velas (sem velas, remove tudo); data = resposta de /futures-data (available) ou null para
-     *  remover só os painéis de futuros (o de volume fica) */
-    update(points, interval, data) {
+     *  remover só os painéis de futuros (o de volume fica); liq = resposta de /liquidations (available) ou
+     *  null para remover o painel de liquidações */
+    update(points, interval, data, liq = null) {
       if (!points?.length) return remove();
       const candlesChanged = points !== st.points || interval !== st.interval;
-      if (st.vol && !candlesChanged && data === st.data && !!data === !!st.series) return;
+      const liqSame = liq === st.liqData && !!liq === !!st.liq;
+      if (st.vol && !candlesChanged && data === st.data && !!data === !!st.series && liqSame) return;
       if (!st.vol) createVolume();
       st.points = points;
       st.interval = interval;
       if (candlesChanged || !st.vol.data().length) setVolumeData();
-      if (data) {
+      if (data === PANE_LOADING) {
+        // carregando: painéis no lugar, vazios (spinner em positionTitles)
+        st.data = data;
+        st.aligned = null;
+        if (st.series) for (const s of Object.values(st.series)) s.setData([]);
+        else createSeries();
+      } else if (data) {
         if (!st.series) createSeries();
         st.data = data;
         setData();
       } else removeFutures();
+      if (liq === PANE_LOADING) {
+        st.liqData = liq;
+        st.liqAligned = null;
+        if (st.liq) {
+          st.liq.long.setData([]);
+          st.liq.short.setData([]);
+        } else createLiquidationSeries();
+      } else if (liq) {
+        st.liqData = liq;
+        alignLiquidations();
+        if (st.liq) setLiquidationData();
+        else createLiquidationSeries();
+      } else removeLiquidations();
       renderTitles();
       relayout();
     },

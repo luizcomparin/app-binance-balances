@@ -41,6 +41,38 @@
         </ol>
         <p class="settings-note">Nunca compartilhe a Secret Key. Para trocar de chave depois, é só abrir esta tela de novo.</p>
       </details>
+
+      <section class="settings-section settings-section-extra" id="settings-coinalyze">
+        <h3>API da Coinalyze <span class="settings-optional">(opcional)</span></h3>
+        <p class="settings-note">
+          Usada só pelo painel <b>Liquidações</b> do gráfico de preço: histórico das liquidações reais dos futuros
+          perpétuos na Binance, Bybit e OKX. A chave é gratuita.
+        </p>
+        <p class="settings-status" id="settings-coinalyze-status">Verificando...</p>
+
+        <form class="settings-form" id="settings-coinalyze-form" autocomplete="off">
+          <label for="settings-coinalyze-key">API Key</label>
+          <input type="password" id="settings-coinalyze-key" spellcheck="false" placeholder="Cole aqui a chave da Coinalyze" />
+
+          <p class="settings-message" id="settings-coinalyze-message" hidden></p>
+
+          <div class="settings-actions">
+            <button type="submit" class="primary" id="settings-coinalyze-save">Testar e salvar</button>
+            <button type="button" class="pc-btn" id="settings-coinalyze-remove" hidden>Remover chave</button>
+          </div>
+        </form>
+      </section>
+
+      <details class="settings-tutorial" id="settings-coinalyze-tutorial">
+        <summary>Como criar a chave na Coinalyze</summary>
+        <ol>
+          <li>Abra <b>coinalyze.net</b> e crie uma conta gratuita (<i>Sign up</i>), ou entre se já tiver.</li>
+          <li>Com a conta aberta, vá em <b>API</b> (no menu da conta ou no rodapé do site).</li>
+          <li>Gere ou copie a sua <b>API Key</b>.</li>
+          <li>Cole aqui em cima e clique em <b>Testar e salvar</b>.</li>
+        </ol>
+        <p class="settings-note">A chave só lê dados públicos de mercado (não tem acesso à sua conta da Binance). O limite gratuito é de cerca de 40 consultas por minuto, e o dashboard guarda os resultados por 5 minutos.</p>
+      </details>
     </div>
   </div>
 </div>

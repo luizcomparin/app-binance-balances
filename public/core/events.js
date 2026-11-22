@@ -7,6 +7,8 @@ export const BALANCES_UPDATED = "balances:updated";
 export const POSITIONS_UPDATED = "positions:updated";
 // Aba ativa mudou (detail = nome da aba, ex.: "price-chart")
 export const TAB_CHANGED = "tab:changed";
+// Chave da Coinalyze salva ou removida nas Configurações (liquidações reais do gráfico de preço)
+export const COINALYZE_KEY_CHANGED = "coinalyze-key:changed";
 
 export function emit(name, detail) {
   window.dispatchEvent(new CustomEvent(name, { detail }));
