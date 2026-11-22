@@ -20,10 +20,6 @@ Severidade: **Alta** = pode mostrar número errado ou quebrar uma funcionalidade
 | B7 | Média | `server/binance/futures.js` `fapiGet`, `server/coinalyze/client.js` | Sem controle de peso, sem retry e sem tratamento de 429/418 (diferente do cliente spot). O mapa de liquidação faz cerca de 7 requisições paginadas por moeda | Trocar de moeda rapidamente com o mapa e os futuros ligados pode bater no limite da fapi (2400/min) ou da Coinalyze (cerca de 40/min) | Throttle simples por host e respeito ao `Retry-After` |
 | B8 | Média | `server/config.js` | `process.loadEnvFile()` lança `ENOENT` sem mensagem amigável se não houver `.env`. Os caminhos são relativos à pasta atual (`path.resolve(".env")`) | `npm start` rodado de outra pasta, ou o primeiro uso sem copiar o `.env.example` | Checar a existência, mostrar uma mensagem clara e resolver o caminho relativo a `server.js` |
 | B9 | Baixa | `server/services/orderHistory.js` | `allOrders` traz só as **últimas 1000 ordens por par**, sem paginação | Conta com muitas ordens num par: o histórico antigo some | Paginar por `orderId` |
-| B10 | Baixa | `SettingsModal.initSettings` | `addEventListener("click", openSettings)` passa o `MouseEvent` como `section`. Hoje funciona por acaso (`!== "coinalyze"`) | Frágil se `openSettings` mudar a assinatura | `() => openSettings()` |
-| B11 | Baixa | `public/components/asset-strip/AssetStrip.html` | O subtítulo diz "Ordenados por maior quantidade", mas o código ordena por **valor em USDT** | — | Ajustar o texto |
-| B12 | Baixa | Vários `innerHTML` | As mensagens vindas do server (que podem conter o corpo cru da Binance) entram em `innerHTML` sem escape: `BalancesPanel`, `OrdersPanel`, `ExecutedOrdersPanel` (`Erro: ...`) e `SettingsModal.setMessage` | Baixo risco (app local), mas um texto com `<` quebra o HTML | `escapeHtml` compartilhado |
-| B13 | Baixa | `chart/measureTool.js` | O handler global de `Escape` e `Shift` não ignora inputs (o de `drawings.js` ignora) | Esc digitado num campo também cancela a régua | Mesmo filtro de `drawings.js` |
 
 ## Código replicado
 
@@ -35,7 +31,6 @@ Severidade: **Alta** = pode mostrar número errado ou quebrar uma funcionalidade
 | D4 | `openOrdersTable`, `orderHistoryTable`, `tradeHistoryTable` | `headerHtml` com `th(label, key, title)` e o comparador de ordenação com `dir ±1`, 3 vezes | Util de tabela ordenável |
 | D5 | `PriceChartPanel`: `loadFutures` × `loadLiquidations`, `futuresForChart` × `liquidationsForChart`, `updateFuturesAvailability` × `updateLiquidationsAvailability` × `updateProjectedAvailability` × `updateProjectedSellAvailability` × `buySimulator.updateSimAvailability` | Mesmo padrão de carga com chave e cache e de checkbox carregando/indisponível | Helper `createLayerLoader({ key, fetch, cacheMs })` e `setChipState(label, { loading, disabled, text, title })` |
 | D6 | `PriceChartPanel`: `liqCache`, `futCache`, `liqRealCache`; `chartData`: `chartCache`, `openOrdersCache`; tabelas: `hist.cache`, `st.cache` | 7 caches `Map` com `{ at, data }` e checagem de TTL | `createTtlCache(ms)` no front |
-| D7 | `escapeHtml` em `loadError.js` e `chart/tooltip.js` | Igual, 2 vezes | `core/format.js` ou `core/dom.js` |
 | D8 | `formatUsdShort` definido em `chart/liquidationOverlay.js` e importado por `measureTool`, `futuresPanes` e `PriceChartPanel` | Utilitário genérico morando num módulo específico | Mover para `core/format.js` |
 | D9 | Listas de stablecoins: `USD_STABLES` (server), `isStable` em `openOrdersTable.js` e a lista literal em `overlays.openOrderTitle` (estas incluem BRL) | 3 listas que divergem | Constante única no front (e documentar a diferença em relação ao server) |
 | D10 | Prefixos de lote `["", "1000", "1000000", "1M"]` em `binance/futures.js` (`PREFIXES` com multiplier) e `services/liquidations.js` | 2 vezes | Exportar de `futures.js` |
@@ -94,10 +89,5 @@ Severidade: **Alta** = pode mostrar número errado ou quebrar uma funcionalidade
 
 | # | Sev. | Item | Sugestão |
 |---|---|---|---|
-| I1 | Média | `server.js`: o livereload (servidor na porta 35729 + script injetado) roda **também** em `npm start` | Ligar só com `NODE_ENV !== "production"` ou com uma flag |
-| I2 | Média | `app.listen(PORT)` sem host escuta em todas as interfaces. Outras máquinas da rede local alcançam a API (incluindo `/raw` e as rotas de conta) se o firewall permitir | `app.listen(PORT, "127.0.0.1")` |
-| I3 | Baixa | A lista de rotas impressa ao subir está incompleta (faltam settings, order-history, trade-history, liquidation-map, futures-data e liquidations) | Atualizar ou gerar a partir das rotas |
-| I4 | Baixa | `.env.example` não tem `COINALYZE_API_KEY` | Adicionar a linha vazia |
-| I5 | Baixa | `package.json` sem `engines` (exige Node ≥ 20.12 por causa do `loadEnvFile`) e com `description` vazia | `"engines": { "node": ">=20.12" }` |
 | I6 | Baixa | `node-fetch` é dispensável no Node ≥ 18 (`fetch` global) | Remover a dependência (testar o tratamento de headers) |
 | I7 | Baixa | `dailyRateCache` baixa de novo todo o histórico diário desde o primeiro trade quando vence (1 dia) | Buscar só os dias que faltam (incremental, como os trades) |

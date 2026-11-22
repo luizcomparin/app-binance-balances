@@ -2,6 +2,7 @@
 // Carrega /balances e avisa os outros componentes (cards, gráficos, faixa de ativos, simulação)
 // com BALANCES_UPDATED; o P&L chega depois, via POSITIONS_UPDATED.
 import { fetchBalances } from "../../api/binance.js";
+import { escapeHtml } from "../../core/dom.js";
 import { state } from "../../core/state.js";
 import { formatPrice, formatQty, formatSigned, signClass } from "../../core/format.js";
 import { toggleSort, compareValues } from "../../core/sort.js";
@@ -64,7 +65,7 @@ export async function loadBalances() {
     emit(BALANCES_UPDATED, data);
   } catch (e) {
     if (tbody) {
-      tbody.innerHTML = `<tr><td colspan="${BALANCE_COLUMNS}" style="color:red;">Erro: ${e.message || e}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="${BALANCE_COLUMNS}" style="color:red;">Erro: ${escapeHtml(e.message || e)}</td></tr>`;
     }
   }
 }

@@ -1,4 +1,5 @@
 import { fetchExecutedOrders } from "../../api/binance.js";
+import { escapeHtml } from "../../core/dom.js";
 import { toggleSort, compareValues } from "../../core/sort.js";
 import { formatPrice, formatQty } from "../../core/format.js";
 import { on, TAB_CHANGED } from "../../core/events.js";
@@ -63,7 +64,7 @@ export async function loadExecutedOrders() {
     })
     .catch((e) => {
       if (tbody) {
-        tbody.innerHTML = `<tr><td colspan="${COLUMNS}" style="color:red;">Erro: ${e.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${COLUMNS}" style="color:red;">Erro: ${escapeHtml(e.message)}</td></tr>`;
       }
     })
     .finally(() => {

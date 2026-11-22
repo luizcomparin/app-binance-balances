@@ -15,6 +15,10 @@ export function setHtml(id, html) {
   if (el) el.innerHTML = html;
 }
 
+// Escapa texto vindo de fora (mensagens do servidor, nomes da API) antes de colocar em innerHTML
+export const escapeHtml = (s) =>
+  String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
 export function hideLoading() {
   const overlay = document.getElementById("loading-overlay");
   if (overlay) {

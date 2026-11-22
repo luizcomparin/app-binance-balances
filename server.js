@@ -6,8 +6,6 @@ import express from "express";
 import cors from "cors";
 import path from "node:path";
 import { fileURLToPath } from "url";
-import livereload from "livereload";
-import connectLivereload from "connect-livereload";
 import { registerRoutes } from "./server/routes.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -26,14 +24,21 @@ app.use(
 );
 
 // ==================== LIVERELOAD ====================
-// Escuta mudanças na pasta public e recarrega o navegador
-const liveReloadServer = livereload.createServer({
-	exts: ["js", "css", "html", "jpg", "png", "jpeg", "gif", "svg"], // extensões monitoradas
-});
-liveReloadServer.watch(PUBLIC_DIR);
+// Só em desenvolvimento (`npm run dev` passa --livereload): escuta mudanças na pasta public e recarrega
+// o navegador. Em `npm start` fica desligado (sem servidor extra na porta 35729 nem script injetado).
+const LIVERELOAD = process.argv.includes("--livereload");
+if (LIVERELOAD) {
+	// importados só aqui: são dependências de desenvolvimento
+	const { default: livereload } = await import("livereload");
+	const { default: connectLivereload } = await import("connect-livereload");
+	const liveReloadServer = livereload.createServer({
+		exts: ["js", "css", "html", "jpg", "png", "jpeg", "gif", "svg"], // extensões monitoradas
+	});
+	liveReloadServer.watch(PUBLIC_DIR);
 
-// Injeta o script do livereload no HTML servido
-app.use(connectLivereload());
+	// Injeta o script do livereload no HTML servido
+	app.use(connectLivereload());
+}
 // ====================================================
 
 app.use(express.static(PUBLIC_DIR));
@@ -54,15 +59,25 @@ app.get("/site/:page", (req, res, next) => {
 
 registerRoutes(app);
 
-app.listen(PORT, () => {
-	console.log(`🚀 API rodando em:
-   • http://localhost:${PORT}/balances          (carteira filtrada)
-   • http://localhost:${PORT}/raw               (dados crus da Binance)
-   • http://localhost:${PORT}/positions         (preço médio e P&L por moeda)
-   • http://localhost:${PORT}/orders            (ordens abertas agrupadas por ativo)
-   • http://localhost:${PORT}/orders/:asset     (ordens abertas para ativo específico)
-   • http://localhost:${PORT}/executed-orders   (ordens executadas)
-   • http://localhost:${PORT}/price-chart/:asset (gráfico de preço, ?interval=1h|4h|1d|1w|1M ou ?range=...)
-   • http://localhost:${PORT}/site              (dashboard com HTML/CSS/JS)
-  `);
+// Só no próprio computador (127.0.0.1 e ::1): outras máquinas da rede não alcançam a API, que expõe dados
+// da conta. "localhost" pode resolver para ::1 ou 127.0.0.1, por isso escuta nos dois; sem IPv6, segue no IPv4.
+app.listen(PORT, "127.0.0.1", () => {
+	const base = `http://localhost:${PORT}`;
+	console.log(`🚀 Dashboard: ${base}/site${LIVERELOAD ? "  (livereload ligado)" : ""}
+API (só neste computador):
+   • ${base}/balances                    carteira em USDT/BRL e variação 24h
+   • ${base}/positions                   preço médio e P&L por moeda
+   • ${base}/orders  ·  /orders/:asset   ordens abertas (todas / de uma moeda)
+   • ${base}/executed-orders             ordens executadas
+   • ${base}/order-history/:asset        histórico de ordens de uma moeda
+   • ${base}/trade-history/:asset        histórico de trades de uma moeda
+   • ${base}/price-chart/:asset          velas (?interval=1h|4h|1d|1w|1M [&before=ms])
+   • ${base}/futures-data/:asset         open interest, long/short e funding (?period=1h|4h|1d)
+   • ${base}/liquidation-map/:asset      mapa de liquidação estimado
+   • ${base}/liquidations/:asset         liquidações reais via Coinalyze (?interval=...)
+   • ${base}/settings/api-key            status da chave da Binance (POST troca)
+   • ${base}/settings/coinalyze-key      status da chave da Coinalyze (POST troca)
+   • ${base}/raw  ·  /avg-buy-prices     dados crus da conta / compatibilidade
+`);
 });
+app.listen(PORT, "::1").on("error", () => {});

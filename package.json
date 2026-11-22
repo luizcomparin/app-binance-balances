@@ -10,11 +10,14 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js --livereload"
+  },
+  "engines": {
+    "node": ">=20.12"
   },
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "Dashboard local e somente leitura da carteira Binance (saldos, P&L, ordens e gráfico de preço)",
   "devDependencies": {
     "connect-livereload": "^0.6.1",
     "livereload": "^0.10.3",

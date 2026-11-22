@@ -38,7 +38,7 @@ O código existente nem sempre segue estes padrões ([debitos-tecnicos](../debit
 - **Eventos:** prefira `addEventListener` no `init*()` a `onclick` inline. Para listas, use delegação (um listener no container + `e.target.closest(...)`).
 - **`localStorage`:** sempre com `try/catch` na leitura e na escrita, e com valor padrão quando faltar. Registre a chave em [armazenamento-local](../referencia/armazenamento-local.md).
 - **Formatação de números:** `formatPrice` (preço), `formatQty` (quantidade), `formatSigned` (P&L com sinal), `signClass` (cor) e `v.toFixed(2).formatCurrency()` (valor em USDT/BRL com 2 casas).
-- **HTML com texto vindo de fora** (mensagem de erro do server, nomes vindos da API): escape antes de colocar em `innerHTML` (`escapeHtml` em `price-chart/loadError.js` e `chart/tooltip.js`).
+- **HTML com texto vindo de fora** (mensagem de erro do server, nomes vindos da API): escape antes de colocar em `innerHTML` com `escapeHtml` de `public/core/dom.js`.
 - **Spinner inline:** `<span class="mini-spinner"></span> Carregando...`. Estado de checkbox carregando ou indisponível: classes `is-loading` / `disabled` no `<label>` (ver `update*Availability` em `PriceChartPanel.js`).
 
 ## Checklists

@@ -1,7 +1,7 @@
 // Tooltip HTML sobre o gráfico: vela sob o mouse, detalhes de uma ordem sua ou caixa do simulador.
 import { formatDateTime, formatPct, formatPrice, formatQty } from "../../../core/format.js";
 
-const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+import { escapeHtml } from "../../../core/dom.js";
 const lines = (arr) => arr.map((l) => `<div>${escapeHtml(l)}</div>`).join("");
 const sideClass = (o) => (o.side === "BUY" ? "buy" : "sell");
 const sideTitle = (o) => `${o.side === "BUY" ? "Compra" : "Venda"} · ${formatDateTime(o.time)}`;

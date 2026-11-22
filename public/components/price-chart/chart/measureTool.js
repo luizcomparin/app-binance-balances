@@ -38,6 +38,8 @@ export function createMeasureTool(chart, { getSeries, getPoints, getInterval }) 
 
   window.addEventListener("keydown", (e) => {
     if (e.key === "Shift") shiftHeld = true;
+    // Esc digitado num campo (busca, período, indicadores) não cancela a medida
+    if (e.target.closest?.("input, textarea, select, [contenteditable]")) return;
     if (e.key === "Escape" && phase !== "idle") clear();
   });
   window.addEventListener("keyup", (e) => {

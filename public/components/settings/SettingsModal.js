@@ -4,6 +4,7 @@
 // Também a chave opcional da Coinalyze (liquidações reais no gráfico de preço).
 import { fetchApiKeyStatus, fetchCoinalyzeKeyStatus, saveApiKey, saveCoinalyzeKey } from "../../api/binance.js";
 import { COINALYZE_KEY_CHANGED, emit } from "../../core/events.js";
+import { escapeHtml } from "../../core/dom.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -123,12 +124,12 @@ async function onSubmit(e) {
     const result = await saveApiKey(apiKey, apiSecret);
     renderStatus(result);
     $("settings-api-secret").value = "";
-    const warnings = (result.warnings || []).map((w) => `<br>⚠ ${w}`).join("");
+    const warnings = (result.warnings || []).map((w) => `<br>⚠ ${escapeHtml(w)}`).join("");
     setMessage(`Chave salva e funcionando. Recarregando os dados...${warnings}`, warnings ? "warn" : "ok");
     // recarrega a página com a conta nova (com aviso de permissão, dá tempo de ler)
     setTimeout(() => location.reload(), warnings ? 6000 : 1500);
   } catch (err) {
-    setMessage(err.message, "error");
+    setMessage(escapeHtml(err.message), "error");
     btn.disabled = false;
     btn.textContent = "Testar e salvar";
   }
@@ -136,7 +137,7 @@ async function onSubmit(e) {
 
 /** Liga o painel e devolve se já há chave configurada (sem chave, já abre o painel) */
 export async function initSettings() {
-  $("settings-btn")?.addEventListener("click", openSettings);
+  $("settings-btn")?.addEventListener("click", () => openSettings());
   $("settings-close")?.addEventListener("click", closeSettings);
   $("settings-form")?.addEventListener("submit", onSubmit);
   $("settings-modal")?.addEventListener("click", (e) => {

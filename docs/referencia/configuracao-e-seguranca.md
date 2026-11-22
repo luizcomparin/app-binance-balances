@@ -17,7 +17,7 @@ O arquivo é lido por `process.loadEnvFile()` na **pasta atual** (`path.resolve(
 |---|---|---|
 | `PORT` | **sim** (1–65535, senão `process.exit(1)`) | Porta do Express. Também entra na lista do CORS e do `sameOriginJson` |
 | `BINANCE_API_KEY` / `BINANCE_API_SECRET` | não (sem elas, a página abre as Configurações) | Endpoints assinados. Formato `/^[A-Za-z0-9]{16,128}$/` |
-| `COINALYZE_API_KEY` | não | Painel de liquidações reais. Formato `/^[A-Za-z0-9-]{16,128}$/`. **Não está** no `.env.example` |
+| `COINALYZE_API_KEY` | não | Painel de liquidações reais. Formato `/^[A-Za-z0-9-]{16,128}$/` |
 
 **Agentes: não leiam nem exibam o `.env`.** Ele tem as chaves reais da conta.
 
@@ -39,8 +39,5 @@ O arquivo é lido por `process.loadEnvFile()` na **pasta atual** (`path.resolve(
 - **CORS** (`server.js`): só aceita origem `http://localhost:<PORT>` e `http://127.0.0.1:<PORT>`. Requisições sem `Origin` passam (curl e mesma origem).
 - **`sameOriginJson`** (POST de configurações): se houver `Origin`, ela precisa ser do dashboard, e o `Content-Type` precisa ser `application/json` (o navegador exige a pré-checagem de CORS, então outro site não consegue enviar). Limite do corpo: 2 kb.
 - **Validação de entrada** nas rotas (`:asset`, `interval`, `period`), o que impede injetar parâmetros nas URLs da Binance.
-- **Pontos a observar:**
-  - `GET /raw` expõe o JSON cru da conta a qualquer cliente local sem `Origin`;
-  - o server escuta em todas as interfaces (`app.listen(PORT)` sem host), então qualquer máquina da rede local alcança a API se o firewall permitir.
-
-  Ver [debitos-tecnicos](../debitos-tecnicos.md).
+- **Só no próprio computador:** o Express escuta apenas em `127.0.0.1` e `::1`, e o livereload (só em dev) em `localhost`. Outras máquinas da rede não alcançam a API. **Não troque por `0.0.0.0`.**
+- **Ponto a observar:** `GET /raw` expõe o JSON cru da conta a qualquer programa local que não mande `Origin`.

@@ -14,7 +14,7 @@ storage: []
 | Camada | Tecnologia | Observação |
 |---|---|---|
 | Server | Node ≥ 20.12 (ES modules, `"type": "module"`), Express 5, `cors`, `node-fetch` | Lê o `.env` com `process.loadEnvFile()`. |
-| Dev | `nodemon` (reinicia o server), `livereload` + `connect-livereload` (recarrega a página) | O livereload está ligado **também** no `npm start` (ver [debitos-tecnicos](../debitos-tecnicos.md)). |
+| Dev | `nodemon` (reinicia o server), `livereload` + `connect-livereload` (recarrega a página) | O livereload só liga em `npm run dev` (flag `--livereload` no script). São dependências de dev, importadas dinamicamente. |
 | Página | HTML/CSS/JS puro em ES modules, **sem build e sem framework** | Servida pelo próprio Express. |
 | Gráficos | Chart.js 4.4.1 (aba Distribuição) e TradingView Lightweight Charts 5.0.8 (gráfico de preço) | Vêm de CDN (jsDelivr), carregados em `public/index.html` e usados como globais `Chart` e `window.LightweightCharts`. |
 | Dados | API spot da Binance (assinada), Binance Futures `fapi` (pública), Coinalyze (opcional) | Ver [integracoes-externas](../referencia/integracoes-externas.md). |
@@ -25,11 +25,11 @@ Não há banco de dados, testes, lint nem build. Todo o estado do server fica **
 
 1. `import { PORT } from "./server/config.js"` vem **primeiro**: carrega o `.env`, valida `PORT` (encerra o processo se for inválida) e avisa quando faltam as chaves da Binance.
 2. CORS restrito a `http://localhost:<PORT>` e `http://127.0.0.1:<PORT>`. Requisições sem `Origin` (curl, mesma origem) passam.
-3. O livereload observa `public/` e injeta o script no HTML.
+3. Só com `--livereload` (`npm run dev`): o livereload observa `public/` (porta 35729, em `localhost`) e injeta o script no HTML.
 4. Arquivos estáticos: `public/` é servido em `/` e também em `/site`.
 5. `GET /site` e `GET /site/:page` (slug `[a-z0-9-]+`) devolvem `index.html`; o front abre a aba do slug (ver [abas-e-navegacao](../funcionalidades/abas-e-navegacao.md)).
 6. `registerRoutes(app)` registra a API JSON (ver [api](../referencia/api.md)).
-7. `app.listen(PORT)` imprime uma lista de rotas, que está **incompleta** (ver débitos).
+7. `app.listen(PORT, "127.0.0.1")` e `app.listen(PORT, "::1")`: o server escuta **só no próprio computador**. Os dois endereços existem porque `localhost` pode resolver para IPv4 ou IPv6; sem IPv6, segue só no IPv4. Ao subir, imprime a URL do dashboard e a lista de rotas. **Atualize essa lista ao criar uma rota.**
 
 Ao importar `server/binance/client.js`, o relógio é sincronizado com a Binance (`/api/v3/time`) e um `setInterval` repete a sincronização a cada 30 min.
 

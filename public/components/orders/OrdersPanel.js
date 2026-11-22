@@ -3,6 +3,7 @@ import { state } from "../../core/state.js";
 import { toggleSort, compareValues } from "../../core/sort.js";
 import { formatPrice, formatQty, formatSigned } from "../../core/format.js";
 import { renderOrderSimulation } from "./orderSimulation.js";
+import { escapeHtml } from "../../core/dom.js";
 import { createPairCombo } from "../../core/pairCombo.js";
 
 let pairCombo = null; // filtro de par com busca
@@ -129,7 +130,7 @@ export async function loadOrders() {
     applyOrderFilters();
   } catch (e) {
     if (tbody) {
-      tbody.innerHTML = `<tr><td colspan="7" style="color:red;">Erro: ${e.message || e}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" style="color:red;">Erro: ${escapeHtml(e.message || e)}</td></tr>`;
     }
   }
 }

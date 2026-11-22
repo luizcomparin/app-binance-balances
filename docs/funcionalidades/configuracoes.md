@@ -51,7 +51,7 @@ Detalhes de segurança em [configuracao-e-seguranca](../referencia/configuracao-
 ## Casos de borda
 
 - Em `npm run dev`, gravar o `.env` reinicia o server (nodemon). A página recarrega e o `apiFetch` espera o server voltar (até 15 s).
-- `setMessage` usa `innerHTML` com a mensagem do server (ver débitos).
+- `setMessage` usa `innerHTML` (para quebrar linha nos avisos). Por isso as mensagens e os avisos vindos do server passam por `escapeHtml` antes.
 - A chave da Coinalyze não está em `.env.example`.
 
 ## Checklist ao alterar

@@ -21,12 +21,12 @@ São duas partes:
 ```bash
 npm install
 npm run dev      # nodemon (reinicia o server ao salvar server/, server.js ou .env) + livereload da página
-npm start        # node server.js (o livereload também fica ligado)
+npm start        # node server.js (sem livereload)
 ```
 
 - Requer Node **≥ 20.12** por causa do `process.loadEnvFile()` (testado no 22).
 - É obrigatório existir um `.env` com `PORT` na pasta onde o comando roda; copie de `.env.example`. As chaves da Binance e da Coinalyze podem ficar vazias e ser informadas depois em **Configurações** (engrenagem no topo).
-- Abra `http://localhost:<PORT>/site`. Cada aba tem sua URL: `/site/grafico-de-preco`, `/site/saldos` etc.
+- Abra `http://localhost:<PORT>/site`. O server só aceita conexões do próprio computador (`127.0.0.1`/`::1`). Cada aba tem sua URL: `/site/grafico-de-preco`, `/site/saldos` etc.
 
 ## Mapa do repositório
 
