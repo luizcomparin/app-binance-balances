@@ -73,6 +73,7 @@ const view = {
   reachedStart: false, // já chegou na primeira vela da moeda
   mode: readStoredMode(),
   openOrders: null, // { buys, sells } da moeda aberta; null enquanto carrega
+  myOrdersLoading: false, // ordens executadas (bolinhas) carregando
   showAvg: readStored(AVG_STORAGE_KEY) !== "0", // liga as duas linhas do médio dinâmico (compra e venda)
   showOpenOrders: readStored(OPEN_ORDERS_STORAGE_KEY) !== "0", // compras e vendas abertas no gráfico
   showMyOrders: readStored(MY_ORDERS_STORAGE_KEY) !== "0", // compras e vendas realizadas no gráfico
@@ -166,10 +167,40 @@ function updateAvgAvailability() {
   if (text) text.textContent = loading ? "Calculando preço médio..." : "Preço médio dinâmico";
 }
 
+// Checkboxes "Ordens abertas" e "Ordens realizadas": spinner enquanto as ordens carregam
+function updateOrdersAvailability() {
+  const chips = [
+    ["price-chart-open-orders", "showOpenOrders", !view.openOrders, "Ordens abertas", "Carregando ordens abertas..."],
+    ["price-chart-my-orders", "showMyOrders", view.myOrdersLoading, "Ordens realizadas", "Carregando ordens realizadas..."],
+  ];
+  for (const [id, flag, loading, idle, busy] of chips) {
+    const input = document.getElementById(id);
+    const label = document.getElementById(`${id}-label`);
+    const text = document.getElementById(`${id}-text`);
+    if (!input || !label) continue;
+    input.checked = view[flag];
+    input.disabled = loading;
+    label.classList.toggle("is-loading", loading);
+    if (text) text.textContent = loading ? busy : idle;
+  }
+}
+
+// Ordens executadas da moeda (bolinhas no gráfico): spinner no checkbox enquanto carregam; redesenha ao chegar
+function reloadMyOrders(asset) {
+  view.myOrdersLoading = true;
+  updateOrdersAvailability();
+  return loadMyOrders().then(() => {
+    view.myOrdersLoading = false;
+    updateOrdersAvailability();
+    if (view.asset === asset && view.points && isOpen()) render();
+  });
+}
+
 // Checkbox dos médios projetados (compras e vendas abertas): spinner enquanto carrega posição/ordens,
 // desabilitado se nenhuma das duas linhas se aplica. Cada linha aparece no gráfico só quando se aplica.
 function updateProjectedAvailability() {
   updateAvgAvailability();
+  updateOrdersAvailability();
   const input = document.getElementById("price-chart-projected");
   const label = document.getElementById("price-chart-projected-label");
   const text = document.getElementById("price-chart-projected-text");
@@ -988,9 +1019,7 @@ export function openPriceChart(asset) {
   loadChart();
 
   // ordens chegam em paralelo ao gráfico; se vierem depois, redesenha com os pontos/linhas
-  loadMyOrders().then(() => {
-    if (view.asset === asset && view.points && isOpen()) render();
-  });
+  reloadMyOrders(asset);
   reloadOpenOrders(asset);
 }
 
@@ -1003,9 +1032,7 @@ export function refreshPriceChart() {
   invalidateAssetCache(asset);
   const tasks = [
     reloadOpenOrders(asset),
-    loadMyOrders().then(() => {
-      if (view.asset === asset && view.points && isOpen()) render();
-    }),
+    reloadMyOrders(asset),
     reloadHistory(ordersTab === "history"),
     reloadTrades(ordersTab === "trades"),
     ...refreshLayers(asset),
