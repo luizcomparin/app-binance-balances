@@ -4,7 +4,7 @@ resumo: Linhas de preço (médios, projetados, faixa, DCA, ordens abertas), marc
 arquivos: [public/components/price-chart/chart/overlays.js, public/components/price-chart/chart/legend.js, public/components/price-chart/chart/tooltip.js, public/components/price-chart/chartData.js, public/components/price-chart/chart/createChart.js]
 rotas: [GET /executed-orders, GET /orders/:asset, GET /positions]
 eventos: [POSITIONS_UPDATED]
-storage: []
+storage: [priceChartDynamicAvg]
 ---
 
 # Sobreposições, legenda e tooltip
@@ -22,6 +22,7 @@ storage: []
 | Suas ordens executadas | `/executed-orders` → `chartData.loadMyOrders` + `ordersOnChart` | bolinhas verdes/vermelhas **no preço exato**. O tamanho segue os quartis do valor |
 | Resumo fora da tela | `offscreenSummary` | "↑ 3 vendas acima" / "↓ 1 compra abaixo" |
 
+- As duas linhas do preço médio dinâmico (compra e venda) são ligadas/desligadas juntas pelo checkbox "Preço médio dinâmico" (`#price-chart-avg`, `view.showAvg`) em ⚙ Camadas. Começa ligado; desligado, `render()` passa `avg`/`avgSell` nulos ao gráfico (linhas, legenda e etiquetas somem). O painel de informações não muda.
 - O eixo automático **inclui** os preços médios e projetados, mas **não** as ordens abertas (`autoscaleInfoProvider` em `createChart.js`).
 - `drawPriceLines(series, previousLines, opts, hidden)` remove e recria todas as linhas a cada `update`.
 - `ordersOnChart(points, asset)` encaixa cada ordem executada na vela que a contém (busca binária). `y = totalUSDT / qty`, ou seja, o preço em USDT na data.
@@ -62,3 +63,4 @@ A prioridade em `subscribeCrosshairMove` é esta:
 2. Passe o mouse sobre uma bolinha (detalhes) e sobre a etiqueta "Preço médio dinâmico de compra" (explicação).
 3. Clique em "Suas compras" na legenda: as bolinhas somem.
 4. Com ordens abertas fora da faixa visível, aparece o resumo ↑/↓.
+5. Em ⚙ Camadas, desmarque "Preço médio dinâmico": as linhas de compra e de venda (e seus itens na legenda) somem; ao recarregar a página, continua desmarcado.

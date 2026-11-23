@@ -40,7 +40,8 @@ const DEFAULT_RANGE = "1y";
 const DEFAULT_INTERVAL = "1d";
 const VALID_INTERVALS = ["1h", "4h", "1d", "1w", "1M"];
 const VALID_RANGE = /^(7d|30d|90d|6m|1y|2y|all|\d{1,4}[dmy])$/;
-const PROJECTED_STORAGE_KEY = "priceChartProjectedAvg"; // médios após compras e vendas abertas (um checkbox só)
+const AVG_STORAGE_KEY = "priceChartDynamicAvg"; // linhas do médio dinâmico de compra e venda (ligado por padrão)
+const PROJECTED_STORAGE_KEY ="priceChartProjectedAvg"; // médios após compras e vendas abertas (um checkbox só)
 const STATS_STORAGE_KEY = "priceChartStats";
 const ASSET_STORAGE_KEY = "priceChartAsset"; // última moeda vista
 const DEFAULT_ASSET = "BTC"; // sem última moeda vista (se estiver na carteira; senão a de maior valor)
@@ -70,6 +71,7 @@ const view = {
   reachedStart: false, // já chegou na primeira vela da moeda
   mode: readStoredMode(),
   openOrders: null, // { buys, sells } da moeda aberta; null enquanto carrega
+  showAvg: readStored(AVG_STORAGE_KEY) !== "0", // liga as duas linhas do médio dinâmico (compra e venda)
   showProjected: readStored(PROJECTED_STORAGE_KEY) === "1", // liga as duas linhas (compras e vendas abertas)
   // faixa estatística: ligada?, horizonte em dias e volatilidade da moeda aberta
   showStats: readStored(STATS_STORAGE_KEY) === "1",
@@ -216,8 +218,8 @@ function render(extra = {}) {
     points: view.points,
     interval: view.interval,
     mode: view.mode,
-    avg: positionOf(view.asset).avg,
-    avgSell: state.positions?.[view.asset]?.avgSellPriceUSDT ?? null,
+    avg: view.showAvg ? positionOf(view.asset).avg : null,
+    avgSell: view.showAvg ? state.positions?.[view.asset]?.avgSellPriceUSDT ?? null : null,
     orders: ordersOnChart(view.points, view.asset),
     openOrders: view.openOrders,
     projectedAvg: projectedAvg(),
@@ -802,6 +804,14 @@ export function initPriceChartPanel() {
     writeStored(LIQ_STORAGE_KEY, view.showLiq ? "1" : "0");
     if (view.showLiq && view.liq === null && view.asset) loadLiquidation(view.asset);
     renderLiq();
+    render();
+  });
+
+  const avgInput = document.getElementById("price-chart-avg");
+  if (avgInput) avgInput.checked = view.showAvg;
+  avgInput?.addEventListener("change", () => {
+    view.showAvg = avgInput.checked;
+    writeStored(AVG_STORAGE_KEY, view.showAvg ? "1" : "0");
     render();
   });
 
