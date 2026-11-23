@@ -3,6 +3,7 @@
 //   - com uma ferramenta escolhida, cada clique marca um ponto (horizontal: 1, canal: 3, demais: 2);
 //     terminado o desenho, a ferramenta volta ao cursor (igual ao TradingView);
 //   - clicar num desenho seleciona; arrastar move (pelo corpo) ou edita (pelas bolinhas);
+//   - o olho da barra exibe/oculta todos (salvo no navegador; escolher uma ferramenta volta a exibir);
 //   - Del/Backspace apaga o selecionado; Esc cancela o desenho em andamento ou tira a seleção;
 //   - os pontos são guardados pelo instante (ms) e preço: valem em qualquer tamanho de vela e
 //     continuam no lugar quando o histórico antigo é carregado; salvos no navegador por moeda.
@@ -16,6 +17,7 @@ const HIT = 6; // px: distância do mouse a uma linha para pegar o desenho
 const HANDLE_HIT = 8;
 const HANDLE_R = 5;
 const STORAGE_KEY = "price-chart-drawings";
+const VISIBLE_KEY = "price-chart-drawings-visible"; // olho da barra: "0" = desenhos ocultos
 
 // handles: [ponto do tempo, ponto do preço, deslocado pelo canal?]
 export const TOOLS = {
@@ -70,8 +72,9 @@ function loadAll() {
  * getSeries/getPoints/getInterval: estado atual (a etiqueta no eixo usa o formato de preço da série)
  * isBusy(): régua de medição em andamento (ela tem prioridade nos cliques)
  * onToolChange(tool|null): ferramenta ativa mudou (para a barra de ferramentas)
+ * onVisibleChange(visible): desenhos exibidos/ocultos mudou (para o olho da barra)
  */
-export function createDrawings(chart, { container, getSeries, getPoints, getInterval, isBusy, onToolChange }) {
+export function createDrawings(chart, { container, getSeries, getPoints, getInterval, isBusy, onToolChange, onVisibleChange }) {
   let asset = null;
   let items = []; // { id, type, points: [{ ms, price }], dp? (canal: distância de preço da linha paralela) }
   let selected = null;
@@ -80,6 +83,12 @@ export function createDrawings(chart, { container, getSeries, getPoints, getInte
   let draft = null; // desenho em andamento: { type, points, cursor }
   let drag = null;
   let requestUpdate = null;
+  let visible = true;
+  try {
+    visible = localStorage.getItem(VISIBLE_KEY) !== "0";
+  } catch {
+    // sem armazenamento: exibidos
+  }
 
   // Etiqueta de preço no eixo de cada linha horizontal: uma linha de preço nativa e invisível (só a etiqueta).
   // Não usa priceAxisViews do primitive: o Lightweight Charts não encaixa essas etiquetas no arranjo que afasta
@@ -95,7 +104,7 @@ export function createDrawings(chart, { container, getSeries, getPoints, getInte
       labelSeries = series;
     }
     if (!series) return;
-    const wanted = new Map(items.filter((d) => d.type === "hline").map((d) => [d.id, d.points[0].price]));
+    const wanted = new Map(visible ? items.filter((d) => d.type === "hline").map((d) => [d.id, d.points[0].price]) : []);
     for (const [id, label] of axisLabels) {
       if (wanted.has(id)) continue;
       series.removePriceLine(label.line);
@@ -228,6 +237,7 @@ export function createDrawings(chart, { container, getSeries, getPoints, getInte
 
   // o que está sob o mouse: bolinha de edição (handle >= 0) ou o desenho em si (handle -1)
   function hitTest(pt) {
+    if (!visible) return null; // ocultos: não dá para pegar nem selecionar
     const top = [...items].reverse(); // o mais recente fica por cima
     const sel = items.find((d) => d.id === selected);
     for (const d of sel ? [sel, ...top] : top) {
@@ -251,7 +261,8 @@ export function createDrawings(chart, { container, getSeries, getPoints, getInte
   function draw(target) {
     if (!ready()) return;
     const preview = draftDrawing();
-    const list = preview ? [...items, preview] : items;
+    const shown = visible ? items : [];
+    const list = preview ? [...shown, preview] : shown;
     target.useBitmapCoordinateSpace((scope) => {
       const { context: ctx, horizontalPixelRatio: hr, verticalPixelRatio: vr } = scope;
       const P = (p) => [p.x * hr, p.y * vr];
@@ -334,8 +345,25 @@ export function createDrawings(chart, { container, getSeries, getPoints, getInte
     }
   }
 
+  // olho da barra: exibe/oculta todos os desenhos (ocultar tira a seleção, para o Del não apagar o que não se vê)
+  function setVisible(next) {
+    visible = !!next;
+    try {
+      localStorage.setItem(VISIBLE_KEY, visible ? "1" : "0");
+    } catch {
+      // sem armazenamento: vale só até recarregar
+    }
+    if (!visible) {
+      selected = hovered = null;
+      container.classList.remove("is-draw-hover");
+    }
+    onVisibleChange?.(visible);
+    redraw();
+  }
+
   function setTool(next) {
     tool = next && TOOLS[next] ? next : null;
+    if (tool && !visible) setVisible(true); // vai desenhar: mostra os desenhos
     draft = null;
     container.classList.toggle("is-placing", !!tool);
     onToolChange?.(tool);
@@ -517,6 +545,8 @@ export function createDrawings(chart, { container, getSeries, getPoints, getInte
   return {
     primitive,
     setTool,
+    setVisible,
+    isVisible: () => visible,
 
     /** mira mexeu: com uma ferramenta ativa, o próximo ponto segue o mouse. true = esconder a tooltip */
     move(param) {

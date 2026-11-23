@@ -91,7 +91,7 @@ export function createPriceChart(els, handlers = {}) {
 
   // ferramentas de desenho (linha de tendência, raio, horizontal, retângulo, canal) e a barra delas;
   // criadas antes da régua: nos cliques, a régua em andamento tem prioridade
-  const toolbar = createDrawingToolbar(wrap, (tool) => drawings.setTool(tool));
+  const toolbar = createDrawingToolbar(wrap, (tool) => drawings.setTool(tool), () => drawings.setVisible(!drawings.isVisible()));
   const drawings = createDrawings(chart, {
     container,
     getSeries: () => s.series,
@@ -99,7 +99,9 @@ export function createPriceChart(els, handlers = {}) {
     getInterval: () => s.interval,
     isBusy: () => measure.busy(),
     onToolChange: (tool) => toolbar.setActive(tool),
+    onVisibleChange: (visible) => toolbar.setVisible(visible),
   });
+  toolbar.setVisible(drawings.isVisible());
 
   // régua de medição (Shift + clique); anexada à série principal, como o mapa de liquidação
   const measure = createMeasureTool(chart, {

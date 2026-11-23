@@ -547,6 +547,16 @@
   stroke-linecap: round;
 }
 
+/* olho (exibe/oculta todos os desenhos): ícone de 24px, traço um pouco mais grosso; esmaecido quando ocultos */
+.lwc-draw-toolbar .lwc-draw-eye-icon {
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+}
+
+.lwc-draw-toolbar .lwc-draw-eye.is-off {
+  color: #7d8aa8;
+}
+
 /* mouse em cima de um desenho / marcando os pontos de um desenho */
 .price-chart-lwc.is-draw-hover,
 .price-chart-lwc.is-draw-hover * {

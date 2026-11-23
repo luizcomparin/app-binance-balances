@@ -4,7 +4,7 @@ resumo: Linha de tendência, raio, horizontal, retângulo, canal paralelo e medi
 arquivos: [public/components/price-chart/chart/drawings.js, public/components/price-chart/chart/drawingToolbar.js, public/components/price-chart/chart/measureTool.js, public/components/price-chart/chart/createChart.js]
 rotas: []
 eventos: []
-storage: [price-chart-drawings, price-chart-draw-toolbar]
+storage: [price-chart-drawings, price-chart-drawings-visible, price-chart-draw-toolbar]
 ---
 
 # Desenhos e régua
@@ -25,6 +25,7 @@ Ferramentas (`TOOLS`):
 Uso:
 
 - Escolha a ferramenta na barra; cada clique marca um ponto. Terminado o desenho, a ferramenta volta ao cursor (como no TradingView).
+- **Olho** (início da barra, `.lwc-draw-eye`): exibe/oculta todos os desenhos da moeda (inclusive as etiquetas das linhas horizontais no eixo). Ocultos, não dá para selecionar nem arrastar, e a seleção é desfeita (o Del não apaga o que não se vê). Escolher uma ferramenta volta a exibir. O estado fica em `price-chart-drawings-visible` (`drawings.setVisible` / `isVisible`, avisado à barra por `onVisibleChange`). A régua do Shift não é afetada.
 - Clicar num desenho seleciona. Arrastar pelo corpo move; arrastar pelas bolinhas edita.
 - **Del/Backspace** apaga o selecionado (ignorado dentro de inputs). **Esc** cancela o desenho em andamento ou tira a seleção.
 - Depois do primeiro ponto de um desenho, **botão direito**, **Esc** ou **Del/Backspace** cancelam o desenho em andamento (sem apagar o selecionado) e a ferramenta volta ao cursor (`drafting()` em `drawings.js`).
@@ -33,9 +34,9 @@ Uso:
 - **Medição de preço** (`measure`): é a mesma régua do Shift + clique, só que durável (salva, selecionável, arrastável e apagável como os outros desenhos). Usa `measureLines` e `paintMeasure` de `measureTool.js`. O texto (variação, barras, tempo, volume) é recalculado a cada desenho, então reflete o tamanho de vela atual. Para selecionar, clique dentro da área.
 - A etiqueta de preço no eixo de cada linha horizontal é uma **linha de preço nativa invisível** (`createPriceLine` com `lineVisible: false`), mantida por `syncAxisLabels()`: criada, movida (ao arrastar) e removida junto com o desenho, e recriada na série nova quando o modo Linha/Velas muda (no `attached` do primitive).
   - **Não use `priceAxisViews` no primitive.** O Lightweight Charts 5.0.8 não encaixa essas etiquetas no arranjo que afasta as etiquetas sobrepostas, e com elas presentes as outras (ordens abertas, preços médios, médias) iam parar empilhadas no topo do eixo, longe das suas linhas. O problema aparecia só nas moedas com linhas horizontais desenhadas.
-- `createDrawings(chart, { container, getSeries, getPoints, getInterval, isBusy, onToolChange })` devolve `{ primitive, setTool, move(param), setAsset(asset) }`.
+- `createDrawings(chart, { container, getSeries, getPoints, getInterval, isBusy, onToolChange, onVisibleChange })` devolve `{ primitive, setTool, setVisible, isVisible, move(param), setAsset(asset) }`.
 
-**Barra** (`chart/drawingToolbar.js`): flutua sobre o gráfico e pode ser arrastada pela alça. A posição fica em `price-chart-draw-toolbar`. `createDrawingToolbar(wrap, onSelect)` devolve `{ setActive }`.
+**Barra** (`chart/drawingToolbar.js`): flutua sobre o gráfico e pode ser arrastada pela alça. A posição fica em `price-chart-draw-toolbar`. `createDrawingToolbar(wrap, onSelect, onToggleVisible)` devolve `{ setActive, setVisible }`.
 
 **Persistência:** `price-chart-drawings` = `{ MOEDA: [desenhos] }`. Cada desenho é validado ao carregar (`validDrawing`).
 
@@ -61,5 +62,6 @@ Uso:
 
 1. Desenhe um canal, troque a vela de D para 4h (o canal fica no lugar), troque de moeda e volte (o desenho foi salvo) e apague com Del.
 2. Faça Shift+clique, mova o mouse e clique para medir; o próximo clique apaga a medida.
-4. Escolha "Medição de preço" na barra, marque dois pontos: a medida fica. Troque de moeda e volte (continua lá), arraste pelas bolinhas e apague com Del.
 3. Escolha "Linha de tendência", clique no primeiro ponto e aperte o botão direito (de novo com Esc e com Del): a linha some, não abre o menu do navegador e a ferramenta volta ao cursor.
+4. Escolha "Medição de preço" na barra, marque dois pontos: a medida fica. Troque de moeda e volte (continua lá), arraste pelas bolinhas e apague com Del.
+5. Clique no olho da barra: todos os desenhos somem (e as etiquetas das horizontais no eixo); recarregue (continuam ocultos); escolha uma ferramenta: voltam a aparecer.

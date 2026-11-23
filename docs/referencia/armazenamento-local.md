@@ -4,7 +4,7 @@ resumo: Todas as preferências da página salvas no navegador, com formato, padr
 arquivos: []
 rotas: []
 eventos: []
-storage: [balances-simple-view, ordersOpenPairs, priceChartAsset, priceChartMode, priceChartRange, priceChartInterval, priceChartDynamicAvg, priceChartOpenOrders, priceChartMyOrders, priceChartProjectedAvg, priceChartStats, priceChartStatsDays, priceChartDca, priceChartLiquidation, priceChartFutures, priceChartRealLiquidations, priceChartOrdersTab, priceChartIndicators, priceChartMovingAverages, priceChartIndicatorsVisible, priceChartWatchlistOrder, priceChartWatchlistOpen, priceChartWatchlistColors, priceChartPaneHeights, price-chart-drawings, price-chart-draw-toolbar]
+storage: [balances-simple-view, ordersOpenPairs, priceChartAsset, priceChartMode, priceChartRange, priceChartInterval, priceChartDynamicAvg, priceChartOpenOrders, priceChartMyOrders, priceChartProjectedAvg, priceChartStats, priceChartStatsDays, priceChartDca, priceChartLiquidation, priceChartFutures, priceChartRealLiquidations, priceChartOrdersTab, priceChartIndicators, priceChartMovingAverages, priceChartIndicatorsVisible, priceChartWatchlistOrder, priceChartWatchlistOpen, priceChartWatchlistColors, priceChartPaneHeights, price-chart-drawings, price-chart-drawings-visible, price-chart-draw-toolbar]
 ---
 
 # `localStorage`
@@ -40,6 +40,7 @@ O padrão de nomes é **inconsistente**: há chaves em `camelCase` (`priceChartX
 | `priceChartWatchlistColors` | JSON `{ moeda: "#rrggbb" }` | `{}` | `watchlist.js` | Cor de indicação por moeda |
 | `priceChartPaneHeights` | JSON `{ volume, oi, ls, funding, liq: px }` | 96 px cada | `chart/futuresPanes.js` | Altura dos painéis abaixo do preço |
 | `price-chart-drawings` | JSON `{ moeda: [{ id, type, points: [{ms, price}], dp? }] }` | `{}` | `chart/drawings.js` | Desenhos por moeda |
+| `price-chart-drawings-visible` | `"1"`/`"0"` | on | `chart/drawings.js` | Olho da barra de desenhos (`"0"` = todos os desenhos ocultos) |
 | `price-chart-draw-toolbar` | JSON `{ left, top }` | canto padrão | `chart/drawingToolbar.js` | Posição da barra de desenho |
 
 Ao criar uma chave, adicione uma linha aqui e no `storage:` do cabeçalho do doc da funcionalidade.

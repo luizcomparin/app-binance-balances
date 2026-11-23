@@ -13,12 +13,23 @@ const ICONS = {
   measure: `<path d="M4.5 18.5 18.5 4.5l5 5-14 14zM9 14l2 2M12 11l3 3M15 8l2 2"/>`,
 };
 
-/** onSelect(tool): botão clicado (o mesmo de novo = desligar). Devolve { setActive(tool|null) } */
-export function createDrawingToolbar(wrap, onSelect) {
+const EYE_SVG = (on) =>
+  `<svg class="lwc-draw-eye-icon" viewBox="0 0 24 24" width="20" height="20">${
+    on
+      ? '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/>'
+      : '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 19c-7 0-11-7-11-7a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 7 11 7a18.5 18.5 0 0 1-2.16 3.19"/><path d="M1 1l22 22"/>'
+  }</svg>`;
+
+/**
+ * onSelect(tool): botão clicado (o mesmo de novo = desligar). onToggleVisible(): olho clicado.
+ * Devolve { setActive(tool|null), setVisible(visible) }
+ */
+export function createDrawingToolbar(wrap, onSelect, onToggleVisible) {
   const bar = document.createElement("div");
   bar.className = "lwc-draw-toolbar";
   bar.innerHTML =
     `<span class="lwc-draw-grip" title="Arraste para mover · Del apaga o desenho selecionado · Esc cancela"></span>` +
+    `<button type="button" class="lwc-draw-eye" aria-pressed="false"></button>` +
     Object.entries(TOOLS)
       .map(
         ([key, t]) =>
@@ -30,6 +41,7 @@ export function createDrawingToolbar(wrap, onSelect) {
 
   let active = null;
   bar.addEventListener("click", (e) => {
+    if (e.target.closest(".lwc-draw-eye")) return onToggleVisible?.();
     const btn = e.target.closest("button[data-tool]");
     if (btn) onSelect(btn.dataset.tool === active ? null : btn.dataset.tool);
   });
@@ -68,7 +80,16 @@ export function createDrawingToolbar(wrap, onSelect) {
     grip.addEventListener("pointerup", up);
   });
 
+  const eye = bar.querySelector(".lwc-draw-eye");
+
   return {
+    setVisible(visible) {
+      eye.innerHTML = EYE_SVG(visible);
+      eye.title = visible ? "Ocultar todos os desenhos" : "Exibir os desenhos";
+      eye.setAttribute("aria-label", eye.title);
+      eye.setAttribute("aria-pressed", String(!visible));
+      eye.classList.toggle("is-off", !visible);
+    },
     setActive(tool) {
       active = tool;
       for (const btn of bar.querySelectorAll("button[data-tool]")) {
