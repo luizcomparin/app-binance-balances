@@ -179,10 +179,11 @@
   display: none;
 }
 
-/* botão de engrenagem no topo */
+/* botão de engrenagem no topo: mesma altura dos vizinhos (a linha centraliza os itens, então estica só ele) */
 .settings-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  align-self: stretch;
   padding: 0 14px;
 }
