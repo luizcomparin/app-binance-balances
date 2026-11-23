@@ -15,7 +15,7 @@ São dois checkboxes em ⚙ (`#price-chart-layers`).
 
 Um único checkbox (`view.showProjected`) liga as duas linhas abaixo. No gráfico e na legenda, cada linha continua separada e só aparece quando se aplica à moeda.
 
-- O checkbox fica disponível se ao menos uma das linhas se aplica. Enquanto carrega, mostra spinner; sem dados, fica desabilitado com explicação no `title` (`updateProjectedAvailability`).
+- O checkbox fica disponível se ao menos uma das linhas se aplica. Enquanto carrega, mostra spinner; sem dados, fica desabilitado com explicação no `title` (`updateProjectedAvailability`). Disponível, o `title` explica o que as linhas mostram.
 
 ### Linha: médio após compras abertas
 
@@ -35,7 +35,7 @@ Um único checkbox (`view.showProjected`) liga as duas linhas abaixo. No gráfic
   `X (USDT) = Q·P·(T − A) / (P − T)`. Só é possível se `T` estiver estritamente entre `A` e `P` (`buyToReachAvg`).
 - A caixa (`simBox`) mostra "Comprar ≈ X USDT (q MOEDA a P)" ou "Inalcançável comprando a preço atual". O status `ok | unreachable | none` vira a classe CSS do tooltip.
 - `setSimContext({ asset, lastPrice })` é atualizado a cada carga de velas. O crosshair está em modo livre (`CrosshairMode.Normal`) para dar o preço exato.
-- Esta opção **não** é persistida. `updateSimAvailability()` a desliga se não houver preço médio.
+- Esta opção **não** é persistida. `updateSimAvailability()` a desliga se não houver preço médio. Disponível, o `title` (`SIM_TITLE`) explica a função; sem preço médio, diz por que está desabilitada.
 
 ## Persistência
 

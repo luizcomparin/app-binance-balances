@@ -218,7 +218,7 @@ function updateProjectedAvailability() {
   label.classList.toggle("is-loading", loading);
   label.classList.toggle("disabled", !loading && !ok);
   label.title = ok || loading
-    ? ""
+    ? "Linhas do seu preço médio de compra após as compras abertas e do preço médio de venda após as vendas abertas, se forem executadas"
     : !hasBuys
       ? "Nenhuma ordem aberta para esta moeda"
       : "Compras abertas exigem preço médio calculado, e não há vendas abertas para esta moeda";

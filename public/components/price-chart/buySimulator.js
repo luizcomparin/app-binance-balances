@@ -87,6 +87,9 @@ export function simBox(target) {
 }
 
 // Checkbox: spinner enquanto o preço médio é calculado, desabilitado sem preço médio
+// explicação do item no hover (quando disponível)
+const SIM_TITLE = "Ao passar o mouse sobre um preço do gráfico, mostra quanto comprar ao preço atual para o seu preço médio chegar nele";
+
 export function updateSimAvailability() {
   const pos = state.positions?.[context.asset];
   const loading = state.positionsLoading;
@@ -98,7 +101,7 @@ export function updateSimAvailability() {
   input.disabled = !ok;
   label.classList.toggle("is-loading", loading);
   label.classList.toggle("disabled", !loading && !ok);
-  label.title = ok || loading ? "" : "Disponível apenas para moedas com preço médio calculado";
+  label.title = ok || loading ? SIM_TITLE : "Disponível apenas para moedas com preço médio calculado";
   if (text) {
     text.textContent = loading ? "Calculando preço médio..." : "Simular compra até o preço médio";
   }
