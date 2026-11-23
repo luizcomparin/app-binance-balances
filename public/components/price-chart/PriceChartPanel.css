@@ -254,6 +254,15 @@
   white-space: nowrap;
 }
 
+/* títulos dos grupos de camadas: no gráfico principal × painéis abaixo dele */
+.pc-layers-pop .pc-layers-group {
+  padding: 2px 4px 0;
+}
+
+.pc-layers-pop .pc-label.pc-layers-group-sep {
+  margin-top: 6px;
+}
+
 #price-chart-layers-btn[aria-expanded="true"] {
   background: rgba(77, 212, 255, 0.1);
   border-color: rgba(77, 212, 255, 0.55);

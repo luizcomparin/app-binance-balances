@@ -102,7 +102,7 @@ Mostra o preço atual, o **preço médio dinâmico de compra**, "Vs. preço méd
 
 ## Como adicionar uma camada
 
-1. Em `PriceChartPanel.html`, adicione um `<label class="price-chart-sim-toggle pc-chip" id="price-chart-x-label"><input type="checkbox" id="price-chart-x">…` dentro de `#price-chart-layers`. Se a camada tiver texto, crie também uma caixa `<div class="price-chart-stats" id="price-chart-x-box" data-title="…" hidden>`.
+1. Em `PriceChartPanel.html`, adicione um `<label class="price-chart-sim-toggle pc-chip" id="price-chart-x-label"><input type="checkbox" id="price-chart-x">…` dentro de `#price-chart-layers`, no grupo certo: abaixo do título "No gráfico" (desenha sobre o gráfico principal) ou "Painéis abaixo do gráfico" (cria painel separado). Se a camada tiver texto, crie também uma caixa `<div class="price-chart-stats" id="price-chart-x-box" data-title="…" hidden>`.
 2. Em `PriceChartPanel.js`, adicione a constante `X_STORAGE_KEY`, `view.showX = readStored(...) === "1"` e `view.x`. Ligue o checkbox em `initPriceChartPanel()`. Em `openPriceChart()` e em `refreshLayers()` (Atualizar do topo), zere e recarregue. Crie `loadX(asset)` com proteção de corrida (`if (view.asset !== asset) return`) e `renderX()` para a caixa.
 3. Em `render()`, passe o dado novo para `chart.update`.
 4. Em `chart/createChart.js` `update()`, desenhe usando uma linha de preço (`overlays.drawPriceLines`), um primitive anexado à série (padrão de `LiquidationOverlay`/`BandFill`) ou um painel (`futuresPanes`). Lembre de limpar em `clear()`.

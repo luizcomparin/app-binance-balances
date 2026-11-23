@@ -87,6 +87,7 @@
               <span class="pc-caret" aria-hidden="true">▾</span>
             </button>
             <div class="pc-pop pc-layers-pop" id="price-chart-layers" hidden>
+              <span class="pc-label pc-layers-group">No gráfico</span>
               <label class="price-chart-sim-toggle pc-chip" id="price-chart-avg-label" title="Linhas do preço médio dinâmico de compra e de venda no gráfico">
                 <input type="checkbox" id="price-chart-avg" />
                 <span class="mini-spinner sim-spinner"></span>
@@ -120,6 +121,12 @@
                 <input type="checkbox" id="price-chart-liq" />
                 <span>Mapa de liquidação (estimado)</span>
               </label>
+              <label class="price-chart-sim-toggle pc-chip" id="price-chart-stats-label" title="Faixa de preço típica a partir da volatilidade do último ano (não é previsão)">
+                <input type="checkbox" id="price-chart-stats" />
+                <span>Faixa estatística</span>
+                <span class="pc-chip-extra">em <input type="number" id="price-chart-stats-days" class="stats-days" min="1" max="365" value="30" /> dias</span>
+              </label>
+              <span class="pc-label pc-layers-group pc-layers-group-sep">Painéis abaixo do gráfico</span>
               <label class="price-chart-sim-toggle pc-chip" id="price-chart-liqreal-label" title="Painel com as liquidações que de fato aconteceram nos futuros perpétuos (Binance + Bybit + OKX, dados da Coinalyze), abaixo do gráfico">
                 <input type="checkbox" id="price-chart-liqreal" />
                 <span class="mini-spinner sim-spinner"></span>
@@ -129,11 +136,6 @@
                 <input type="checkbox" id="price-chart-fut" />
                 <span class="mini-spinner sim-spinner"></span>
                 <span id="price-chart-fut-text">Dados de futuros</span>
-              </label>
-              <label class="price-chart-sim-toggle pc-chip" id="price-chart-stats-label" title="Faixa de preço típica a partir da volatilidade do último ano (não é previsão)">
-                <input type="checkbox" id="price-chart-stats" />
-                <span>Faixa estatística</span>
-                <span class="pc-chip-extra">em <input type="number" id="price-chart-stats-days" class="stats-days" min="1" max="365" value="30" /> dias</span>
               </label>
             </div>
           </div>
