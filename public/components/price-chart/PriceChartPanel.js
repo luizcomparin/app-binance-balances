@@ -1113,9 +1113,10 @@ const INFO_HELP = {
     "• Por isso compras feitas depois de vendas pesam mais. Se o saldo zera, a média recomeça.",
   ].join("\n"),
   avgSell: [
-    "Quanto você recebeu, em média, por moeda nas vendas da posição atual.",
-    "• Total recebido nas vendas (já sem as taxas) ÷ quantidade vendida.",
-    "• Conta as vendas desde a compra que reabriu a posição depois de o saldo zerar; vendas de ciclos anteriores não entram.",
+    "Quanto você recebeu, em média, por moeda nas vendas da posição que tem hoje.",
+    "• Cada venda entra na média pelo preço recebido (já sem as taxas).",
+    "• As compras não mudam a média.",
+    "• Se o saldo zera, a média recomeça.",
   ].join("\n"),
   diff: [
     "1º valor: quanto o preço atual está acima ou abaixo do seu preço médio dinâmico de compra.",
