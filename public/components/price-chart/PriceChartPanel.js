@@ -18,7 +18,7 @@ import { getIndicators, initIndicatorControls } from "./indicatorControls.js";
 import { fetchFuturesData, fetchLiquidationMap, fetchLiquidations } from "../../api/binance.js";
 import { openSettings } from "../settings/SettingsModal.js";
 import { formatUsdShort } from "../../core/format.js";
-import { FUTURES_HELP, PANE_LOADING } from "./chart/futuresPanes.js";
+import { FUTURES_HELP, FUTURES_PANES, PANE_LOADING } from "./chart/futuresPanes.js";
 import { initOrderHistory, setHistoryAsset, showHistory, reloadHistory } from "./orderHistoryTable.js";
 import { initTradeHistory, setTradesAsset, showTrades, reloadTrades } from "./tradeHistoryTable.js";
 import { annualizedPct, dailyVolatility, priceBand, touchProbability } from "./volatility.js";
@@ -53,7 +53,13 @@ const DCA_STORAGE_KEY = "priceChartDca";
 const LIQ_STORAGE_KEY = "priceChartLiquidation";
 const LIQ_CACHE_MS = 2 * 60 * 1000; // mapa de liquidação no cliente
 const FUT_CACHE_MS = 2 * 60 * 1000; // dados de futuros no cliente
-const FUT_STORAGE_KEY = "priceChartFutures";
+const FUT_LEGACY_STORAGE_KEY = "priceChartFutures"; // antes um checkbox só ligava os 3 painéis
+// painéis de futuros, cada um com seu checkbox: chave do storage, texto e id do checkbox
+const FUT_PANES = {
+  oi: { storage: "priceChartFuturesOi", label: "Open interest (futuros)", input: "price-chart-fut-oi" },
+  ls: { storage: "priceChartFuturesLs", label: "Long/short ratio (futuros)", input: "price-chart-fut-ls" },
+  funding: { storage: "priceChartFuturesFunding", label: "Taxa de funding (futuros)", input: "price-chart-fut-funding" },
+};
 // período dos dados de futuros por tamanho de vela (a Binance tem 1h/4h/1d; S e M usam o diário)
 const FUT_PERIOD = { "1h": "1h", "4h": "4h" };
 const LIQREAL_STORAGE_KEY = "priceChartRealLiquidations"; // painel de liquidações reais (Coinalyze)
@@ -89,7 +95,10 @@ const view = {
   showLiq: readStored(LIQ_STORAGE_KEY) === "1",
   liq: null, // resposta de /liquidation-map | null (não carregado/erro) | undefined (carregando)
   // painéis de futuros: ligados? e dados (por moeda + período)
-  showFut: readStored(FUT_STORAGE_KEY) === "1",
+  // painéis de futuros ligados (sem escolha salva, herda o antigo checkbox "Dados de futuros")
+  showFut: Object.fromEntries(
+    FUTURES_PANES.map((k) => [k, (readStored(FUT_PANES[k].storage) ?? readStored(FUT_LEGACY_STORAGE_KEY)) === "1"])
+  ),
   fut: null, // { key, data } | { key, data: null (erro) } | { key, loading: true }
   // painel de liquidações reais: ligado? e dados (por moeda + tamanho de vela)
   showLiqReal: readStored(LIQREAL_STORAGE_KEY) === "1",
@@ -280,6 +289,7 @@ function render(extra = {}) {
     summary: chartSummary(),
     liquidation: view.showLiq && view.liq?.available ? view.liq : null,
     futures: futuresForChart(),
+    futuresPanes: futPanesOn(),
     liquidations: liquidationsForChart(),
     ...extra,
   });
@@ -446,8 +456,11 @@ const futKey = () => `${view.asset}|${FUT_PERIOD[view.interval] || "1d"}`;
 
 // dados prontos para o gráfico, PANE_LOADING (painéis ficam com spinner) ou null; se faltam para a
 // moeda/período atual, começa a carregar
+// painéis de futuros ligados, na ordem do gráfico
+const futPanesOn = () => FUTURES_PANES.filter((k) => view.showFut[k]);
+
 function futuresForChart() {
-  if (!view.showFut || !view.asset) return null;
+  if (!futPanesOn().length || !view.asset) return null;
   if (view.fut?.key !== futKey()) loadFutures();
   if (view.fut?.loading) return PANE_LOADING;
   return view.fut?.data?.available ? view.fut.data : null;
@@ -475,22 +488,27 @@ async function loadFutures() {
   render();
 }
 
-// checkbox: spinner enquanto carrega; aviso quando a moeda não tem contrato perpétuo
+// checkboxes dos painéis de futuros (os ligados): spinner enquanto carrega; aviso quando a moeda não tem
+// contrato perpétuo
 function updateFuturesAvailability() {
-  const label = document.getElementById("price-chart-fut-label");
-  const text = document.getElementById("price-chart-fut-text");
-  if (!label || !text) return;
-  const loading = view.showFut && !!view.fut?.loading;
-  const unavailable = view.showFut && view.fut && !view.fut.loading && !view.fut.data?.available;
-  label.classList.toggle("is-loading", loading);
-  label.classList.toggle("disabled", unavailable);
-  text.textContent = loading
-    ? "Carregando dados de futuros..."
-    : unavailable
-      ? view.fut.data?.reason === "no-perpetual"
-        ? `Dados de futuros: ${view.asset} sem contrato perpétuo`
-        : "Dados de futuros indisponíveis"
-      : "Dados de futuros";
+  for (const key of FUTURES_PANES) {
+    const { input, label: name } = FUT_PANES[key];
+    const label = document.getElementById(`${input}-label`);
+    const text = document.getElementById(`${input}-text`);
+    if (!label || !text) continue;
+    const on = view.showFut[key];
+    const loading = on && !!view.fut?.loading;
+    const unavailable = on && view.fut && !view.fut.loading && !view.fut.data?.available;
+    label.classList.toggle("is-loading", loading);
+    label.classList.toggle("disabled", unavailable);
+    text.textContent = loading
+      ? "Carregando dados de futuros..."
+      : unavailable
+        ? view.fut.data?.reason === "no-perpetual"
+          ? `${name}: ${view.asset} sem contrato perpétuo`
+          : `${name}: indisponível`
+        : name;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -822,14 +840,18 @@ export function initPriceChartPanel() {
     render();
   });
 
-  const futInput = document.getElementById("price-chart-fut");
-  if (futInput) futInput.checked = view.showFut;
-  futInput?.addEventListener("change", () => {
-    view.showFut = futInput.checked;
-    writeStored(FUT_STORAGE_KEY, view.showFut ? "1" : "0");
-    updateFuturesAvailability();
-    render();
-  });
+  // painéis de futuros: open interest, long/short e funding, cada um independente
+  for (const key of FUTURES_PANES) {
+    const futInput = document.getElementById(FUT_PANES[key].input);
+    if (!futInput) continue;
+    futInput.checked = view.showFut[key];
+    futInput.addEventListener("change", () => {
+      view.showFut[key] = futInput.checked;
+      writeStored(FUT_PANES[key].storage, futInput.checked ? "1" : "0");
+      updateFuturesAvailability();
+      render();
+    });
+  }
 
   // liquidações reais: sem chave da Coinalyze, ligar abre as Configurações
   on(COINALYZE_KEY_CHANGED, reloadLiquidations);
@@ -1062,7 +1084,7 @@ function refreshLayers(asset) {
   if (view.showLiq) tasks.push(loadLiquidation(asset));
   else view.liq = null;
   // painéis de futuros e de liquidações reais (as funções de carga usam a moeda/vela atuais)
-  if (view.showFut) tasks.push(loadFutures());
+  if (futPanesOn().length) tasks.push(loadFutures());
   else view.fut = null;
   if (view.showLiqReal) tasks.push(loadLiquidations());
   else view.liqReal = null;

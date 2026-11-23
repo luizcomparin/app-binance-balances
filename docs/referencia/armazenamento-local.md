@@ -4,7 +4,7 @@ resumo: Todas as preferências da página salvas no navegador, com formato, padr
 arquivos: []
 rotas: []
 eventos: []
-storage: [balances-simple-view, ordersOpenPairs, priceChartAsset, priceChartMode, priceChartRange, priceChartInterval, priceChartDynamicAvg, priceChartOpenOrders, priceChartMyOrders, priceChartProjectedAvg, priceChartSimulator, priceChartStats, priceChartStatsDays, priceChartDca, priceChartLiquidation, priceChartFutures, priceChartRealLiquidations, priceChartOrdersTab, priceChartIndicators, priceChartMovingAverages, priceChartIndicatorsVisible, priceChartWatchlistOrder, priceChartWatchlistOpen, priceChartWatchlistColors, priceChartPaneHeights, price-chart-drawings, price-chart-drawings-visible, price-chart-draw-toolbar]
+storage: [balances-simple-view, ordersOpenPairs, priceChartAsset, priceChartMode, priceChartRange, priceChartInterval, priceChartDynamicAvg, priceChartOpenOrders, priceChartMyOrders, priceChartProjectedAvg, priceChartSimulator, priceChartStats, priceChartStatsDays, priceChartDca, priceChartLiquidation, priceChartFuturesOi, priceChartFuturesLs, priceChartFuturesFunding, priceChartFutures, priceChartRealLiquidations, priceChartOrdersTab, priceChartIndicators, priceChartMovingAverages, priceChartIndicatorsVisible, priceChartWatchlistOrder, priceChartWatchlistOpen, priceChartWatchlistColors, priceChartPaneHeights, price-chart-drawings, price-chart-drawings-visible, price-chart-draw-toolbar]
 ---
 
 # `localStorage`
@@ -30,7 +30,10 @@ O padrão de nomes é **inconsistente**: há chaves em `camelCase` (`priceChartX
 | `priceChartStatsDays` | número 1–365 | `30` | `PriceChartPanel.js` | Horizonte da faixa estatística |
 | `priceChartDca` | `"1"`/`"0"` | off | `PriceChartPanel.js` | Camada compra mensal fixa |
 | `priceChartLiquidation` | `"1"`/`"0"` | off | `PriceChartPanel.js` | Camada mapa de liquidação |
-| `priceChartFutures` | `"1"`/`"0"` | off | `PriceChartPanel.js` | Painéis de futuros |
+| `priceChartFuturesOi` | `"1"`/`"0"` | off | `PriceChartPanel.js` | Painel "Open interest (futuros)" |
+| `priceChartFuturesLs` | `"1"`/`"0"` | off | `PriceChartPanel.js` | Painel "Long/short ratio (futuros)" |
+| `priceChartFuturesFunding` | `"1"`/`"0"` | off | `PriceChartPanel.js` | Painel "Taxa de funding (futuros)" |
+| `priceChartFutures` | (legado) | — | `PriceChartPanel.js` | Antigo checkbox "Dados de futuros"; só lido como padrão dos 3 acima enquanto não têm valor salvo |
 | `priceChartRealLiquidations` | `"1"`/`"0"` | off | `PriceChartPanel.js` | Painel de liquidações reais |
 | `priceChartOrdersTab` | `open·history·trades` | `open` | `PriceChartPanel.js` | Aba abaixo do gráfico |
 | `priceChartIndicators` | JSON `[{ id, kind: "ma"\|"vma"\|"bb", period, type?, mult?, color, opacity, visible }]` | `[]` | `indicatorControls.js` | Indicadores |

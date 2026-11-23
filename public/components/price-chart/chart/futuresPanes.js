@@ -137,8 +137,12 @@ function alignToBars(points, rows, get, mode) {
   return values;
 }
 
+// painéis de futuros, na ordem do gráfico (cada um ligado por um checkbox próprio)
+export const FUTURES_PANES = ["oi", "ls", "funding"];
+
 export function createFuturesPanes(chart, wrap) {
-  // vol = série de volume (painel 1); series = séries de futuros (painéis 2 a 4, só com dados de futuros)
+  // vol = série de volume (painel 1); series = séries de futuros (um painel para cada item de shown, logo
+  // depois do volume; só com dados de futuros); shown = painéis de futuros criados, na ordem do gráfico
   // vmas = médias do volume (id -> { series, key, values, m }), no painel de volume
   // liq = séries de liquidações reais ({ long, short }, último painel), liqData = resposta de /liquidations,
   // liqAligned = valores por vela ({ long, short, by })
@@ -146,6 +150,7 @@ export function createFuturesPanes(chart, wrap) {
     vol: null,
     vmas: new Map(),
     series: null,
+    shown: [],
     aligned: null,
     data: null,
     liq: null,
@@ -223,7 +228,7 @@ export function createFuturesPanes(chart, wrap) {
   // painéis de baixo em uso, na ordem do gráfico
   const subKeys = () => [
     ...(st.vol ? ["volume"] : []),
-    ...(st.series ? ["oi", "ls", "funding"] : []),
+    ...st.shown,
     ...(st.liq ? ["liq"] : []),
   ];
   // quantos painéis abaixo do preço devem existir
@@ -296,7 +301,7 @@ export function createFuturesPanes(chart, wrap) {
   // painel de liquidações: sempre o último (logo depois do volume, ou depois dos de futuros). Quando os de
   // futuros entram ou saem, ele é recriado no lugar certo (withLiquidationsMoved)
   function createLiquidationSeries() {
-    const pane = 2 + (st.series ? 3 : 0);
+    const pane = 2 + st.shown.length;
     // sem etiqueta de último valor no eixo (as duas se sobrepõem; os valores já estão no título)
     const opts = { ...base, lastValueVisible: false, priceFormat: usd, base: 0 };
     st.liq = {
@@ -366,26 +371,46 @@ export function createFuturesPanes(chart, wrap) {
     st.liq.short.setData(times.map((time, i) => (short[i] == null ? { time } : { time, value: -short[i] })));
   }
 
-  function createSeries() {
-    withLiquidationsMoved(addFuturesSeries);
+  // (re)cria os painéis de futuros pedidos (keys, subconjunto de FUTURES_PANES, na ordem do gráfico)
+  function createSeries(keys) {
+    withLiquidationsMoved(() => {
+      removeFuturesSeries();
+      addFuturesSeries(keys);
+    });
   }
 
-  function addFuturesSeries() {
-    removeEmptyPanes(); // sobra do painel de liquidações que estava logo depois do volume
+  function addFuturesSeries(keys) {
+    removeEmptyPanes(); // sobra de painéis que estavam depois do volume
     const percent = { type: "custom", minMove: 0.001, formatter: (v) => `${Math.round(v)}%` };
     const fundingFmt = { type: "custom", minMove: 0.000001, formatter: (v) => `${v.toFixed(3).replace(".", ",")}%` };
-    st.series = {
-      oi: chart.addSeries(
-        LWC.AreaSeries,
-        { ...base, lineColor: COLORS.oi, topColor: "rgba(167, 139, 250, 0.25)", bottomColor: "rgba(167, 139, 250, 0.02)", lineWidth: 2, priceFormat: usd },
-        2
-      ),
-      global: chart.addSeries(LWC.LineSeries, { ...base, color: COLORS.global, lineWidth: 2, priceFormat: percent }, 3),
-      top: chart.addSeries(LWC.LineSeries, { ...base, color: COLORS.top, lineWidth: 2, priceFormat: percent }, 3),
-      funding: chart.addSeries(LWC.HistogramSeries, { ...base, priceFormat: fundingFmt, base: 0 }, 4),
-    };
-    st.series.global.createPriceLine({ price: 50, color: "rgba(155, 176, 214, 0.4)", lineWidth: 1, lineStyle: LWC.LineStyle.Dashed, axisLabelVisible: false });
+    st.series = {};
+    keys.forEach((key, k) => {
+      const pane = 2 + k;
+      if (key === "oi") {
+        st.series.oi = chart.addSeries(
+          LWC.AreaSeries,
+          { ...base, lineColor: COLORS.oi, topColor: "rgba(167, 139, 250, 0.25)", bottomColor: "rgba(167, 139, 250, 0.02)", lineWidth: 2, priceFormat: usd },
+          pane
+        );
+      } else if (key === "ls") {
+        st.series.global = chart.addSeries(LWC.LineSeries, { ...base, color: COLORS.global, lineWidth: 2, priceFormat: percent }, pane);
+        st.series.top = chart.addSeries(LWC.LineSeries, { ...base, color: COLORS.top, lineWidth: 2, priceFormat: percent }, pane);
+        st.series.global.createPriceLine({ price: 50, color: "rgba(155, 176, 214, 0.4)", lineWidth: 1, lineStyle: LWC.LineStyle.Dashed, axisLabelVisible: false });
+      } else if (key === "funding") {
+        st.series.funding = chart.addSeries(LWC.HistogramSeries, { ...base, priceFormat: fundingFmt, base: 0 }, pane);
+      }
+    });
+    st.shown = [...keys];
     relayout(); // alturas depois do layout (o gráfico acabou de crescer para caber os painéis)
+  }
+
+  // tira só as séries de futuros (sem mexer nos dados nem no painel de liquidações)
+  function removeFuturesSeries() {
+    if (!st.series) return;
+    for (const s of Object.values(st.series)) chart.removeSeries(s);
+    st.series = null;
+    st.shown = [];
+    removeEmptyPanes();
   }
 
   // painéis vazios que sobrarem depois dos que estão em uso
@@ -396,13 +421,11 @@ export function createFuturesPanes(chart, wrap) {
   function removeFutures() {
     if (!st.series) return;
     withLiquidationsMoved(() => {
-      for (const s of Object.values(st.series)) chart.removeSeries(s);
-      st.series = null;
+      removeFuturesSeries();
       st.aligned = null;
       st.data = null;
-      removeEmptyPanes();
     });
-    hideTitles(["oi", "ls", "funding"]);
+    hideTitles(FUTURES_PANES);
   }
 
   function removeVolumeAverage(id) {
@@ -543,10 +566,10 @@ export function createFuturesPanes(chart, wrap) {
       top: alignToBars(points, data.topLS, (r) => r.l * 100, "last"),
       funding: alignToBars(points, data.funding, (r) => r.r * 100, daily ? "avg" : "ffill"),
     };
-    st.series.oi.setData(line(st.aligned.oi));
-    st.series.global.setData(line(st.aligned.global));
-    st.series.top.setData(line(st.aligned.top));
-    st.series.funding.setData(
+    st.series.oi?.setData(line(st.aligned.oi));
+    st.series.global?.setData(line(st.aligned.global));
+    st.series.top?.setData(line(st.aligned.top));
+    st.series.funding?.setData(
       times.map((time, i) => {
         const v = st.aligned.funding[i];
         return v === null ? { time } : { time, value: v, color: v >= 0 ? COLORS.fundingUp : COLORS.fundingDown };
@@ -557,12 +580,15 @@ export function createFuturesPanes(chart, wrap) {
   return {
     /** points = velas (sem velas, remove tudo); data = resposta de /futures-data (available) ou null para
      *  remover só os painéis de futuros (o de volume fica); liq = resposta de /liquidations (available) ou
-     *  null para remover o painel de liquidações */
-    update(points, interval, data, liq = null) {
+     *  null para remover o painel de liquidações; panes = painéis de futuros ligados (de FUTURES_PANES) */
+    update(points, interval, data, liq = null, panes = FUTURES_PANES) {
       if (!points?.length) return remove();
+      const keys = FUTURES_PANES.filter((k) => panes.includes(k));
+      if (!keys.length) data = null;
       const candlesChanged = points !== st.points || interval !== st.interval;
       const liqSame = liq === st.liqData && !!liq === !!st.liq;
-      if (st.vol && !candlesChanged && data === st.data && !!data === !!st.series && liqSame) return;
+      const panesSame = keys.join() === st.shown.join();
+      if (st.vol && !candlesChanged && data === st.data && !!data === !!st.series && liqSame && (!data || panesSame)) return;
       if (!st.vol) createVolume();
       st.points = points;
       st.interval = interval;
@@ -571,10 +597,10 @@ export function createFuturesPanes(chart, wrap) {
         // carregando: painéis no lugar, vazios (spinner em positionTitles)
         st.data = data;
         st.aligned = null;
-        if (st.series) for (const s of Object.values(st.series)) s.setData([]);
-        else createSeries();
+        if (st.series && panesSame) for (const s of Object.values(st.series)) s.setData([]);
+        else createSeries(keys);
       } else if (data) {
-        if (!st.series) createSeries();
+        if (!st.series || !panesSame) createSeries(keys);
         st.data = data;
         setData();
       } else removeFutures();

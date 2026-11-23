@@ -62,7 +62,7 @@ Fica em `PriceChartPanel.js`, no nível do módulo.
 | `points` | Velas carregadas (`[{ time, open, high, low, close, volume }]`) |
 | `loadingOlder`, `reachedStart` | Estado do histórico sob demanda |
 | `openOrders` | `{ buys, sells, all, error? }` da moeda (`null` = carregando) |
-| `showAvg` (médio dinâmico de compra e venda), `showOpenOrders`, `showMyOrders`, `showProjected` (compras e vendas abertas), `showStats`, `statsDays`, `showDca`, `showLiq`, `showFut`, `showLiqReal` | Camadas ligadas (persistidas) |
+| `showAvg` (médio dinâmico de compra e venda), `showOpenOrders`, `showMyOrders`, `showProjected` (compras e vendas abertas), `showStats`, `statsDays`, `showDca`, `showLiq`, `showFut` (`{ oi, ls, funding }`), `showLiqReal` | Camadas ligadas (persistidas) |
 | `vol`, `dca`, `liq` | Dados das camadas: `undefined` = carregando, `null` = não carregado ou erro |
 | `fut`, `liqReal` | `{ key, data }` ou `{ key, loading: true }`, com chave `asset\|período` / `asset\|vela` |
 
@@ -94,7 +94,7 @@ Fica em `PriceChartPanel.js`, no nível do módulo.
 5. **`loadChart({ keepWindow })`**: carrega as velas que cobrem a janela (ver [velas-e-timeframe](velas-e-timeframe.md)) e depois chama `render({ window })` e `renderInfo()`.
 6. **`render(extra)`**: monta **todas** as opções e chama `chart.update(opts)`. É chamado sempre que algo muda (dados, camada, posição, ordens). O `createChart` decide o que redesenhar: só recria a série ao trocar Linha/Velas, e só refaz os dados quando `points` muda.
 
-`chart.update(opts)` recebe: `asset, points, interval, mode, avg, avgSell, orders, openOrders, projectedAvg, projectedSellAvg, statBand, fixedAvg, dcaAvg, indicators, summary, liquidation, futures, liquidations` e, opcionalmente, `window` / `prepended`.
+`chart.update(opts)` recebe: `asset, points, interval, mode, avg, avgSell, orders, openOrders, projectedAvg, projectedSellAvg, statBand, fixedAvg, dcaAvg, indicators, summary, liquidation, futures, futuresPanes, liquidations` e, opcionalmente, `window` / `prepended`.
 
 ## Cabeçalho de informações (`renderInfo`)
 
