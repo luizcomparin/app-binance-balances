@@ -28,8 +28,8 @@ export function createLegend(el, { onToggle, onFit }) {
     const items = [];
     if (avg) items.push(item("sw-avg", `${AVG_HELP.avg.title}: ${formatPrice(avg)}`, null, AVG_HELP.avg.text));
     if (avgSell) items.push(item("sw-avg-sell", `${AVG_HELP.avgSell.title}: ${formatPrice(avgSell)}`, null, AVG_HELP.avgSell.text));
-    if (projectedAvg) items.push(item("sw-projected", `Médio após compras abertas: ${formatPrice(projectedAvg)}`));
-    if (projectedSellAvg) items.push(item("sw-projected-sell", `Médio após vendas abertas: ${formatPrice(projectedSellAvg)}`));
+    if (projectedAvg) items.push(item("sw-projected", `Médio após compras abertas: ${formatPrice(projectedAvg)}`, null, "Preço médio de compra após as ordens de compra abertas serem realizadas."));
+    if (projectedSellAvg) items.push(item("sw-projected-sell", `Médio após vendas abertas: ${formatPrice(projectedSellAvg)}`, null, "Preço médio de venda após as ordens de venda abertas serem realizadas."));
     if (fixedAvg) items.push(item("sw-fixed-avg", `${AVG_HELP.fixedAvg.title}: ${formatPrice(fixedAvg)}`, null, AVG_HELP.fixedAvg.text));
     if (dcaAvg) items.push(item("sw-dca", `Médio mensal fixo: ${formatPrice(dcaAvg)}`));
     if (orders.buys.length) items.push(item("sw-buy", `Suas compras (${orders.buys.length})`, "myBuys"));
