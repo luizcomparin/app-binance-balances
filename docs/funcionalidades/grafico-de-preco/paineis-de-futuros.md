@@ -35,7 +35,7 @@ Cache de 2 min. O formato está em [api.md](../../referencia/api.md#get-futures-
 ## Página
 
 - O período enviado segue o tamanho da vela: 1h → `1h`, 4h → `4h`, D/S/M → `1d` (`FUT_PERIOD`).
-- `PriceChartPanel.futuresForChart()` devolve os dados, `PANE_LOADING` (painéis vazios com spinner) ou `null`, e dispara `loadFutures()` quando a chave `asset|período` muda. O cache no cliente (`futCache`) vale 2 min.
+- `PriceChartPanel.futuresForChart()` devolve os dados, `PANE_LOADING` (painéis vazios com spinner) ou `null`, e dispara `loadFutures()` quando a chave `asset|período` muda. `loadChart()` também dispara a busca logo no início (em paralelo com as velas), para o spinner dos checkboxes aparecer desde já. O cache no cliente (`futCache`) vale 2 min.
 - Cada checkbox tem sua flag (`view.showFut.oi|ls|funding`) e chave de storage (`FUT_PANES`). Sem escolha salva, herda o antigo `priceChartFutures` (um checkbox para os três). `futPanesOn()` lista os ligados, enviados ao gráfico em `futuresPanes`.
 - O texto dos checkboxes ligados é atualizado por `updateFuturesAvailability()` ("Carregando…", "sem contrato perpétuo"…).
 - `chart/futuresPanes.js` → `createFuturesPanes(chart, wrap)` devolve `{ update(points, interval, data, liq, panes), crosshair(idx), setVolumeAverages, remove, active, count }`. `panes` é o subconjunto de `FUTURES_PANES` (`["oi", "ls", "funding"]`) ligado; quando muda, os painéis de futuros são recriados (`createSeries(keys)`) e o de liquidações continua por último.

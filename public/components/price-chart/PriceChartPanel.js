@@ -1241,6 +1241,9 @@ async function loadChart({ keepWindow = false } = {}) {
   wrap?.classList.add("is-loading");
   wrap?.classList.remove("is-loading-older");
   if (error) error.hidden = true;
+  // painéis de futuros ligados: busca junto com as velas (e o spinner dos checkboxes aparece já), em vez
+  // de esperar as velas chegarem para o render pedir
+  if (view.asset && futPanesOn().length && view.fut?.key !== futKey()) loadFutures();
 
   let win = (keepWindow && chart?.getVisibleWindow()) || rangeWindow(view.range);
   if (keepWindow) {
