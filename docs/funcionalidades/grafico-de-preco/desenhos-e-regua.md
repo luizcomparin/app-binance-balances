@@ -26,6 +26,7 @@ Uso:
 - Escolha a ferramenta na barra; cada clique marca um ponto. Terminado o desenho, a ferramenta volta ao cursor (como no TradingView).
 - Clicar num desenho seleciona. Arrastar pelo corpo move; arrastar pelas bolinhas edita.
 - **Del/Backspace** apaga o selecionado (ignorado dentro de inputs). **Esc** cancela o desenho em andamento ou tira a seleção.
+- Depois do primeiro ponto de um desenho, **botão direito**, **Esc** ou **Del/Backspace** cancelam o desenho em andamento (sem apagar o selecionado) e a ferramenta volta ao cursor (`drafting()` em `drawings.js`).
 - Os pontos são guardados como `{ ms, price }` (instante, não índice). Por isso valem em qualquer tamanho de vela e não se deslocam quando o histórico antigo carrega. Antes ou depois dos dados, o índice é extrapolado pela duração da vela.
 - O desenho é feito num primitive anexado à série principal (`drawings.primitive`).
 - A etiqueta de preço no eixo de cada linha horizontal é uma **linha de preço nativa invisível** (`createPriceLine` com `lineVisible: false`), mantida por `syncAxisLabels()`: criada, movida (ao arrastar) e removida junto com o desenho, e recriada na série nova quando o modo Linha/Velas muda (no `attached` do primitive).
@@ -57,3 +58,4 @@ Uso:
 
 1. Desenhe um canal, troque a vela de D para 4h (o canal fica no lugar), troque de moeda e volte (o desenho foi salvo) e apague com Del.
 2. Faça Shift+clique, mova o mouse e clique para medir.
+3. Escolha "Linha de tendência", clique no primeiro ponto e aperte o botão direito (de novo com Esc e com Del): a linha some, não abre o menu do navegador e a ferramenta volta ao cursor.

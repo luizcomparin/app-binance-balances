@@ -477,9 +477,20 @@ export function createDrawings(chart, { container, getSeries, getPoints, getInte
     }
   });
 
+  // desenho em andamento (já marcou o primeiro ponto)? botão direito, Esc ou Delete cancelam
+  const drafting = () => !!(tool && draft?.points.length);
+  container.addEventListener("contextmenu", (e) => {
+    if (!drafting()) return;
+    e.preventDefault();
+    setTool(null);
+  });
+
   document.addEventListener("keydown", (e) => {
     if (e.target.closest?.("input, textarea, select, [contenteditable]")) return;
-    if (e.key === "Escape") {
+    if ((e.key === "Delete" || e.key === "Backspace") && drafting()) {
+      e.preventDefault();
+      setTool(null);
+    } else if (e.key === "Escape") {
       if (tool) setTool(null);
       else if (selected) {
         selected = null;
