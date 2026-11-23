@@ -1,4 +1,5 @@
-// Ferramentas de desenho no gráfico: linha de tendência, raio, linha horizontal, retângulo e canal paralelo.
+// Ferramentas de desenho no gráfico: linha de tendência, raio, linha horizontal, retângulo, canal paralelo
+// e medição de preço (a mesma régua do Shift + clique, mas durável: fica salva como os outros desenhos).
 //   - com uma ferramenta escolhida, cada clique marca um ponto (horizontal: 1, canal: 3, demais: 2);
 //     terminado o desenho, a ferramenta volta ao cursor (igual ao TradingView);
 //   - clicar num desenho seleciona; arrastar move (pelo corpo) ou edita (pelas bolinhas);
@@ -6,6 +7,7 @@
 //   - os pontos são guardados pelo instante (ms) e preço: valem em qualquer tamanho de vela e
 //     continuam no lugar quando o histórico antigo é carregado; salvos no navegador por moeda.
 import { INTERVAL_MS } from "../timeframe.js";
+import { measureLines, paintMeasure } from "./measureTool.js";
 
 const COLOR = "#2962ff";
 const FILL = "rgba(41, 98, 255, 0.15)";
@@ -22,6 +24,7 @@ export const TOOLS = {
   hline: { label: "Linha horizontal", clicks: 1, stored: 1, handles: [[0, 0]] },
   rect: { label: "Retângulo", clicks: 2, stored: 2, handles: [[0, 0], [1, 1], [0, 1], [1, 0]] },
   channel: { label: "Canal paralelo", clicks: 3, stored: 2, handles: [[0, 0], [1, 1], [0, 0, true], [1, 1, true]] },
+  measure: { label: "Medição de preço", clicks: 2, stored: 2, handles: [[0, 0], [1, 1]] },
 };
 
 // ---------------------------------------------------------------------------
@@ -192,7 +195,8 @@ export function createDrawings(chart, { container, getSeries, getPoints, getInte
       }
       case "hline":
         return { segs: [[{ x: 0, y: a.y }, { x: pane.width, y: a.y }]] };
-      case "rect": {
+      case "rect":
+      case "measure": {
         const poly = [a, { x: b.x, y: a.y }, b, { x: a.x, y: b.y }];
         return { segs: poly.map((p, i) => [p, poly[(i + 1) % 4]]), poly };
       }
@@ -248,34 +252,42 @@ export function createDrawings(chart, { container, getSeries, getPoints, getInte
     if (!ready()) return;
     const preview = draftDrawing();
     const list = preview ? [...items, preview] : items;
-    target.useBitmapCoordinateSpace(({ context: ctx, horizontalPixelRatio: hr, verticalPixelRatio: vr }) => {
+    target.useBitmapCoordinateSpace((scope) => {
+      const { context: ctx, horizontalPixelRatio: hr, verticalPixelRatio: vr } = scope;
       const P = (p) => [p.x * hr, p.y * vr];
       for (const d of list) {
         const g = geom(d);
         if (!g) continue;
-        if (g.poly) {
-          ctx.fillStyle = FILL;
+        if (d.type === "measure") {
+          // medição: área, setas e etiqueta iguais às da régua do Shift (recalculadas na vela atual)
+          const [a, b] = g.poly.filter((_, i) => i % 2 === 0); // cantos do início e do fim
+          const [i1, i2] = d.points.map((p) => Math.round(msToIdx(p.ms)));
+          paintMeasure(scope, a.x, a.y, b.x, b.y, measureLines(getPoints(), i1, i2, d.points[0].price, d.points[1].price, getInterval()));
+        } else {
+          if (g.poly) {
+            ctx.fillStyle = FILL;
+            ctx.beginPath();
+            g.poly.forEach((p, i) => (i ? ctx.lineTo(...P(p)) : ctx.moveTo(...P(p))));
+            ctx.closePath();
+            ctx.fill();
+          }
+          ctx.strokeStyle = COLOR;
+          ctx.lineWidth = 2 * hr;
           ctx.beginPath();
-          g.poly.forEach((p, i) => (i ? ctx.lineTo(...P(p)) : ctx.moveTo(...P(p))));
-          ctx.closePath();
-          ctx.fill();
-        }
-        ctx.strokeStyle = COLOR;
-        ctx.lineWidth = 2 * hr;
-        ctx.beginPath();
-        for (const [a, b] of g.segs) {
-          ctx.moveTo(...P(a));
-          ctx.lineTo(...P(b));
-        }
-        ctx.stroke();
-        if (g.mid) {
-          ctx.lineWidth = hr;
-          ctx.setLineDash([6 * hr, 4 * hr]);
-          ctx.beginPath();
-          ctx.moveTo(...P(g.mid[0]));
-          ctx.lineTo(...P(g.mid[1]));
+          for (const [a, b] of g.segs) {
+            ctx.moveTo(...P(a));
+            ctx.lineTo(...P(b));
+          }
           ctx.stroke();
-          ctx.setLineDash([]);
+          if (g.mid) {
+            ctx.lineWidth = hr;
+            ctx.setLineDash([6 * hr, 4 * hr]);
+            ctx.beginPath();
+            ctx.moveTo(...P(g.mid[0]));
+            ctx.lineTo(...P(g.mid[1]));
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
         }
         if (d === preview || d.id === selected || d.id === hovered) {
           ctx.lineWidth = 1.5 * hr;

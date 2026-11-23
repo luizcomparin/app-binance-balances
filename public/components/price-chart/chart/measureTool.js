@@ -1,5 +1,6 @@
 // Régua de medição (igual ao TradingView): Shift + clique marca o início, o mouse estica a área,
-// um clique fixa a medida e o próximo clique apaga. Esc cancela.
+// um clique fixa a medida e o próximo clique apaga. Esc cancela. (A medição durável, que fica salva,
+// é a ferramenta "measure" da barra de desenhos, em drawings.js, que reaproveita measureLines/paintMeasure.)
 // Mostra a variação de preço (valor e %), quantas velas, o tempo e o volume (USDT) entre os dois pontos.
 import { formatPrice } from "../../../core/format.js";
 import { formatUsdShort } from "../../../core/format.js";
@@ -21,6 +22,96 @@ function formatSpan(bars, interval) {
 }
 
 const pct = (v) => `${v.toFixed(2).replace(".", ",")}%`;
+
+/**
+ * Texto da medida entre as velas i1 → i2 (índices em pts, podem passar das pontas) e os preços p1 → p2:
+ * variação (valor e %), barras e tempo, volume (USDT) das velas cobertas. Usada pela régua (Shift)
+ * e pela ferramenta de medição da barra de desenhos.
+ */
+export function measureLines(pts, i1, i2, p1, p2, interval) {
+  const diff = p2 - p1;
+  const bars = i2 - i1;
+  const lo = Math.max(0, Math.min(i1, i2));
+  const hi = Math.min(pts.length - 1, Math.max(i1, i2));
+  let vol = 0;
+  for (let i = lo; i <= hi; i++) vol += pts[i].volume || 0;
+  return {
+    diff,
+    lines: [
+      `${formatPrice(diff)} (${pct((diff / p1) * 100)})`,
+      `${bars} ${Math.abs(bars) === 1 ? "barra" : "barras"}, ${formatSpan(Math.abs(bars), interval)}`,
+      `Vol ${formatUsdShort(vol)}`,
+    ],
+  };
+}
+
+/**
+ * Desenha a medida: área, setas e etiqueta. scope = parâmetro de useBitmapCoordinateSpace;
+ * (x1, y1) início e (x2, y2) fim em px de mídia; { diff, lines } de measureLines.
+ */
+export function paintMeasure(scope, x1, y1, x2, y2, { diff, lines }) {
+  const { context: ctx, bitmapSize, horizontalPixelRatio: hr, verticalPixelRatio: vr } = scope;
+  const c = diff >= 0 ? UP : DOWN;
+  const [ax1, ax2, ay1, ay2] = [x1 * hr, x2 * hr, y1 * vr, y2 * vr];
+  const left = Math.min(ax1, ax2);
+  const top = Math.min(ay1, ay2);
+  const w = Math.max(1, Math.abs(ax2 - ax1));
+  const h = Math.max(1, Math.abs(ay2 - ay1));
+  const midX = (ax1 + ax2) / 2;
+  const midY = (ay1 + ay2) / 2;
+
+  ctx.fillStyle = c.fill;
+  ctx.fillRect(left, top, w, h);
+
+  // setas: vertical (início → fim do preço) e horizontal (início → fim do tempo)
+  ctx.strokeStyle = c.line;
+  ctx.fillStyle = c.line;
+  ctx.lineWidth = Math.max(1, hr);
+  const head = 6 * hr;
+  ctx.beginPath();
+  ctx.moveTo(midX, ay1);
+  ctx.lineTo(midX, ay2);
+  ctx.moveTo(ax1, midY);
+  ctx.lineTo(ax2, midY);
+  ctx.stroke();
+  if (h > head) {
+    const dir = ay2 > ay1 ? 1 : -1;
+    ctx.beginPath();
+    ctx.moveTo(midX, ay2);
+    ctx.lineTo(midX - head * 0.7, ay2 - dir * head);
+    ctx.lineTo(midX + head * 0.7, ay2 - dir * head);
+    ctx.fill();
+  }
+  if (w > head) {
+    const dir = ax2 > ax1 ? 1 : -1;
+    ctx.beginPath();
+    ctx.moveTo(ax2, midY);
+    ctx.lineTo(ax2 - dir * head, midY - head * 0.7);
+    ctx.lineTo(ax2 - dir * head, midY + head * 0.7);
+    ctx.fill();
+  }
+
+  // etiqueta: acima da área quando sobe, abaixo quando cai (sem sair do painel)
+  ctx.font = `600 ${Math.round(12 * vr)}px Manrope, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const lineH = 18 * vr;
+  const padX = 10 * hr;
+  const padY = 6 * vr;
+  const boxW = Math.max(...lines.map((l) => ctx.measureText(l).width)) + padX * 2;
+  const boxH = lines.length * lineH + padY * 2;
+  const gap = 6 * vr;
+  let boxY = diff >= 0 ? top - gap - boxH : top + h + gap;
+  boxY = Math.min(Math.max(boxY, 2 * vr), bitmapSize.height - boxH - 2 * vr);
+  const boxX = Math.min(Math.max(midX - boxW / 2, 2 * hr), bitmapSize.width - boxW - 2 * hr);
+  ctx.fillStyle = c.box;
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(boxX, boxY, boxW, boxH, 4 * hr);
+  else ctx.rect(boxX, boxY, boxW, boxH);
+  ctx.fill();
+  ctx.fillStyle = "#fff";
+  lines.forEach((l, i) => ctx.fillText(l, boxX + boxW / 2, boxY + padY + lineH * (i + 0.5)));
+}
 
 /**
  * chart: instância do Lightweight Charts
@@ -115,81 +206,8 @@ export function createMeasureTool(chart, { getSeries, getPoints, getInterval }) 
     const y1 = series.priceToCoordinate(start.price);
     const y2 = series.priceToCoordinate(end.price);
     if (x1 === null || x2 === null || y1 === null || y2 === null) return;
-
-    const diff = end.price - start.price;
-    const c = diff >= 0 ? UP : DOWN;
-    const bars = i2 - i1;
-    const lo = Math.max(0, Math.min(i1, i2));
-    const hi = Math.min(pts.length - 1, Math.max(i1, i2));
-    let vol = 0;
-    for (let i = lo; i <= hi; i++) vol += pts[i].volume || 0;
-    const lines = [
-      `${formatPrice(diff)} (${pct((diff / start.price) * 100)})`,
-      `${bars} ${Math.abs(bars) === 1 ? "barra" : "barras"}, ${formatSpan(Math.abs(bars), getInterval())}`,
-      `Vol ${formatUsdShort(vol)}`,
-    ];
-
-    target.useBitmapCoordinateSpace(({ context: ctx, bitmapSize, horizontalPixelRatio: hr, verticalPixelRatio: vr }) => {
-      const [ax1, ax2, ay1, ay2] = [x1 * hr, x2 * hr, y1 * vr, y2 * vr];
-      const left = Math.min(ax1, ax2);
-      const top = Math.min(ay1, ay2);
-      const w = Math.max(1, Math.abs(ax2 - ax1));
-      const h = Math.max(1, Math.abs(ay2 - ay1));
-      const midX = (ax1 + ax2) / 2;
-      const midY = (ay1 + ay2) / 2;
-
-      ctx.fillStyle = c.fill;
-      ctx.fillRect(left, top, w, h);
-
-      // setas: vertical (início → fim do preço) e horizontal (início → fim do tempo)
-      ctx.strokeStyle = c.line;
-      ctx.fillStyle = c.line;
-      ctx.lineWidth = Math.max(1, hr);
-      const head = 6 * hr;
-      ctx.beginPath();
-      ctx.moveTo(midX, ay1);
-      ctx.lineTo(midX, ay2);
-      ctx.moveTo(ax1, midY);
-      ctx.lineTo(ax2, midY);
-      ctx.stroke();
-      if (h > head) {
-        const dir = ay2 > ay1 ? 1 : -1;
-        ctx.beginPath();
-        ctx.moveTo(midX, ay2);
-        ctx.lineTo(midX - head * 0.7, ay2 - dir * head);
-        ctx.lineTo(midX + head * 0.7, ay2 - dir * head);
-        ctx.fill();
-      }
-      if (w > head) {
-        const dir = ax2 > ax1 ? 1 : -1;
-        ctx.beginPath();
-        ctx.moveTo(ax2, midY);
-        ctx.lineTo(ax2 - dir * head, midY - head * 0.7);
-        ctx.lineTo(ax2 - dir * head, midY + head * 0.7);
-        ctx.fill();
-      }
-
-      // etiqueta: acima da área quando sobe, abaixo quando cai (sem sair do painel)
-      ctx.font = `600 ${Math.round(12 * vr)}px Manrope, sans-serif`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      const lineH = 18 * vr;
-      const padX = 10 * hr;
-      const padY = 6 * vr;
-      const boxW = Math.max(...lines.map((l) => ctx.measureText(l).width)) + padX * 2;
-      const boxH = lines.length * lineH + padY * 2;
-      const gap = 6 * vr;
-      let boxY = diff >= 0 ? top - gap - boxH : top + h + gap;
-      boxY = Math.min(Math.max(boxY, 2 * vr), bitmapSize.height - boxH - 2 * vr);
-      const boxX = Math.min(Math.max(midX - boxW / 2, 2 * hr), bitmapSize.width - boxW - 2 * hr);
-      ctx.fillStyle = c.box;
-      ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(boxX, boxY, boxW, boxH, 4 * hr);
-      else ctx.rect(boxX, boxY, boxW, boxH);
-      ctx.fill();
-      ctx.fillStyle = "#fff";
-      lines.forEach((l, i) => ctx.fillText(l, boxX + boxW / 2, boxY + padY + lineH * (i + 0.5)));
-    });
+    const label = measureLines(pts, i1, i2, start.price, end.price, getInterval());
+    target.useBitmapCoordinateSpace((scope) => paintMeasure(scope, x1, y1, x2, y2, label));
   }
 
   const view = { zOrder: () => "top", renderer: () => ({ draw }) };

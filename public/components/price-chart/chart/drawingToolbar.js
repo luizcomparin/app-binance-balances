@@ -10,6 +10,7 @@ const ICONS = {
   hline: `<path d="M4 14h7.5M16.5 14H24"/>${dot(14, 14)}`,
   rect: `<path d="M9.5 7h9M21 9.5v9M18.5 21h-9M7 18.5v-9"/>${dot(7, 7)}${dot(21, 7)}${dot(21, 21)}${dot(7, 21)}`,
   channel: `<path d="M4 16 9.2 10.8M12.8 7.2 16 4M12 24l3.2-3.2M18.8 17.2 24 12"/>${dot(11, 9)}${dot(17, 19)}`,
+  measure: `<path d="M4.5 18.5 18.5 4.5l5 5-14 14zM9 14l2 2M12 11l3 3M15 8l2 2"/>`,
 };
 
 /** onSelect(tool): botão clicado (o mesmo de novo = desligar). Devolve { setActive(tool|null) } */
