@@ -4,7 +4,7 @@ resumo: Linha "Indicadores" do cabeçalho; vários indicadores com cor/opacidade
 arquivos: [public/components/price-chart/indicatorControls.js, public/components/price-chart/chart/movingAverage.js, public/components/price-chart/chart/bollinger.js, public/components/price-chart/chart/createChart.js, public/components/price-chart/chart/futuresPanes.js]
 rotas: []
 eventos: []
-storage: [priceChartIndicators, priceChartMovingAverages]
+storage: [priceChartIndicators, priceChartMovingAverages, priceChartIndicatorsVisible]
 ---
 
 # Indicadores
@@ -18,6 +18,8 @@ O botão "+ Adicionar" (em `#price-chart-mas`) oferece três tipos:
 - **Média móvel do volume**, desenhada no **painel de volume**.
 
 Cada indicador vira uma pílula. Clicar no nome abre o editor (tipo, período 2–1000, desvios 0,5–5, opacidade, cor). Há também 👁 ocultar/exibir e × remover. Novas médias usam por padrão os períodos 20, 50, 100 e 200 ainda não usados e uma cor livre da paleta.
+
+**Olho geral** (`.pcm-all`, no início da linha): exibe/oculta **todos** os indicadores (médias do preço, Bollinger e médias do volume) de uma vez. É uma regra por cima da exibição individual: não altera o `visible` de cada um. Desligado, `getIndicators()` devolve todos com `visible: false` e as pílulas ficam esmaecidas; ao religar, cada um volta ao seu estado. Fica salvo em `priceChartIndicatorsVisible`.
 
 ## Página
 
@@ -49,3 +51,4 @@ Cada indicador vira uma pílula. Clicar no nome abre o editor (tipo, período 2�
 3. Adicione BB e mude σ.
 4. Adicione uma média do volume: ela aparece no painel de volume.
 5. Recarregue: tudo persiste.
+6. Oculte um indicador pelo seu olho e depois clique no olho geral: todos somem. Clique de novo: voltam todos, menos o que estava oculto individualmente.

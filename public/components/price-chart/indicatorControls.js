@@ -1,7 +1,8 @@
 // Controles dos indicadores (linha "Indicadores" do cabeçalho): médias móveis (do preço e do volume)
 // e Bandas de Bollinger.
 // Dá para adicionar vários; cada um tem cor (com opacidade), parâmetros, ocultar/exibir e remover.
-// A lista fica salva no navegador.
+// A lista fica salva no navegador. O olho no início da linha exibe/oculta todos de uma vez, por cima
+// da exibição de cada um (sem alterá-la).
 //   média móvel:  { kind: "ma", period, type: "SMA"|"EMA", color, opacity, visible }
 //   média do volume (desenhada no painel de volume): { kind: "vma", period, type, color, opacity, visible }
 //   Bollinger:    { kind: "bb", period, mult (desvios padrão), color, opacity, visible }
@@ -9,6 +10,7 @@ import { maColor } from "./chart/movingAverage.js";
 
 const STORAGE_KEY = "priceChartIndicators";
 const LEGACY_MA_KEY = "priceChartMovingAverages"; // antes só havia médias móveis
+const ALL_VISIBLE_KEY = "priceChartIndicatorsVisible"; // olho geral: "0" = todos ocultos
 const MIN_PERIOD = 2;
 const MAX_PERIOD = 1000; // uma página de velas de aquecimento
 const MIN_MULT = 0.5;
@@ -23,6 +25,7 @@ const EYE_OFF =
   '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 19c-7 0-11-7-11-7a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 7 11 7a18.5 18.5 0 0 1-2.16 3.19"/><path d="M1 1l22 22"/></svg>';
 
 let list = readList();
+let allVisible = readAllVisible();
 let el = null;
 let onChange = () => {};
 
@@ -62,6 +65,20 @@ function readList() {
   }
 }
 
+function readAllVisible() {
+  try {
+    return localStorage.getItem(ALL_VISIBLE_KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
+
+function saveAllVisible() {
+  try {
+    localStorage.setItem(ALL_VISIBLE_KEY, allVisible ? "1" : "0");
+  } catch {}
+}
+
 function save() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
@@ -69,9 +86,10 @@ function save() {
   } catch {}
 }
 
-// indicadores configurados (inclusive os ocultos)
+// indicadores configurados (inclusive os ocultos); com o olho geral desligado, todos vêm ocultos
+// (o "visible" de cada um fica guardado e volta a valer ao religar)
 export function getIndicators() {
-  return list;
+  return allVisible ? list : list.map((m) => ({ ...m, visible: false }));
 }
 
 const newId = (kind) => `${kind}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -122,7 +140,9 @@ function render() {
       </div>`
     )
     .join("");
-  el.innerHTML = `${items}
+  el.classList.toggle("all-off", !allVisible);
+  const allBtn = `<button type="button" class="pcm-all" aria-pressed="${!allVisible}" title="${allVisible ? "Ocultar todos os indicadores" : "Exibir os indicadores"}">${allVisible ? EYE : EYE_OFF}</button>`;
+  el.innerHTML = `${allBtn}${items}
     <div class="pcm-add-wrap">
       <button type="button" class="pcm-add-btn" aria-haspopup="true">+ Adicionar <span class="pc-caret">▾</span></button>
       <div class="pcm-menu" hidden>
@@ -185,6 +205,13 @@ export function initIndicatorControls(container, handlers = {}) {
   render();
 
   el.addEventListener("click", (e) => {
+    // olho geral: exibe/oculta todos sem mexer na exibição de cada um
+    if (e.target.closest(".pcm-all")) {
+      allVisible = !allVisible;
+      saveAllVisible();
+      render();
+      return onChange();
+    }
     const addBtn = e.target.closest(".pcm-add");
     if (addBtn) {
       closePopovers();

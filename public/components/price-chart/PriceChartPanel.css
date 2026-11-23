@@ -417,6 +417,34 @@
   opacity: 0.45;
 }
 
+/* olho geral (início da linha): com ele desligado, todas as pílulas ficam esmaecidas */
+.price-chart-mas .pcm-all {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  align-self: stretch;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: #e5ecff;
+  cursor: pointer;
+}
+
+.price-chart-mas .pcm-all:hover {
+  background: rgba(255, 255, 255, 0.07);
+  transform: none;
+}
+
+.price-chart-mas.all-off .pcm-all {
+  color: var(--muted);
+}
+
+.price-chart-mas.all-off .pcm-item {
+  opacity: 0.5;
+}
+
 .price-chart-mas .pcm-edit {
   display: inline-flex;
   align-items: center;
