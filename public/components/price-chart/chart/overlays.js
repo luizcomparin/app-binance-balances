@@ -28,7 +28,7 @@ export const AVG_HELP = {
   },
   avgSell: {
     title: "Preço médio dinâmico de venda",
-    text: "Quanto você recebeu, em média, por moeda nas vendas da posição atual (total recebido, já sem as taxas ÷ quantidade vendida). Conta as vendas desde a compra que reabriu a posição depois de ela chegar a zero; vendas de ciclos anteriores não entram.",
+    text: "Preço médio das vendas da posição que você tem hoje (total recebido, já sem as taxas ÷ quantidade vendida). Cada venda pesa pela quantidade vendida; as compras não mudam esse valor. Se a posição chega a zero, o cálculo recomeça.",
   },
   fixedAvg: {
     title: "Preço médio fixo",
