@@ -4,7 +4,7 @@ resumo: Linhas de preço (médios, projetados, faixa, DCA, ordens abertas), marc
 arquivos: [public/components/price-chart/chart/overlays.js, public/components/price-chart/chart/legend.js, public/components/price-chart/chart/tooltip.js, public/components/price-chart/chartData.js, public/components/price-chart/chart/createChart.js]
 rotas: [GET /executed-orders, GET /orders/:asset, GET /positions]
 eventos: [POSITIONS_UPDATED]
-storage: [priceChartDynamicAvg]
+storage: [priceChartDynamicAvg, priceChartOpenOrders, priceChartMyOrders]
 ---
 
 # Sobreposições, legenda e tooltip
@@ -19,10 +19,11 @@ storage: [priceChartDynamicAvg]
 | Preço médio fixo e médio mensal fixo | camada DCA ([comparacao-dca](comparacao-dca.md)) | rosa / amarelo |
 | Faixa ±1σ | camada estatística ([faixa-estatistica](faixa-estatistica.md)) | cinza pontilhado |
 | Ordens abertas | `/orders/:asset` → `chartData.loadOpenOrders` | verde/vermelho pontilhado. Etiqueta `C 0,5 · 49,30 USDT` |
-| Suas ordens executadas | `/executed-orders` → `chartData.loadMyOrders` + `ordersOnChart` | bolinhas verdes/vermelhas **no preço exato**. O tamanho segue os quartis do valor |
+| Compras/Vendas realizadas (suas ordens executadas) | `/executed-orders` → `chartData.loadMyOrders` + `ordersOnChart` | bolinhas verdes/vermelhas **no preço exato**. O tamanho segue os quartis do valor |
 | Resumo fora da tela | `offscreenSummary` | "↑ 3 vendas acima" / "↓ 1 compra abaixo" |
 
 - As duas linhas do preço médio dinâmico (compra e venda) são ligadas/desligadas juntas pelo checkbox "Preço médio dinâmico" (`#price-chart-avg`, `view.showAvg`) em ⚙ Camadas. Começa ligado. Enquanto as posições carregam, mostra spinner e "Calculando preço médio..." (`updateAvgAvailability`). Desligado, `render()` passa `avg`/`avgSell` nulos ao gráfico (linhas, legenda e etiquetas somem). O painel de informações não muda.
+- Os checkboxes "Ordens abertas" (`#price-chart-open-orders`, `view.showOpenOrders`) e "Ordens realizadas" (`#price-chart-my-orders`, `view.showMyOrders`) em ⚙ Camadas ligam/desligam juntas as compras e vendas de cada conjunto. Começam ligados; desligados, `render()` passa `openOrders: null` / `orders` vazio ao gráfico (linhas ou bolinhas, itens da legenda, resumo fora da tela e tooltip somem). O liga/desliga individual pela legenda continua valendo.
 - O eixo automático **inclui** os preços médios e projetados, mas **não** as ordens abertas (`autoscaleInfoProvider` em `createChart.js`).
 - `drawPriceLines(series, previousLines, opts, hidden)` remove e recria todas as linhas a cada `update`.
 - `ordersOnChart(points, asset)` encaixa cada ordem executada na vela que a contém (busca binária). `y = totalUSDT / qty`, ou seja, o preço em USDT na data.
@@ -61,6 +62,7 @@ A prioridade em `subscribeCrosshairMove` é esta:
 
 1. Abra uma moeda com trades: aparecem as bolinhas.
 2. Passe o mouse sobre uma bolinha (detalhes) e sobre a etiqueta "Preço médio dinâmico de compra" (explicação).
-3. Clique em "Suas compras" na legenda: as bolinhas somem.
+3. Clique em "Compras realizadas" na legenda: as bolinhas de compra somem.
 4. Com ordens abertas fora da faixa visível, aparece o resumo ↑/↓.
 5. Em ⚙ Camadas, desmarque "Preço médio dinâmico": as linhas de compra e de venda (e seus itens na legenda) somem; ao recarregar a página, continua desmarcado.
+6. Desmarque "Ordens abertas" e "Ordens realizadas": somem as linhas pontilhadas e as bolinhas (e os itens "Compras/Vendas abertas" e "Compras/Vendas realizadas" da legenda).

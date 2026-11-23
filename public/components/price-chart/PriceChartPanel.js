@@ -41,7 +41,9 @@ const DEFAULT_INTERVAL = "1d";
 const VALID_INTERVALS = ["1h", "4h", "1d", "1w", "1M"];
 const VALID_RANGE = /^(7d|30d|90d|6m|1y|2y|all|\d{1,4}[dmy])$/;
 const AVG_STORAGE_KEY = "priceChartDynamicAvg"; // linhas do médio dinâmico de compra e venda (ligado por padrão)
-const PROJECTED_STORAGE_KEY ="priceChartProjectedAvg"; // médios após compras e vendas abertas (um checkbox só)
+const OPEN_ORDERS_STORAGE_KEY = "priceChartOpenOrders"; // linhas das compras/vendas abertas (ligado por padrão)
+const MY_ORDERS_STORAGE_KEY = "priceChartMyOrders"; // bolinhas das compras/vendas realizadas (ligado por padrão)
+const PROJECTED_STORAGE_KEY = "priceChartProjectedAvg"; // médios após compras e vendas abertas (um checkbox só)
 const STATS_STORAGE_KEY = "priceChartStats";
 const ASSET_STORAGE_KEY = "priceChartAsset"; // última moeda vista
 const DEFAULT_ASSET = "BTC"; // sem última moeda vista (se estiver na carteira; senão a de maior valor)
@@ -72,6 +74,8 @@ const view = {
   mode: readStoredMode(),
   openOrders: null, // { buys, sells } da moeda aberta; null enquanto carrega
   showAvg: readStored(AVG_STORAGE_KEY) !== "0", // liga as duas linhas do médio dinâmico (compra e venda)
+  showOpenOrders: readStored(OPEN_ORDERS_STORAGE_KEY) !== "0", // compras e vendas abertas no gráfico
+  showMyOrders: readStored(MY_ORDERS_STORAGE_KEY) !== "0", // compras e vendas realizadas no gráfico
   showProjected: readStored(PROJECTED_STORAGE_KEY) === "1", // liga as duas linhas (compras e vendas abertas)
   // faixa estatística: ligada?, horizonte em dias e volatilidade da moeda aberta
   showStats: readStored(STATS_STORAGE_KEY) === "1",
@@ -234,8 +238,8 @@ function render(extra = {}) {
     mode: view.mode,
     avg: view.showAvg ? positionOf(view.asset).avg : null,
     avgSell: view.showAvg ? state.positions?.[view.asset]?.avgSellPriceUSDT ?? null : null,
-    orders: ordersOnChart(view.points, view.asset),
-    openOrders: view.openOrders,
+    orders: view.showMyOrders ? ordersOnChart(view.points, view.asset) : { buys: [], sells: [] },
+    openOrders: view.showOpenOrders ? view.openOrders : null,
     projectedAvg: projectedAvg(),
     projectedSellAvg: projectedSellAvg(),
     statBand: statBand(),
@@ -828,6 +832,21 @@ export function initPriceChartPanel() {
     writeStored(AVG_STORAGE_KEY, view.showAvg ? "1" : "0");
     render();
   });
+
+  // ordens abertas / realizadas no gráfico (cada checkbox liga compras e vendas juntas)
+  for (const [id, flag, key] of [
+    ["price-chart-open-orders", "showOpenOrders", OPEN_ORDERS_STORAGE_KEY],
+    ["price-chart-my-orders", "showMyOrders", MY_ORDERS_STORAGE_KEY],
+  ]) {
+    const input = document.getElementById(id);
+    if (!input) continue;
+    input.checked = view[flag];
+    input.addEventListener("change", () => {
+      view[flag] = input.checked;
+      writeStored(key, view[flag] ? "1" : "0");
+      render();
+    });
+  }
 
   const dcaInput = document.getElementById("price-chart-dca");
   if (dcaInput) dcaInput.checked = view.showDca;

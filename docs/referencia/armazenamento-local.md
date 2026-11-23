@@ -4,7 +4,7 @@ resumo: Todas as preferências da página salvas no navegador, com formato, padr
 arquivos: []
 rotas: []
 eventos: []
-storage: [balances-simple-view, ordersOpenPairs, priceChartAsset, priceChartMode, priceChartRange, priceChartInterval, priceChartDynamicAvg, priceChartProjectedAvg, priceChartStats, priceChartStatsDays, priceChartDca, priceChartLiquidation, priceChartFutures, priceChartRealLiquidations, priceChartOrdersTab, priceChartIndicators, priceChartMovingAverages, priceChartWatchlistOrder, priceChartWatchlistOpen, priceChartWatchlistColors, priceChartPaneHeights, price-chart-drawings, price-chart-draw-toolbar]
+storage: [balances-simple-view, ordersOpenPairs, priceChartAsset, priceChartMode, priceChartRange, priceChartInterval, priceChartDynamicAvg, priceChartOpenOrders, priceChartMyOrders, priceChartProjectedAvg, priceChartStats, priceChartStatsDays, priceChartDca, priceChartLiquidation, priceChartFutures, priceChartRealLiquidations, priceChartOrdersTab, priceChartIndicators, priceChartMovingAverages, priceChartWatchlistOrder, priceChartWatchlistOpen, priceChartWatchlistColors, priceChartPaneHeights, price-chart-drawings, price-chart-draw-toolbar]
 ---
 
 # `localStorage`
@@ -22,6 +22,8 @@ O padrão de nomes é **inconsistente**: há chaves em `camelCase` (`priceChartX
 | `priceChartRange` | `7d·30d·90d·6m·1y·2y·all·<n>[dmy]` | `1y` | `PriceChartPanel.js` | Período |
 | `priceChartInterval` | `1h·4h·1d·1w·1M` | `1d` | `PriceChartPanel.js` | Tamanho da vela |
 | `priceChartDynamicAvg` | `"1"`/`"0"` | on | `PriceChartPanel.js` | Camada "Preço médio dinâmico" (linhas do médio de compra e de venda) |
+| `priceChartOpenOrders` | `"1"`/`"0"` | on | `PriceChartPanel.js` | Camada "Ordens abertas" (linhas das compras e vendas abertas) |
+| `priceChartMyOrders` | `"1"`/`"0"` | on | `PriceChartPanel.js` | Camada "Ordens realizadas" (bolinhas das compras e vendas realizadas) |
 | `priceChartProjectedAvg` | `"1"`/`"0"` | off | `PriceChartPanel.js` | Camada "preço médio após ordens abertas" (liga as linhas de compras e de vendas abertas) |
 | `priceChartStats` | `"1"`/`"0"` | off | `PriceChartPanel.js` | Camada faixa estatística |
 | `priceChartStatsDays` | número 1–365 | `30` | `PriceChartPanel.js` | Horizonte da faixa estatística |
