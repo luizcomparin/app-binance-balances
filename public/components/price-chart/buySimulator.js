@@ -2,7 +2,17 @@
 import { state } from "../../core/state.js";
 import { formatPrice, formatQty } from "../../core/format.js";
 
-const sim = { enabled: false };
+const STORAGE_KEY = "priceChartSimulator"; // checkbox "Simular compra até o preço médio" marcado?
+// wanted = escolha da pessoa (salva); enabled = ativo de fato (marcado e com preço médio na moeda aberta)
+const sim = { wanted: readWanted(), enabled: false };
+
+function readWanted() {
+  try {
+    return localStorage.getItem(STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 // moeda/preço atual do gráfico aberto (definidos pelo modal)
 const context = { asset: null, lastPrice: null };
 
@@ -105,15 +115,20 @@ export function updateSimAvailability() {
   if (text) {
     text.textContent = loading ? "Calculando preço médio..." : "Simular compra até o preço médio";
   }
-  if (!ok && input.checked) {
-    input.checked = false;
-    sim.enabled = false;
-  }
+  // sem preço médio (ou carregando) fica desmarcado, mas a escolha salva continua e volta a valer
+  sim.enabled = ok && sim.wanted;
+  input.checked = sim.enabled;
 }
 
 export function initBuySimulator() {
   const simInput = document.getElementById("price-chart-sim");
+  if (simInput) simInput.checked = sim.enabled;
   simInput?.addEventListener("change", () => {
-    sim.enabled = simInput.checked;
+    sim.wanted = sim.enabled = simInput.checked;
+    try {
+      localStorage.setItem(STORAGE_KEY, sim.wanted ? "1" : "0");
+    } catch {
+      // sem armazenamento: vale só até recarregar
+    }
   });
 }

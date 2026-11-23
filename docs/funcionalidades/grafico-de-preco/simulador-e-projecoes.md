@@ -4,7 +4,7 @@ resumo: Camadas "Preço médio após ordens abertas" (linhas após compras e ap�
 arquivos: [public/components/price-chart/buySimulator.js, public/components/price-chart/PriceChartPanel.js, public/components/price-chart/chartData.js]
 rotas: [GET /positions, GET /orders/:asset]
 eventos: [POSITIONS_UPDATED]
-storage: [priceChartProjectedAvg]
+storage: [priceChartProjectedAvg, priceChartSimulator]
 ---
 
 # Simulador de compra e médios projetados
@@ -35,11 +35,11 @@ Um único checkbox (`view.showProjected`) liga as duas linhas abaixo. No gráfic
   `X (USDT) = Q·P·(T − A) / (P − T)`. Só é possível se `T` estiver estritamente entre `A` e `P` (`buyToReachAvg`).
 - A caixa (`simBox`) mostra "Comprar ≈ X USDT (q MOEDA a P)" ou "Inalcançável comprando a preço atual". O status `ok | unreachable | none` vira a classe CSS do tooltip.
 - `setSimContext({ asset, lastPrice })` é atualizado a cada carga de velas. O crosshair está em modo livre (`CrosshairMode.Normal`) para dar o preço exato.
-- Esta opção **não** é persistida. `updateSimAvailability()` a desliga se não houver preço médio. Disponível, o `title` (`SIM_TITLE`) explica a função; sem preço médio, diz por que está desabilitada.
+- A escolha fica salva em `priceChartSimulator` (`sim.wanted`). `updateSimAvailability()` deixa o checkbox desmarcado enquanto carrega ou se a moeda não tem preço médio, sem apagar a escolha: ela volta a valer quando houver preço médio. Disponível, o `title` (`SIM_TITLE`) explica a função; sem preço médio, diz por que está desabilitada.
 
 ## Persistência
 
-`priceChartProjectedAvg` (um valor para as duas linhas).
+`priceChartProjectedAvg` (um valor para as duas linhas) e `priceChartSimulator` (simulador).
 
 ## Como verificar
 
