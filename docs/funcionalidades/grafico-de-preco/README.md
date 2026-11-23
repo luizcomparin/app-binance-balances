@@ -62,7 +62,7 @@ Fica em `PriceChartPanel.js`, no nível do módulo.
 | `points` | Velas carregadas (`[{ time, open, high, low, close, volume }]`) |
 | `loadingOlder`, `reachedStart` | Estado do histórico sob demanda |
 | `openOrders` | `{ buys, sells, all, error? }` da moeda (`null` = carregando) |
-| `showProjected`, `showProjectedSell`, `showStats`, `statsDays`, `showDca`, `showLiq`, `showFut`, `showLiqReal` | Camadas ligadas (persistidas) |
+| `showProjected` (compras e vendas abertas), `showStats`, `statsDays`, `showDca`, `showLiq`, `showFut`, `showLiqReal` | Camadas ligadas (persistidas) |
 | `vol`, `dca`, `liq` | Dados das camadas: `undefined` = carregando, `null` = não carregado ou erro |
 | `fut`, `liqReal` | `{ key, data }` ou `{ key, loading: true }`, com chave `asset\|período` / `asset\|vela` |
 

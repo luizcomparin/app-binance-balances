@@ -90,31 +90,7 @@
               <label class="price-chart-sim-toggle pc-chip" id="price-chart-projected-label">
                 <input type="checkbox" id="price-chart-projected" />
                 <span class="mini-spinner sim-spinner"></span>
-                <span id="price-chart-projected-text">Preço médio após compras abertas</span>
-              </label>
-              <label class="price-chart-sim-toggle pc-chip" id="price-chart-projected-sell-label">
-                <input type="checkbox" id="price-chart-projected-sell" />
-                <span class="mini-spinner sim-spinner"></span>
-                <span id="price-chart-projected-sell-text">Preço médio após vendas abertas</span>
-              </label>
-              <label class="price-chart-sim-toggle pc-chip" id="price-chart-liq-label" title="Regiões onde posições alavancadas dos futuros seriam liquidadas, estimadas a partir do open interest e da razão long/short dos últimos 30 dias (não é dado real)">
-                <input type="checkbox" id="price-chart-liq" />
-                <span>Mapa de liquidação</span>
-              </label>
-              <label class="price-chart-sim-toggle pc-chip" id="price-chart-fut-label" title="Painéis de open interest, long/short e taxa de funding dos futuros perpétuos, abaixo do gráfico">
-                <input type="checkbox" id="price-chart-fut" />
-                <span class="mini-spinner sim-spinner"></span>
-                <span id="price-chart-fut-text">Dados de futuros</span>
-              </label>
-              <label class="price-chart-sim-toggle pc-chip" id="price-chart-liqreal-label" title="Painel com as liquidações que de fato aconteceram nos futuros perpétuos (Binance + Bybit + OKX, dados da Coinalyze), abaixo do gráfico">
-                <input type="checkbox" id="price-chart-liqreal" />
-                <span class="mini-spinner sim-spinner"></span>
-                <span id="price-chart-liqreal-text">Liquidações</span>
-              </label>
-              <label class="price-chart-sim-toggle pc-chip" id="price-chart-stats-label" title="Faixa de preço típica a partir da volatilidade do último ano (não é previsão)">
-                <input type="checkbox" id="price-chart-stats" />
-                <span>Faixa estatística</span>
-                <span class="pc-chip-extra">em <input type="number" id="price-chart-stats-days" class="stats-days" min="1" max="365" value="30" /> dias</span>
+                <span id="price-chart-projected-text">Preço médio após ordens abertas</span>
               </label>
               <label class="price-chart-sim-toggle pc-chip" id="price-chart-dca-label" title="Seu preço médio de compra vs. comprar o mesmo total em parcelas mensais iguais desde a sua primeira compra">
                 <input type="checkbox" id="price-chart-dca" />
@@ -124,6 +100,25 @@
                 <input type="checkbox" id="price-chart-sim" />
                 <span class="mini-spinner sim-spinner"></span>
                 <span id="price-chart-sim-text">Simular compra até o preço médio</span>
+              </label>
+              <label class="price-chart-sim-toggle pc-chip" id="price-chart-liq-label" title="Regiões onde posições alavancadas dos futuros seriam liquidadas, estimadas a partir do open interest e da razão long/short dos últimos 30 dias (não é dado real)">
+                <input type="checkbox" id="price-chart-liq" />
+                <span>Mapa de liquidação (estimado)</span>
+              </label>
+              <label class="price-chart-sim-toggle pc-chip" id="price-chart-liqreal-label" title="Painel com as liquidações que de fato aconteceram nos futuros perpétuos (Binance + Bybit + OKX, dados da Coinalyze), abaixo do gráfico">
+                <input type="checkbox" id="price-chart-liqreal" />
+                <span class="mini-spinner sim-spinner"></span>
+                <span id="price-chart-liqreal-text">Liquidações</span>
+              </label>
+              <label class="price-chart-sim-toggle pc-chip" id="price-chart-fut-label" title="Painéis de open interest, long/short e taxa de funding dos futuros perpétuos, abaixo do gráfico">
+                <input type="checkbox" id="price-chart-fut" />
+                <span class="mini-spinner sim-spinner"></span>
+                <span id="price-chart-fut-text">Dados de futuros</span>
+              </label>
+              <label class="price-chart-sim-toggle pc-chip" id="price-chart-stats-label" title="Faixa de preço típica a partir da volatilidade do último ano (não é previsão)">
+                <input type="checkbox" id="price-chart-stats" />
+                <span>Faixa estatística</span>
+                <span class="pc-chip-extra">em <input type="number" id="price-chart-stats-days" class="stats-days" min="1" max="365" value="30" /> dias</span>
               </label>
             </div>
           </div>

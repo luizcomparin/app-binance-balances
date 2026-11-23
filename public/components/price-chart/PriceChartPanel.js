@@ -40,8 +40,7 @@ const DEFAULT_RANGE = "1y";
 const DEFAULT_INTERVAL = "1d";
 const VALID_INTERVALS = ["1h", "4h", "1d", "1w", "1M"];
 const VALID_RANGE = /^(7d|30d|90d|6m|1y|2y|all|\d{1,4}[dmy])$/;
-const PROJECTED_STORAGE_KEY = "priceChartProjectedAvg";
-const PROJECTED_SELL_STORAGE_KEY = "priceChartProjectedSellAvg";
+const PROJECTED_STORAGE_KEY = "priceChartProjectedAvg"; // médios após compras e vendas abertas (um checkbox só)
 const STATS_STORAGE_KEY = "priceChartStats";
 const ASSET_STORAGE_KEY = "priceChartAsset"; // última moeda vista
 const DEFAULT_ASSET = "BTC"; // sem última moeda vista (se estiver na carteira; senão a de maior valor)
@@ -71,8 +70,7 @@ const view = {
   reachedStart: false, // já chegou na primeira vela da moeda
   mode: readStoredMode(),
   openOrders: null, // { buys, sells } da moeda aberta; null enquanto carrega
-  showProjected: readStored(PROJECTED_STORAGE_KEY) === "1",
-  showProjectedSell: readStored(PROJECTED_SELL_STORAGE_KEY) === "1",
+  showProjected: readStored(PROJECTED_STORAGE_KEY) === "1", // liga as duas linhas (compras e vendas abertas)
   // faixa estatística: ligada?, horizonte em dias e volatilidade da moeda aberta
   showStats: readStored(STATS_STORAGE_KEY) === "1",
   statsDays: clampStatsDays(Number(readStored(STATS_DAYS_STORAGE_KEY)) || 30),
@@ -144,38 +142,14 @@ function projectedAvg() {
 }
 
 function projectedSellAvg() {
-  if (!view.showProjectedSell || !view.openOrders) return null;
+  if (!view.showProjected || !view.openOrders) return null;
   const pos = state.positions?.[view.asset];
   return avgAfterSells({ avgSell: pos?.avgSellPriceUSDT ?? null, soldQty: pos?.soldQtyCycle ?? 0 }, view.openOrders.sells);
 }
 
-// Checkbox do preço médio de venda projetado: spinner enquanto carrega posição/ordens, desabilitado sem vendas abertas
-function updateProjectedSellAvailability() {
-  const input = document.getElementById("price-chart-projected-sell");
-  const label = document.getElementById("price-chart-projected-sell-label");
-  const text = document.getElementById("price-chart-projected-sell-text");
-  if (!input || !label) return;
-
-  const loading = state.positionsLoading || !view.openOrders;
-  const ok = !loading && !!view.openOrders?.sells.length;
-
-  input.checked = view.showProjectedSell;
-  input.disabled = !ok;
-  label.classList.toggle("is-loading", loading);
-  label.classList.toggle("disabled", !loading && !ok);
-  label.title = ok || loading ? "" : "Nenhuma ordem de venda aberta para esta moeda";
-  if (text) {
-    text.textContent = !loading
-      ? "Preço médio após vendas abertas"
-      : state.positionsLoading
-        ? "Calculando preço médio..."
-        : "Carregando ordens abertas...";
-  }
-}
-
-// Checkbox do preço médio projetado: spinner enquanto carrega posição/ordens, desabilitado se não se aplica
+// Checkbox dos médios projetados (compras e vendas abertas): spinner enquanto carrega posição/ordens,
+// desabilitado se nenhuma das duas linhas se aplica. Cada linha aparece no gráfico só quando se aplica.
 function updateProjectedAvailability() {
-  updateProjectedSellAvailability();
   const input = document.getElementById("price-chart-projected");
   const label = document.getElementById("price-chart-projected-label");
   const text = document.getElementById("price-chart-projected-text");
@@ -184,7 +158,9 @@ function updateProjectedAvailability() {
   const loading = state.positionsLoading || !view.openOrders;
   const pos = positionOf(view.asset);
   const hasBuys = !!view.openOrders?.buys.length;
-  const ok = !loading && !!(pos.avg && pos.qty) && hasBuys;
+  const hasSells = !!view.openOrders?.sells.length;
+  const buyOk = !!(pos.avg && pos.qty) && hasBuys;
+  const ok = !loading && (buyOk || hasSells);
 
   input.checked = view.showProjected;
   input.disabled = !ok;
@@ -193,11 +169,11 @@ function updateProjectedAvailability() {
   label.title = ok || loading
     ? ""
     : !hasBuys
-      ? "Nenhuma ordem de compra aberta para esta moeda"
-      : "Disponível apenas para moedas com preço médio calculado";
+      ? "Nenhuma ordem aberta para esta moeda"
+      : "Compras abertas exigem preço médio calculado, e não há vendas abertas para esta moeda";
   if (text) {
     text.textContent = !loading
-      ? "Preço médio após compras abertas"
+      ? "Preço médio após ordens abertas"
       : state.positionsLoading
         ? "Calculando preço médio..."
         : "Carregando ordens abertas...";
@@ -774,13 +750,6 @@ export function initPriceChartPanel() {
     writeStored(PROJECTED_STORAGE_KEY, view.showProjected ? "1" : "0");
     render();
     renderStats();
-  });
-
-  const projectedSellInput = document.getElementById("price-chart-projected-sell");
-  projectedSellInput?.addEventListener("change", () => {
-    view.showProjectedSell = projectedSellInput.checked;
-    writeStored(PROJECTED_SELL_STORAGE_KEY, view.showProjectedSell ? "1" : "0");
-    render();
   });
 
   const statsInput = document.getElementById("price-chart-stats");

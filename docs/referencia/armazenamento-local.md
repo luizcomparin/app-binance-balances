@@ -4,7 +4,7 @@ resumo: Todas as preferências da página salvas no navegador, com formato, padr
 arquivos: []
 rotas: []
 eventos: []
-storage: [balances-simple-view, ordersOpenPairs, priceChartAsset, priceChartMode, priceChartRange, priceChartInterval, priceChartProjectedAvg, priceChartProjectedSellAvg, priceChartStats, priceChartStatsDays, priceChartDca, priceChartLiquidation, priceChartFutures, priceChartRealLiquidations, priceChartOrdersTab, priceChartIndicators, priceChartMovingAverages, priceChartWatchlistOrder, priceChartWatchlistOpen, priceChartWatchlistColors, priceChartPaneHeights, price-chart-drawings, price-chart-draw-toolbar]
+storage: [balances-simple-view, ordersOpenPairs, priceChartAsset, priceChartMode, priceChartRange, priceChartInterval, priceChartProjectedAvg, priceChartStats, priceChartStatsDays, priceChartDca, priceChartLiquidation, priceChartFutures, priceChartRealLiquidations, priceChartOrdersTab, priceChartIndicators, priceChartMovingAverages, priceChartWatchlistOrder, priceChartWatchlistOpen, priceChartWatchlistColors, priceChartPaneHeights, price-chart-drawings, price-chart-draw-toolbar]
 ---
 
 # `localStorage`
@@ -21,8 +21,7 @@ O padrão de nomes é **inconsistente**: há chaves em `camelCase` (`priceChartX
 | `priceChartMode` | `"line"`/`"candle"` | `line` | `PriceChartPanel.js` | Linha ou velas |
 | `priceChartRange` | `7d·30d·90d·6m·1y·2y·all·<n>[dmy]` | `1y` | `PriceChartPanel.js` | Período |
 | `priceChartInterval` | `1h·4h·1d·1w·1M` | `1d` | `PriceChartPanel.js` | Tamanho da vela |
-| `priceChartProjectedAvg` | `"1"`/`"0"` | off | `PriceChartPanel.js` | Camada "médio após compras abertas" |
-| `priceChartProjectedSellAvg` | `"1"`/`"0"` | off | `PriceChartPanel.js` | Camada "médio após vendas abertas" |
+| `priceChartProjectedAvg` | `"1"`/`"0"` | off | `PriceChartPanel.js` | Camada "preço médio após ordens abertas" (liga as linhas de compras e de vendas abertas) |
 | `priceChartStats` | `"1"`/`"0"` | off | `PriceChartPanel.js` | Camada faixa estatística |
 | `priceChartStatsDays` | número 1–365 | `30` | `PriceChartPanel.js` | Horizonte da faixa estatística |
 | `priceChartDca` | `"1"`/`"0"` | off | `PriceChartPanel.js` | Camada compra mensal fixa |
