@@ -22,7 +22,7 @@ storage: [priceChartDynamicAvg]
 | Suas ordens executadas | `/executed-orders` → `chartData.loadMyOrders` + `ordersOnChart` | bolinhas verdes/vermelhas **no preço exato**. O tamanho segue os quartis do valor |
 | Resumo fora da tela | `offscreenSummary` | "↑ 3 vendas acima" / "↓ 1 compra abaixo" |
 
-- As duas linhas do preço médio dinâmico (compra e venda) são ligadas/desligadas juntas pelo checkbox "Preço médio dinâmico" (`#price-chart-avg`, `view.showAvg`) em ⚙ Camadas. Começa ligado; desligado, `render()` passa `avg`/`avgSell` nulos ao gráfico (linhas, legenda e etiquetas somem). O painel de informações não muda.
+- As duas linhas do preço médio dinâmico (compra e venda) são ligadas/desligadas juntas pelo checkbox "Preço médio dinâmico" (`#price-chart-avg`, `view.showAvg`) em ⚙ Camadas. Começa ligado. Enquanto as posições carregam, mostra spinner e "Calculando preço médio..." (`updateAvgAvailability`). Desligado, `render()` passa `avg`/`avgSell` nulos ao gráfico (linhas, legenda e etiquetas somem). O painel de informações não muda.
 - O eixo automático **inclui** os preços médios e projetados, mas **não** as ordens abertas (`autoscaleInfoProvider` em `createChart.js`).
 - `drawPriceLines(series, previousLines, opts, hidden)` remove e recria todas as linhas a cada `update`.
 - `ordersOnChart(points, asset)` encaixa cada ordem executada na vela que a contém (busca binária). `y = totalUSDT / qty`, ou seja, o preço em USDT na data.

@@ -149,9 +149,23 @@ function projectedSellAvg() {
   return avgAfterSells({ avgSell: pos?.avgSellPriceUSDT ?? null, soldQty: pos?.soldQtyCycle ?? 0 }, view.openOrders.sells);
 }
 
+// Checkbox do preço médio dinâmico: spinner enquanto as posições (preço médio) carregam
+function updateAvgAvailability() {
+  const input = document.getElementById("price-chart-avg");
+  const label = document.getElementById("price-chart-avg-label");
+  const text = document.getElementById("price-chart-avg-text");
+  if (!input || !label) return;
+  const loading = !!state.positionsLoading;
+  input.checked = view.showAvg;
+  input.disabled = loading;
+  label.classList.toggle("is-loading", loading);
+  if (text) text.textContent = loading ? "Calculando preço médio..." : "Preço médio dinâmico";
+}
+
 // Checkbox dos médios projetados (compras e vendas abertas): spinner enquanto carrega posição/ordens,
 // desabilitado se nenhuma das duas linhas se aplica. Cada linha aparece no gráfico só quando se aplica.
 function updateProjectedAvailability() {
+  updateAvgAvailability();
   const input = document.getElementById("price-chart-projected");
   const label = document.getElementById("price-chart-projected-label");
   const text = document.getElementById("price-chart-projected-text");
