@@ -29,7 +29,7 @@ storage: []
 
 ## Legenda (`legend.js`)
 
-- Fica na barra superior do gráfico. Mostra os valores dos médios, com explicação no hover (`AVG_HELP` para os médios dinâmicos e fixo; texto próprio em `legend.js` para "Médio após compras abertas" e "Médio após vendas abertas").
+- Fica na barra superior do gráfico. Mostra os valores dos médios, com explicação no hover (`AVG_HELP` para os médios dinâmicos e fixo; texto próprio em `legend.js` para "Médio após compras abertas", "Médio após vendas abertas" e "Médio mensal fixo").
 - Itens clicáveis (liga/desliga, guardados em `s.hidden`, sem persistência): `myBuys`, `mySells`, `openBuys` e `openSells`.
 - Mostra a nota "● tamanho = valor" quando há 4 ou mais ordens.
 

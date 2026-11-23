@@ -31,7 +31,7 @@ export function createLegend(el, { onToggle, onFit }) {
     if (projectedAvg) items.push(item("sw-projected", `Médio após compras abertas: ${formatPrice(projectedAvg)}`, null, "Preço médio de compra após as ordens de compra abertas serem realizadas."));
     if (projectedSellAvg) items.push(item("sw-projected-sell", `Médio após vendas abertas: ${formatPrice(projectedSellAvg)}`, null, "Preço médio de venda após as ordens de venda abertas serem realizadas."));
     if (fixedAvg) items.push(item("sw-fixed-avg", `${AVG_HELP.fixedAvg.title}: ${formatPrice(fixedAvg)}`, null, AVG_HELP.fixedAvg.text));
-    if (dcaAvg) items.push(item("sw-dca", `Médio mensal fixo: ${formatPrice(dcaAvg)}`));
+    if (dcaAvg) items.push(item("sw-dca", `Médio mensal fixo: ${formatPrice(dcaAvg)}`, null, "Preço médio que você teria se o mesmo total investido nas suas compras fosse dividido em parcelas mensais iguais, entre a sua primeira e a sua última compra."));
     if (orders.buys.length) items.push(item("sw-buy", `Suas compras (${orders.buys.length})`, "myBuys"));
     if (orders.sells.length) items.push(item("sw-sell", `Suas vendas (${orders.sells.length})`, "mySells"));
     if (orders.buys.length + orders.sells.length >= 4) {
