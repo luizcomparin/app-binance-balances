@@ -11,7 +11,7 @@ storage: [priceChartRealLiquidations]
 
 ## O que faz
 
-O checkbox `#price-chart-liqreal` ("Liquidações") adiciona o **último** painel abaixo do gráfico:
+O checkbox `#price-chart-liqreal` ("Liquidações") adiciona um painel abaixo do gráfico, depois do volume e do CVD e antes dos de futuros (a ordem dos checkboxes):
 
 - barras **vermelhas para cima**: longs liquidados (vendas forçadas);
 - barras **verdes para baixo**: shorts liquidados (compras forçadas);

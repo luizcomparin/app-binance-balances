@@ -1,7 +1,8 @@
 // Painéis abaixo do gráfico de preço (mesmo eixo de tempo: zoom, arrasto e mira sincronizados):
-//   1. Volume (USDT)   1b. CVD / Delta de volume (os dois ligados nas Camadas e com engrenagem de configurações)
-//   2. Open interest (USDT)   3. Long/Short (% comprados: contas e top traders)   4. Taxa de funding
-//   5. Liquidações reais (longs e shorts liquidados em US$; independente dos de futuros, sempre por último)
+// (na mesma ordem dos checkboxes de "Painéis abaixo do gráfico", nas Camadas)
+//   1. Volume (USDT)   2. CVD / Delta de volume (os dois com engrenagem de configurações no título)
+//   3. Liquidações reais (longs e shorts liquidados em US$)
+//   4. Open interest (USDT)   5. Long/Short (% comprados: contas e top traders)   6. Taxa de funding
 // Os de futuros vêm em períodos próprios (1h/4h/1d e funding a cada 8h) e são encaixados nas velas do gráfico.
 import { formatUsdShort } from "../../../core/format.js";
 import { toChartTime } from "./axis.js";
@@ -164,10 +165,10 @@ export const FUTURES_PANES = ["oi", "ls", "funding"];
 
 /** handlers = { mountSettings(key, el) }: preenche a caixa de configurações do painel key (volume, cvd) */
 export function createFuturesPanes(chart, wrap, handlers = {}) {
-  // vol = série de volume (painel 1, quando ligado); series = séries de futuros (um painel para cada item de shown, logo
-  // depois do volume; só com dados de futuros); shown = painéis de futuros criados, na ordem do gráfico
+  // vol = série de volume (painel 1, quando ligado); series = séries de futuros (um painel para cada item de shown, os
+  // últimos; só com dados de futuros); shown = painéis de futuros criados, na ordem do gráfico
   // vmas = médias do volume (id -> { series, key, values, m }), no painel de volume
-  // liq = séries de liquidações reais ({ long, short }, último painel), liqData = resposta de /liquidations,
+  // liq = séries de liquidações reais ({ long, short }, logo antes dos de futuros), liqData = resposta de /liquidations,
   // liqAligned = valores por vela ({ long, short, by })
   const st = {
     vol: null,
@@ -287,14 +288,15 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
   const subKeys = () => [
     ...(st.vol ? ["volume"] : []),
     ...(st.cvd ? ["cvd"] : []),
-    ...st.shown,
     ...(st.liq ? ["liq"] : []),
+    ...st.shown,
   ];
   // quantos painéis abaixo do preço devem existir
   const subCount = () => subKeys().length;
   // painéis antes dos de futuros: volume e CVD, quando ligados (nessa ordem, a partir do painel 1)
   const volCount = () => (st.vol ? 1 : 0);
   const cvdCount = () => (st.cvd ? 1 : 0);
+  const liqCount = () => (st.liq ? 1 : 0);
 
   // altura (px) de cada painel de baixo: PANE_HEIGHT até o usuário arrastar a divisória; daí fica a
   // escolhida (vale ao trocar de moeda, ligar/desligar futuros, redimensionar a janela e recarregar a página)
@@ -360,10 +362,10 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
     relayout();
   }
 
-  // painel de liquidações: sempre o último (logo depois do volume, ou depois dos de futuros). Quando os de
-  // futuros entram ou saem, ele é recriado no lugar certo (withLiquidationsMoved)
+  // painel de liquidações: depois do volume e do CVD, antes dos de futuros (que saem e voltam depois dele
+  // quando ele entra ou sai: withFuturesMoved)
   function createLiquidationSeries() {
-    const pane = 1 + volCount() + cvdCount() + st.shown.length;
+    const pane = 1 + volCount() + cvdCount();
     // sem etiqueta de último valor no eixo (as duas se sobrepõem; os valores já estão no título)
     const opts = { ...base, lastValueVisible: false, priceFormat: usd, base: 0 };
     st.liq = {
@@ -381,20 +383,25 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
     st.liq = null;
   }
 
-  // muda os painéis de futuros (fn) tirando antes o de liquidações e recolocando-o depois, por último
-  function withLiquidationsMoved(fn) {
-    const had = !!st.liq;
-    removeLiquidationSeries();
+  // muda os painéis que vêm antes dos de futuros (fn) tirando os de futuros e recolocando-os depois, por
+  // último, com os dados que já tinham
+  function withFuturesMoved(fn) {
+    const keys = st.series ? [...st.shown] : [];
+    removeFuturesSeries();
     fn();
-    if (had) createLiquidationSeries();
+    if (!keys.length) return;
+    addFuturesSeries(keys);
+    if (st.data && st.data !== PANE_LOADING) setData();
   }
 
   function removeLiquidations() {
     if (!st.liq && !st.liqData) return;
-    removeLiquidationSeries();
+    withFuturesMoved(() => {
+      removeLiquidationSeries();
+      removeEmptyPanes();
+    });
     st.liqData = null;
     st.liqAligned = null;
-    removeEmptyPanes();
     hideTitles(["liq"]);
   }
 
@@ -435,10 +442,8 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
 
   // (re)cria os painéis de futuros pedidos (keys, subconjunto de FUTURES_PANES, na ordem do gráfico)
   function createSeries(keys) {
-    withLiquidationsMoved(() => {
-      removeFuturesSeries();
-      addFuturesSeries(keys);
-    });
+    removeFuturesSeries();
+    addFuturesSeries(keys);
   }
 
   function addFuturesSeries(keys) {
@@ -447,7 +452,7 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
     const fundingFmt = { type: "custom", minMove: 0.000001, formatter: (v) => `${v.toFixed(3).replace(".", ",")}%` };
     st.series = {};
     keys.forEach((key, k) => {
-      const pane = 1 + volCount() + cvdCount() + k;
+      const pane = 1 + volCount() + cvdCount() + liqCount() + k;
       if (key === "oi") {
         st.series.oi = chart.addSeries(
           LWC.AreaSeries,
@@ -482,11 +487,9 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
 
   function removeFutures() {
     if (!st.series) return;
-    withLiquidationsMoved(() => {
-      removeFuturesSeries();
-      st.aligned = null;
-      st.data = null;
-    });
+    removeFuturesSeries();
+    st.aligned = null;
+    st.data = null;
     hideTitles(FUTURES_PANES);
   }
 
@@ -552,20 +555,17 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
   }
 
   // liga/desliga o volume (volume: bool) e o CVD (cvd: configurações ou null), que ficam nessa ordem logo
-  // abaixo do preço: os painéis de futuros e o de liquidações saem e voltam depois deles, com os dados que já tinham
+  // abaixo do preço: o de liquidações e os de futuros saem e voltam depois deles, com os dados que já tinham
   function rebuildTop({ volume, cvd }) {
-    const keys = st.series ? [...st.shown] : [];
-    withLiquidationsMoved(() => {
-      removeFuturesSeries();
+    withFuturesMoved(() => {
+      const hadLiq = !!st.liq;
+      removeLiquidationSeries();
       removeCvdSeries();
       if (!volume) removeVolumeSeries();
       removeEmptyPanes();
       if (volume && !st.vol) createVolume();
       if (cvd) createCvdSeries(cvd);
-      if (keys.length) {
-        addFuturesSeries(keys);
-        if (st.data && st.data !== PANE_LOADING) setData();
-      }
+      if (hadLiq) createLiquidationSeries();
     });
     relayout();
   }
@@ -599,8 +599,8 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
 
   // de baixo para cima (removeEmptyPanes conta os painéis que ainda existem)
   function remove() {
-    removeLiquidations();
     removeFutures();
+    removeLiquidations();
     removeCvdSeries();
     st.cvdM = null;
     st.cvdVals = null;
@@ -763,12 +763,12 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
         if (st.liq) {
           st.liq.long.setData([]);
           st.liq.short.setData([]);
-        } else createLiquidationSeries();
+        } else withFuturesMoved(createLiquidationSeries);
       } else if (liq) {
         st.liqData = liq;
         alignLiquidations();
         if (st.liq) setLiquidationData();
-        else createLiquidationSeries();
+        else withFuturesMoved(createLiquidationSeries);
       } else removeLiquidations();
       renderTitles();
       relayout();
