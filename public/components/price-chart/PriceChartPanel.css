@@ -405,6 +405,11 @@
   display: none;
 }
 
+/* campo que não vale para o estilo escolhido (ex.: "Acima de" no perfil) */
+.pc-chip-settings .pcm-field:has(:disabled) {
+  opacity: 0.45;
+}
+
 /* desabilitada / carregando (spinner no lugar do checkbox) */
 .price-chart-sim-toggle.disabled {
   opacity: 0.5;

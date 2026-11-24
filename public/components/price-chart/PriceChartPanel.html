@@ -126,22 +126,32 @@
               </label>
               <!-- opções do mapa (engrenagem acima): formulário montado por paneSettings.mountLiqMapSettings -->
               <div class="fp-settings pc-chip-settings" id="price-chart-liq-settings" hidden></div>
-              <label class="price-chart-sim-toggle pc-chip" id="price-chart-liqbubbles-label" title="Bolhas das liquidações que de fato aconteceram em cada vela (dados da Coinalyze): longs liquidados em vermelho na mínima, shorts em verde na máxima. O tamanho é o valor liquidado; a posição na vela é aproximada">
+              <label class="price-chart-sim-toggle pc-chip" id="price-chart-liqbubbles-label" title="Liquidações que de fato aconteceram (dados da Coinalyze) desenhadas sobre o gráfico: perfil por preço, bolhas ou maiores eventos (escolha na engrenagem). Longs liquidados em vermelho, shorts em verde. A posição no preço é aproximada: cada hora fica na mínima (longs) ou máxima (shorts) da sua vela de 1h">
                 <input type="checkbox" id="price-chart-liqbubbles" />
                 <span class="mini-spinner sim-spinner"></span>
-                <span id="price-chart-liqbubbles-text">Bolhas de liquidações (reais)</span>
-                <button type="button" class="pc-chip-gear" id="price-chart-liqbubbles-gear" title="Configurações das bolhas" aria-label="Configurações das bolhas" aria-expanded="false" aria-controls="price-chart-liqbubbles-settings">
+                <span id="price-chart-liqbubbles-text">Liquidações reais no gráfico</span>
+                <button type="button" class="pc-chip-gear" id="price-chart-liqbubbles-gear" title="Configurações das liquidações reais no gráfico" aria-label="Configurações das liquidações reais no gráfico" aria-expanded="false" aria-controls="price-chart-liqbubbles-settings">
                   <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
                 </button>
               </label>
-              <!-- opções das bolhas (engrenagem acima) -->
+              <!-- opções das liquidações reais no gráfico (engrenagem acima) -->
               <div class="fp-settings pc-chip-settings" id="price-chart-liqbubbles-settings" hidden>
                 <div class="price-chart-mas fps-form">
-                  <label class="pcm-field"><span>Corretoras</span><select id="price-chart-liqbubbles-source" title="Corretoras somadas nas bolhas">
-                    <option value="all">Binance + Bybit + OKX</option>
+                  <label class="pcm-field"><span>Estilo</span><select id="price-chart-liqbubbles-style" title="Como as liquidações aparecem no gráfico">
+                    <option value="profile">Perfil por preço</option>
+                    <option value="bubbles">Bolhas</option>
+                    <option value="top">Maiores eventos</option>
+                  </select></label>
+                  <label class="pcm-field"><span>Corretoras</span><select id="price-chart-liqbubbles-source" title="Corretoras somadas: as 3 (Binance + Bybit + OKX) ou só a Binance">
+                    <option value="all">3 corretoras</option>
                     <option value="binance">Só Binance</option>
                   </select></label>
-                  <label class="pcm-field"><span>Acima de (US$)</span><input type="text" id="price-chart-liqbubbles-min" inputmode="decimal" placeholder="todas" title="Só mostra as bolhas a partir desse valor liquidado na vela (US$), em todas as moedas. Ex.: 5M, 500K, 1,5M. Vazio = todas" /></label>
+                  <label class="pcm-field"><span>Acima de (US$)</span><input type="text" id="price-chart-liqbubbles-min" inputmode="decimal" placeholder="todas" title="Bolhas e maiores eventos: só a partir desse valor liquidado na vela (US$), em todas as moedas. Ex.: 5M, 500K, 1,5M. Vazio = todas. O perfil usa todas" /></label>
+                  <label class="pcm-field"><span>Quantos eventos</span><select id="price-chart-liqbubbles-top" title="Maiores eventos: quantas das maiores liquidações visíveis aparecem">
+                    <option value="3">3</option>
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                  </select></label>
                 </div>
               </div>
               <label class="price-chart-sim-toggle pc-chip" id="price-chart-stats-label" title="Faixa de preço típica a partir da volatilidade do último ano (não é previsão)">

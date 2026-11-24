@@ -37,7 +37,7 @@ const LWC = window.LightweightCharts;
  *                        macd: configurações do painel do MACD (chart/macd.js) | null,
  *                        liquidation: resposta de /liquidation-map | null,
  *                        liquidationSettings: opções do mapa (chart/liquidationOverlay.js → LIQ_MAP_DEFAULT),
- *                        liquidationBubbles: { list: bolhas das liquidações reais (chart/liquidationBubbles.js), minUsd } | null,
+ *                        liquidationBubbles: { events, style, minUsd, top } das liquidações reais (chart/liquidationBubbles.js) | null,
  *                        futures: resposta de /futures-data | null (painéis de OI, long/short e funding),
  *                        futuresPanes: painéis de futuros ligados (["oi", "ls", "funding"] ou parte),
  *                        liquidations: resposta de /liquidations | null (painel de liquidações reais) }
@@ -92,7 +92,7 @@ export function createPriceChart(els, handlers = {}) {
 
   // mapa de liquidação estimado (anexado à série principal; reanexado quando ela é recriada)
   const liquidation = new LiquidationOverlay(timeToX);
-  // bolhas das liquidações reais (Coinalyze) nas velas; anexadas à série principal como o mapa
+  // liquidações reais (Coinalyze) sobre o gráfico: perfil, bolhas ou maiores eventos; anexadas à série principal como o mapa
   const bubbles = new LiquidationBubbles();
 
   // painéis de volume, open interest, long/short e funding (mesmo eixo de tempo)
@@ -524,7 +524,7 @@ export function createPriceChart(els, handlers = {}) {
       summary.textContent = opts.summary || "";
       summary.hidden = !opts.summary;
       liquidation.setData(opts.liquidation || null, opts.liquidationSettings);
-      bubbles.setData(opts.liquidationBubbles?.list || null, opts.liquidationBubbles?.minUsd || 0);
+      bubbles.setData(opts.liquidationBubbles || null);
       // primeiro a altura final do gráfico, depois os painéis (as alturas deles partem dela)
       // (volume, CVD, RSI e MACD, quando ligados + os de futuros ligados, quando há dados + 1 de liquidações reais;
       // RSI e MACD contam 1,5 e 1,3: a altura padrão deles é maior, PANE_DEFAULT_HEIGHTS)

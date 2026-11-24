@@ -36,7 +36,7 @@ As opções valem para todas as moedas e ficam salvas em `priceChartLiqMapSettin
   - com a chave, a **divisão por alavancagem** usada: a ajustada (com a padrão ao lado e o acerto fora do ajuste, antes → depois) ou a padrão, com o motivo de não ter trocado;
   - um aviso de **estimativa**.
 
-> Ninguém publica onde estão as posições alavancadas. Para liquidações que **de fato** aconteceram, veja [liquidacoes-reais](liquidacoes-reais.md): o painel e as **bolhas sobre o gráfico** (checkbox próprio), que mostram se as faixas do mapa "pegaram" as cascatas.
+> Ninguém publica onde estão as posições alavancadas. Para liquidações que **de fato** aconteceram, veja [liquidacoes-reais](liquidacoes-reais.md): o painel e a camada **Liquidações reais no gráfico** (checkbox próprio: perfil por preço, bolhas ou maiores eventos), que mostra se as faixas do mapa "pegaram" as cascatas.
 
 ## Server: o modelo (`services/liquidationMap.js` + `services/liquidationModel.js`)
 
@@ -82,5 +82,5 @@ O formato da resposta está em [api.md](../../referencia/api.md#get-liquidation-
 3. Com a chave da Coinalyze, a caixa mostra "Ajustado com as liquidações reais da Binance" com os valores, os fatores e a correlação. Sem a chave, mostra a linha "Sem ajuste por liquidações reais: configure a chave...".
 4. Com a chave, a caixa mostra a linha "Alavancagem": a divisão usada e o acerto fora do ajuste.
 5. Salve ou remova a chave nas Configurações: o mapa recarrega e as linhas do ajuste mudam.
-6. Ligue as **Bolhas de liquidações (reais)** junto: as bolhas grandes devem cair perto das faixas amarelas que somem.
+6. Ligue **Liquidações reais no gráfico** junto (estilo Perfil por preço ou Bolhas): as maiores concentrações reais devem cair perto das faixas amarelas que somem.
 7. Clique na engrenagem do checkbox: as opções abrem logo abaixo, sem desligar o mapa. Escolha "Só shorts (acima)", desligue o histórico e suba "Esconder fracas": ficam só as faixas pendentes acima do preço. Recarregue a página: as opções continuam.

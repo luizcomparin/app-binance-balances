@@ -28,7 +28,7 @@ import { fetchFuturesData, fetchLiquidationMap, fetchLiquidations } from "../../
 import { openSettings } from "../settings/SettingsModal.js";
 import { formatUsdShort } from "../../core/format.js";
 import { FUTURES_HELP, FUTURES_PANES, PANE_LOADING } from "./chart/futuresPanes.js";
-import { BUBBLE_SOURCES, liquidationBubbles, parseUsdAmount } from "./chart/liquidationBubbles.js";
+import { BUBBLE_SOURCES, LIQ_STYLES, liquidationEvents, parseUsdAmount, TOP_COUNTS } from "./chart/liquidationBubbles.js";
 import { initOrderHistory, setHistoryAsset, showHistory, reloadHistory } from "./orderHistoryTable.js";
 import { initTradeHistory, setTradesAsset, showTrades, reloadTrades } from "./tradeHistoryTable.js";
 import { annualizedPct, dailyVolatility, priceBand, touchProbability } from "./volatility.js";
@@ -77,6 +77,9 @@ const LIQREAL_CACHE_MS = 5 * 60 * 1000;
 const LIQBUBBLES_STORAGE_KEY = "priceChartLiqBubbles"; // bolhas das liquidações reais sobre o gráfico
 const LIQBUBBLES_SOURCE_STORAGE_KEY = "priceChartLiqBubblesSource"; // "all" (3 corretoras) | "binance"
 const LIQBUBBLES_MIN_STORAGE_KEY = "priceChartLiqBubblesMin"; // limite mínimo das bolhas (US$; 0 = todas)
+const LIQBUBBLES_STYLE_STORAGE_KEY = "priceChartLiqBubblesStyle"; // "profile" (padrão) | "bubbles" | "top"
+const LIQBUBBLES_TOP_STORAGE_KEY = "priceChartLiqBubblesTop"; // quantos maiores eventos (3 | 5 | 10)
+const LIQ_HOURLY_PAGES = 3; // páginas de 1000 velas de 1h para cobrir o histórico horário da Coinalyze (~83 dias)
 const VOLUME_PANE_STORAGE_KEY = "priceChartVolumePane"; // painel de volume (ligado por padrão)
 const CVD_PANE_STORAGE_KEY = "priceChartCvdPane"; // painel de CVD/Delta
 const RSI_PANE_STORAGE_KEY = "priceChartRsiPane"; // painel do RSI
@@ -125,6 +128,10 @@ const view = {
     ? readStored(LIQBUBBLES_SOURCE_STORAGE_KEY)
     : "all",
   liqBubblesMin: readBubblesMin(), // limite mínimo das bolhas (US$; 0 = todas), o mesmo para todas as moedas
+  liqBubblesStyle: LIQ_STYLES.includes(readStored(LIQBUBBLES_STYLE_STORAGE_KEY)) ? readStored(LIQBUBBLES_STYLE_STORAGE_KEY) : "profile",
+  liqBubblesTop: TOP_COUNTS.includes(Number(readStored(LIQBUBBLES_TOP_STORAGE_KEY))) ? Number(readStored(LIQBUBBLES_TOP_STORAGE_KEY)) : 5,
+  // liquidações de 1h + velas de 1h da moeda, para posicionar cada hora no preço: { asset, loading } | { asset, data }
+  liqHourly: null,
   // painéis de volume e de CVD/Delta (sem escolha salva, o CVD herda o indicador da versão anterior)
   showVolume: readStored(VOLUME_PANE_STORAGE_KEY) !== "0",
   showCvd: (readStored(CVD_PANE_STORAGE_KEY) ?? (legacyCvdOn() ? "1" : "0")) === "1",
@@ -589,12 +596,52 @@ function showBubblesMin() {
   if (input) input.value = view.liqBubblesMin > 0 ? formatUsdShort(view.liqBubblesMin) : "";
 }
 
-// bolhas sobre o gráfico (velas atuais) ou null
+// liquidações reais sobre o gráfico (velas atuais) ou null: enquanto o dado de 1h carrega (ou se falhar),
+// posiciona pela vela do gráfico
 function liquidationBubblesForChart() {
   if (!view.showLiqBubbles || !view.points) return null;
   const data = liqRealData();
   if (!data || data === PANE_LOADING) return null;
-  return { list: liquidationBubbles(view.points, data.rows, view.liqBubblesSource), minUsd: view.liqBubblesMin };
+  if (view.liqHourly?.asset !== view.asset) loadLiqHourly(view.asset);
+  return {
+    events: liquidationEvents(view.points, data.rows, view.liqHourly?.data || null, view.liqBubblesSource),
+    style: view.liqBubblesStyle,
+    minUsd: view.liqBubblesMin,
+    top: view.liqBubblesTop,
+  };
+}
+
+// Liquidações de 1h (mesmo cache do painel em vela de 1h) e as velas de 1h que as cobrem (até
+// LIQ_HOURLY_PAGES páginas, das mais recentes para trás)
+async function loadLiqHourly(asset) {
+  view.liqHourly = { asset, loading: true };
+  let data = null;
+  try {
+    const key = `${asset}|1h`;
+    let liq = liqRealCache.get(key);
+    if (!liq || Date.now() - liq.at >= LIQREAL_CACHE_MS) {
+      const fresh = await fetchLiquidations(asset, "1h");
+      liq = { at: Date.now(), data: fresh };
+      if (fresh.available) liqRealCache.set(key, liq);
+    }
+    const rows = liq.data?.available ? liq.data.rows : [];
+    if (rows.length) {
+      let candles = [];
+      let before = null;
+      for (let page = 0; page < LIQ_HOURLY_PAGES; page++) {
+        const pts = (await getKlines(asset, "1h", before)).points || [];
+        const older = candles.length ? pts.filter((p) => p.time < candles[0].time) : pts;
+        if (!older.length) break;
+        candles = [...older, ...candles];
+        if (candles[0].time <= rows[0].t || pts.length < KLINES_PAGE) break;
+        before = candles[0].time;
+      }
+      if (candles.length) data = { rows, candles };
+    }
+  } catch {}
+  if (view.liqHourly?.asset !== asset) return; // trocou de moeda no meio
+  view.liqHourly = { asset, data };
+  if (view.asset === asset) render();
 }
 
 async function loadLiquidations() {
@@ -625,6 +672,7 @@ async function loadLiquidations() {
 function reloadLiquidations() {
   liqRealCache.clear();
   view.liqReal = null;
+  view.liqHourly = null;
   updateLiquidationsAvailability();
   liqCache.clear();
   view.liq = null;
@@ -637,7 +685,7 @@ const needsCoinalyzeKey = () => ["no-key", "invalid-key"].includes(view.liqReal?
 // checkboxes (painel e bolhas): spinner enquanto carrega; avisos sem chave, sem contrato ou com erro
 function updateLiquidationsAvailability() {
   updateLiqRealChip("price-chart-liqreal", view.showLiqReal, "Liquidações", LIQREAL_TITLE);
-  updateLiqRealChip("price-chart-liqbubbles", view.showLiqBubbles, "Bolhas de liquidações (reais)", LIQBUBBLES_TITLE);
+  updateLiqRealChip("price-chart-liqbubbles", view.showLiqBubbles, "Liquidações reais no gráfico", LIQBUBBLES_TITLE);
 }
 
 function updateLiqRealChip(id, shown, name, title) {
@@ -666,7 +714,7 @@ function updateLiqRealChip(id, shown, name, title) {
 const LIQREAL_TITLE =
   "Painel com as liquidações que de fato aconteceram nos futuros perpétuos (Binance + Bybit + OKX, dados da Coinalyze), abaixo do gráfico";
 const LIQBUBBLES_TITLE =
-  "Bolhas das liquidações que de fato aconteceram em cada vela (dados da Coinalyze): longs liquidados em vermelho na mínima, shorts em verde na máxima. O tamanho é o valor liquidado; a posição na vela é aproximada";
+  "Liquidações que de fato aconteceram (dados da Coinalyze) desenhadas sobre o gráfico: perfil por preço, bolhas ou maiores eventos (escolha na engrenagem). Longs liquidados em vermelho, shorts em verde. A posição no preço é aproximada: cada hora fica na mínima (longs) ou máxima (shorts) da sua vela de 1h";
 
 // ---------------------------------------------------------------------------
 // mapa de liquidação estimado (futuros: open interest + long/short)
@@ -1064,6 +1112,29 @@ export function initPriceChartPanel() {
     writeStored(LIQBUBBLES_SOURCE_STORAGE_KEY, view.liqBubblesSource);
     render();
   });
+  // estilo (perfil, bolhas, maiores eventos) e quantos maiores eventos; os campos que não valem para o
+  // estilo escolhido ficam desabilitados
+  const bubblesStyle = document.getElementById("price-chart-liqbubbles-style");
+  const bubblesTop = document.getElementById("price-chart-liqbubbles-top");
+  const syncStyleFields = () => {
+    const minInput = document.getElementById("price-chart-liqbubbles-min");
+    if (minInput) minInput.disabled = view.liqBubblesStyle === "profile";
+    if (bubblesTop) bubblesTop.disabled = view.liqBubblesStyle !== "top";
+  };
+  if (bubblesStyle) bubblesStyle.value = view.liqBubblesStyle;
+  if (bubblesTop) bubblesTop.value = String(view.liqBubblesTop);
+  syncStyleFields();
+  bubblesStyle?.addEventListener("change", () => {
+    view.liqBubblesStyle = LIQ_STYLES.includes(bubblesStyle.value) ? bubblesStyle.value : "profile";
+    writeStored(LIQBUBBLES_STYLE_STORAGE_KEY, view.liqBubblesStyle);
+    syncStyleFields();
+    render();
+  });
+  bubblesTop?.addEventListener("change", () => {
+    view.liqBubblesTop = TOP_COUNTS.includes(Number(bubblesTop.value)) ? Number(bubblesTop.value) : 5;
+    writeStored(LIQBUBBLES_TOP_STORAGE_KEY, String(view.liqBubblesTop));
+    render();
+  });
   // limite mínimo (todas as moedas): aceita "5M", "500K", "1,5M"...; inválido volta ao valor anterior
   const bubblesMin = document.getElementById("price-chart-liqbubbles-min");
   showBubblesMin();
@@ -1288,6 +1359,7 @@ function refreshLayers(asset) {
   liqCache.delete(asset);
   dropAsset(futCache);
   dropAsset(liqRealCache);
+  view.liqHourly = null;
 
   const tasks = [];
   // faixa estatística (velas diárias) e compra mensal fixa (suas compras executadas + velas diárias)

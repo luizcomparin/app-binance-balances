@@ -33,7 +33,7 @@ Todas as rotas estão em `server/routes.js`. Do lado da página, as funções co
 | `GET /trade-history/:asset` | `buildAssetTrades` | `fetchAssetTrades` | `tradeHistoryTable.js` | 30 s + trades |
 | `GET /liquidation-map/:asset` | `buildLiquidationMap` | `fetchLiquidationMap` | PriceChartPanel (camada mapa) | 5 min (+ `/liquidations` 1h, com chave) |
 | `GET /futures-data/:asset` | `buildFuturesData` | `fetchFuturesData` | PriceChartPanel (painéis) | 2 min |
-| `GET /liquidations/:asset` | `buildLiquidations` | `fetchLiquidations` | PriceChartPanel (painel e bolhas) | 5 min |
+| `GET /liquidations/:asset` | `buildLiquidations` | `fetchLiquidations` | PriceChartPanel (painel e camada sobre o gráfico; esta com `interval=1h` também) | 5 min |
 | `GET /executed-orders` | `buildExecutedOrders` | `fetchExecutedOrders` | ExecutedOrdersPanel, `chartData.loadMyOrders` | 15 s + trades |
 | `GET /price-chart/:asset` | `buildPriceChart` | `fetchKlines` | `chartData.getKlines` | 60 s |
 | `GET /site`, `/site/:page` | `server.js` | — | navegador | — |
