@@ -39,13 +39,13 @@ Qualquer parte do app abre uma moeda aqui com `window.openPriceChart(asset)`.
 | `chartData.js` | Cache no cliente: `getKlines`, `loadMyOrders`, `loadOpenOrders`, `ordersOnChart`, `invalidateAssetCache` | [velas-e-timeframe](velas-e-timeframe.md), [sobreposicoes-e-legenda](sobreposicoes-e-legenda.md) |
 | `timeframe.js`, `chart/axis.js` | Período × vela; tempo/fuso e formato de preço | [velas-e-timeframe](velas-e-timeframe.md) |
 | `chart/overlays.js`, `chart/legend.js`, `chart/tooltip.js` | Linhas de preço, marcadores, legenda, tooltip | [sobreposicoes-e-legenda](sobreposicoes-e-legenda.md) |
-| `indicatorControls.js`, `chart/movingAverage.js`, `chart/bollinger.js`, `chart/cvd.js` | Indicadores | [indicadores](indicadores.md) |
+| `indicatorControls.js`, `chart/movingAverage.js`, `chart/bollinger.js` | Indicadores | [indicadores](indicadores.md) |
 | `chart/drawings.js`, `chart/drawingToolbar.js`, `chart/measureTool.js` | Desenhos e régua | [desenhos-e-regua](desenhos-e-regua.md) |
 | `buySimulator.js` | Simulador de compra e médios projetados | [simulador-e-projecoes](simulador-e-projecoes.md) |
 | `volatility.js` | Faixa estatística | [faixa-estatistica](faixa-estatistica.md) |
 | `dca.js` | Comparação com compra mensal fixa | [comparacao-dca](comparacao-dca.md) |
 | `chart/liquidationOverlay.js` | Mapa de liquidação desenhado | [mapa-de-liquidacao](mapa-de-liquidacao.md) |
-| `chart/futuresPanes.js` | Painéis de volume, OI, L/S, funding e liquidações | [paineis-de-futuros](paineis-de-futuros.md), [liquidacoes-reais](liquidacoes-reais.md) |
+| `chart/futuresPanes.js`, `chart/cvd.js`, `paneSettings.js` | Painéis de volume, CVD/Delta, OI, L/S, funding e liquidações (engrenagem de configurações no volume e no CVD) | [paineis-de-futuros](paineis-de-futuros.md), [liquidacoes-reais](liquidacoes-reais.md) |
 | `watchlist.js`, `assetPicker.js` | Lista lateral e seletor do título | [watchlist-e-seletor](watchlist-e-seletor.md) |
 | `openOrdersTable.js`, `orderHistoryTable.js`, `tradeHistoryTable.js`, `periodFilter.js`, `loadError.js` | Abas abaixo do gráfico | [abas-de-ordens](abas-de-ordens.md) |
 | `PriceChartPanel.css`, `chart/chart.css` | Estilos do painel e do que é desenhado por cima do canvas (tooltip, títulos dos painéis, barra de desenho…) | — |
@@ -94,7 +94,7 @@ Fica em `PriceChartPanel.js`, no nível do módulo.
 5. **`loadChart({ keepWindow })`**: carrega as velas que cobrem a janela (ver [velas-e-timeframe](velas-e-timeframe.md)) e depois chama `render({ window })` e `renderInfo()`.
 6. **`render(extra)`**: monta **todas** as opções e chama `chart.update(opts)`. É chamado sempre que algo muda (dados, camada, posição, ordens). O `createChart` decide o que redesenhar: só recria a série ao trocar Linha/Velas, e só refaz os dados quando `points` muda.
 
-`chart.update(opts)` recebe: `asset, points, interval, mode, avg, avgSell, orders, openOrders, projectedAvg, projectedSellAvg, statBand, fixedAvg, dcaAvg, indicators, summary, liquidation, futures, futuresPanes, liquidations` e, opcionalmente, `window` / `prepended`.
+`chart.update(opts)` recebe: `asset, points, interval, mode, avg, avgSell, orders, openOrders, projectedAvg, projectedSellAvg, statBand, fixedAvg, dcaAvg, indicators, volume, volumeAverages, cvd, summary, liquidation, futures, futuresPanes, liquidations` e, opcionalmente, `window` / `prepended`.
 
 ## Cabeçalho de informações (`renderInfo`)
 

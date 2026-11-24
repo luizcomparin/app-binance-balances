@@ -1,5 +1,5 @@
 // Painéis abaixo do gráfico de preço (mesmo eixo de tempo: zoom, arrasto e mira sincronizados):
-//   1. Volume (USDT, sempre que há velas)   1b. CVD / Delta de volume (indicador, logo abaixo do volume)
+//   1. Volume (USDT)   1b. CVD / Delta de volume (os dois ligados nas Camadas e com engrenagem de configurações)
 //   2. Open interest (USDT)   3. Long/Short (% comprados: contas e top traders)   4. Taxa de funding
 //   5. Liquidações reais (longs e shorts liquidados em US$; independente dos de futuros, sempre por último)
 // Os de futuros vêm em períodos próprios (1h/4h/1d e funding a cada 8h) e são encaixados nas velas do gráfico.
@@ -10,6 +10,12 @@ import { volumeDelta } from "./cvd.js";
 
 const LWC = window.LightweightCharts;
 const PANE_HEIGHT = 96;
+
+const GEAR =
+  '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
+
+// painéis com engrenagem de configurações no título (o conteúdo vem de handlers.mountSettings)
+const SETTINGS_PANES = ["volume", "cvd"];
 
 // passado no lugar dos dados enquanto carregam: o painel continua no lugar, vazio e com spinner
 export const PANE_LOADING = Object.freeze({ loading: true });
@@ -156,8 +162,9 @@ function alignToBars(points, rows, get, mode) {
 // painéis de futuros, na ordem do gráfico (cada um ligado por um checkbox próprio)
 export const FUTURES_PANES = ["oi", "ls", "funding"];
 
-export function createFuturesPanes(chart, wrap) {
-  // vol = série de volume (painel 1); series = séries de futuros (um painel para cada item de shown, logo
+/** handlers = { mountSettings(key, el) }: preenche a caixa de configurações do painel key (volume, cvd) */
+export function createFuturesPanes(chart, wrap, handlers = {}) {
+  // vol = série de volume (painel 1, quando ligado); series = séries de futuros (um painel para cada item de shown, logo
   // depois do volume; só com dados de futuros); shown = painéis de futuros criados, na ordem do gráfico
   // vmas = médias do volume (id -> { series, key, values, m }), no painel de volume
   // liq = séries de liquidações reais ({ long, short }, último painel), liqData = resposta de /liquidations,
@@ -174,21 +181,51 @@ export function createFuturesPanes(chart, wrap) {
     liqAligned: null,
     cvd: null, // série do CVD/Delta (painel logo depois do volume)
     cvdType: null, // "CVD" | "DELTA" da série atual
-    cvdM: null, // indicador ({ type, color, opacity })
+    cvdM: null, // configurações ({ type, color, opacity })
     cvdVals: null, // { delta, cvd } por vela
     cvdKey: null, // velas + cor + opacidade dos dados desenhados
     points: null,
     interval: null,
   };
 
-  // títulos dos painéis (HTML por cima do gráfico, com dica no hover): volume, OI, long/short, funding, liquidações
+  // títulos dos painéis (HTML por cima do gráfico, com dica no hover): volume, CVD, OI, long/short, funding,
+  // liquidações. texts = onde vão o nome e os valores (no volume e no CVD, um trecho antes da engrenagem;
+  // a caixa de configurações fica fora dele para não ser redesenhada a cada movimento da mira)
   const titles = {};
+  const texts = {};
   for (const key of ["volume", "cvd", "oi", "ls", "funding", "liq"]) {
     const el = document.createElement("div");
     el.className = "fp-title";
     el.hidden = true;
     wrap.appendChild(el);
     titles[key] = el;
+    texts[key] = el;
+    if (!SETTINGS_PANES.includes(key) || !handlers.mountSettings) continue;
+    el.innerHTML = `<span class="fp-title-text"></span><button type="button" class="fp-gear" title="Configurações do painel" aria-label="Configurações do painel" aria-expanded="false">${GEAR}</button><div class="fp-settings" hidden></div>`;
+    texts[key] = el.querySelector(".fp-title-text");
+    handlers.mountSettings(key, el.querySelector(".fp-settings"));
+    el.querySelector(".fp-gear").addEventListener("click", () => toggleSettings(key));
+  }
+
+  // caixa de configurações aberta pela engrenagem (uma por vez); clique fora ou Esc fecha
+  function toggleSettings(key, open = !!key && titles[key].querySelector(".fp-settings").hidden) {
+    for (const k of SETTINGS_PANES) {
+      const box = titles[k].querySelector(".fp-settings");
+      if (!box) continue;
+      const on = k === key && open;
+      box.hidden = !on;
+      titles[k].classList.toggle("settings-open", on);
+      titles[k].querySelector(".fp-gear").setAttribute("aria-expanded", String(on));
+    }
+  }
+  if (handlers.mountSettings) {
+    // (o seletor de cor do navegador fecha com um clique fora: isso não fecha a caixa, só o seletor)
+    document.addEventListener("click", (e) => {
+      if (e.target.isConnected && !e.target.closest(".fp-title.settings-open")) toggleSettings(null, false);
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !e.target.closest?.(".pcm-pop")) toggleSettings(null, false);
+    });
   }
   // spinner centralizado no painel enquanto os dados dele carregam (o volume vem junto com as velas)
   const loaders = {};
@@ -255,7 +292,8 @@ export function createFuturesPanes(chart, wrap) {
   ];
   // quantos painéis abaixo do preço devem existir
   const subCount = () => subKeys().length;
-  // painéis entre o volume e os de futuros (o de CVD, quando ligado)
+  // painéis antes dos de futuros: volume e CVD, quando ligados (nessa ordem, a partir do painel 1)
+  const volCount = () => (st.vol ? 1 : 0);
   const cvdCount = () => (st.cvd ? 1 : 0);
 
   // altura (px) de cada painel de baixo: PANE_HEIGHT até o usuário arrastar a divisória; daí fica a
@@ -325,7 +363,7 @@ export function createFuturesPanes(chart, wrap) {
   // painel de liquidações: sempre o último (logo depois do volume, ou depois dos de futuros). Quando os de
   // futuros entram ou saem, ele é recriado no lugar certo (withLiquidationsMoved)
   function createLiquidationSeries() {
-    const pane = 2 + cvdCount() + st.shown.length;
+    const pane = 1 + volCount() + cvdCount() + st.shown.length;
     // sem etiqueta de último valor no eixo (as duas se sobrepõem; os valores já estão no título)
     const opts = { ...base, lastValueVisible: false, priceFormat: usd, base: 0 };
     st.liq = {
@@ -409,7 +447,7 @@ export function createFuturesPanes(chart, wrap) {
     const fundingFmt = { type: "custom", minMove: 0.000001, formatter: (v) => `${v.toFixed(3).replace(".", ",")}%` };
     st.series = {};
     keys.forEach((key, k) => {
-      const pane = 2 + cvdCount() + k;
+      const pane = 1 + volCount() + cvdCount() + k;
       if (key === "oi") {
         st.series.oi = chart.addSeries(
           LWC.AreaSeries,
@@ -489,37 +527,54 @@ export function createFuturesPanes(chart, wrap) {
   const signedUsd = (v) => `${v < 0 ? "−" : ""}${formatUsdShort(Math.abs(v))}`;
   const deltaColor = (v, opacity) => `rgba(${(v >= 0 ? COLORS.deltaUp : COLORS.deltaDown).join(", ")}, ${0.8 * opacity})`;
 
-  // (re)cria a série do CVD/Delta (m = indicador, ou null para tirar). Ela fica logo depois do volume:
-  // os painéis de futuros e o de liquidações saem e voltam depois dela, com os dados que já tinham
-  function rebuildCvd(m) {
+  function createCvdSeries(m) {
+    const opts = { ...base, priceFormat: { type: "custom", minMove: 1, formatter: signedUsd } };
+    const pane = 1 + volCount();
+    st.cvd =
+      m.type === "DELTA"
+        ? chart.addSeries(LWC.HistogramSeries, { ...opts, base: 0 }, pane)
+        : chart.addSeries(LWC.LineSeries, { ...opts, lineWidth: 2 }, pane);
+    st.cvdType = m.type;
+    st.cvdKey = null;
+  }
+
+  function removeCvdSeries() {
+    if (st.cvd) chart.removeSeries(st.cvd);
+    st.cvd = null;
+    st.cvdType = null;
+    st.cvdKey = null;
+  }
+
+  function removeVolumeSeries() {
+    for (const id of [...st.vmas.keys()]) removeVolumeAverage(id);
+    if (st.vol) chart.removeSeries(st.vol);
+    st.vol = null;
+  }
+
+  // liga/desliga o volume (volume: bool) e o CVD (cvd: configurações ou null), que ficam nessa ordem logo
+  // abaixo do preço: os painéis de futuros e o de liquidações saem e voltam depois deles, com os dados que já tinham
+  function rebuildTop({ volume, cvd }) {
     const keys = st.series ? [...st.shown] : [];
     withLiquidationsMoved(() => {
       removeFuturesSeries();
-      if (st.cvd) chart.removeSeries(st.cvd);
-      st.cvd = null;
+      removeCvdSeries();
+      if (!volume) removeVolumeSeries();
       removeEmptyPanes();
-      if (m) {
-        const opts = { ...base, priceFormat: { type: "custom", minMove: 1, formatter: signedUsd } };
-        st.cvd =
-          m.type === "DELTA"
-            ? chart.addSeries(LWC.HistogramSeries, { ...opts, base: 0 }, 2)
-            : chart.addSeries(LWC.LineSeries, { ...opts, lineWidth: 2 }, 2);
-      }
+      if (volume && !st.vol) createVolume();
+      if (cvd) createCvdSeries(cvd);
       if (keys.length) {
         addFuturesSeries(keys);
         if (st.data && st.data !== PANE_LOADING) setData();
       }
     });
-    st.cvdType = m ? m.type : null;
-    st.cvdKey = null;
     relayout();
   }
 
-  // indicador CVD/Delta visível ({ type: "CVD"|"DELTA", color, opacity }) ou null; recalcula só quando
-  // mudam as velas (ou, no Delta, a opacidade, que vai na cor de cada barra)
+  // painel de CVD/Delta: configurações ({ type: "CVD"|"DELTA", color, opacity }) ou null (desligado);
+  // recalcula só quando mudam as velas (ou, no Delta, a opacidade, que vai na cor de cada barra)
   function setCvd(m) {
-    if (!st.vol) m = null;
-    if ((m ? m.type : null) !== st.cvdType) rebuildCvd(m);
+    if (!st.points) m = null;
+    if ((m ? m.type : null) !== st.cvdType) rebuildTop({ volume: !!st.vol, cvd: m });
     st.cvdM = m;
     if (!m) {
       st.cvdVals = null;
@@ -542,21 +597,18 @@ export function createFuturesPanes(chart, wrap) {
     renderTitles();
   }
 
+  // de baixo para cima (removeEmptyPanes conta os painéis que ainda existem)
   function remove() {
-    if (st.cvd) chart.removeSeries(st.cvd);
-    st.cvd = null;
-    st.cvdType = null;
-    st.cvdM = null;
-    st.cvdVals = null;
-    st.cvdKey = null;
     removeLiquidations();
     removeFutures();
-    for (const id of [...st.vmas.keys()]) removeVolumeAverage(id);
-    if (st.vol) chart.removeSeries(st.vol);
-    st.vol = null;
+    removeCvdSeries();
+    st.cvdM = null;
+    st.cvdVals = null;
+    removeVolumeSeries();
     st.points = null;
     removeEmptyPanes();
     hideTitles();
+    toggleSettings(null, false);
   }
 
   // título do painel de liquidações: longs e shorts da vela idx (mira) ou da última, e a divisão por corretora
@@ -565,7 +617,7 @@ export function createFuturesPanes(chart, wrap) {
     if (!st.liq) return;
     const tip = `<span class="help-tip" data-tip="${FUTURES_HELP.liq}">Liquidações</span>`;
     if (!a) {
-      titles.liq.innerHTML = tip; // carregando
+      texts.liq.innerHTML = tip; // carregando
       return;
     }
     const n = a.long.length;
@@ -573,14 +625,14 @@ export function createFuturesPanes(chart, wrap) {
     const long = a.long[i];
     const short = a.short[i];
     if (long == null && short == null) {
-      titles.liq.innerHTML = `${tip} <span class="muted">sem dados nesta vela</span>`;
+      texts.liq.innerHTML = `${tip} <span class="muted">sem dados nesta vela</span>`;
       return;
     }
     const by = Object.entries(a.by[i] || {})
       .filter(([, v]) => v.long + v.short > 0)
       .map(([name, v]) => `${name} ${formatUsdShort(v.long + v.short)}`)
       .join(" · ");
-    titles.liq.innerHTML =
+    texts.liq.innerHTML =
       `${tip} <span style="color:${COLORS.liqLong}">Longs <b>${formatUsdShort(long || 0)}</b></span>` +
       ` <span style="color:${COLORS.liqShort}">Shorts <b>${formatUsdShort(short || 0)}</b></span>` +
       (by ? ` <span class="muted">${by}</span>` : "");
@@ -600,26 +652,29 @@ export function createFuturesPanes(chart, wrap) {
           return `<span style="color:${maColor({ ...m, opacity: 1 })}">${maLabel(m)} ${a == null ? "--" : formatUsdShort(a)}</span>`;
         })
         .join(" ");
-      titles.volume.innerHTML = `${tip("volume", "Volume")} <b class="${p.close >= p.open ? "pnl-pos" : "pnl-neg"}">${v == null ? "--" : formatUsdShort(v)}</b>${avgs ? ` ${avgs}` : ""}`;
+      texts.volume.innerHTML = `${tip("volume", "Volume")} <b class="${p.close >= p.open ? "pnl-pos" : "pnl-neg"}">${v == null ? "--" : formatUsdShort(v)}</b>${avgs ? ` ${avgs}` : ""}`;
     }
     if (st.cvd && st.cvdVals && pts?.length) {
       const i = idx !== null && idx >= 0 && idx < pts.length ? idx : pts.length - 1;
       const d = st.cvdVals.delta[i];
       const c = st.cvdVals.cvd[i];
       const cls = (v) => (v > 0 ? "pnl-pos" : v < 0 ? "pnl-neg" : "");
-      titles.cvd.innerHTML =
-        `${tip("cvd", st.cvdM.type === "DELTA" ? "Delta" : "CVD")}` +
-        ` <span class="muted">CVD</span> <b style="color:${maColor({ ...st.cvdM, opacity: 1 })}">${c === null ? "--" : signedUsd(c)}</b>` +
-        ` <span class="muted">Delta da vela</span> <b class="${cls(d)}">${d === null ? "--" : `${d > 0 ? "+" : ""}${signedUsd(d)}`}</b>`;
+      // o nome do painel já é o valor principal; o outro vem depois, discreto
+      const cvdHtml = `<b style="color:${maColor({ ...st.cvdM, opacity: 1 })}">${c === null ? "--" : signedUsd(c)}</b>`;
+      const deltaHtml = `<b class="${cls(d)}">${d === null ? "--" : `${d > 0 ? "+" : ""}${signedUsd(d)}`}</b>`;
+      texts.cvd.innerHTML =
+        st.cvdM.type === "DELTA"
+          ? `${tip("cvd", "Delta")} ${deltaHtml} <span class="muted">CVD</span> ${cvdHtml}`
+          : `${tip("cvd", "CVD")} ${cvdHtml} <span class="muted">Delta da vela</span> ${deltaHtml}`;
     }
     renderLiquidationTitle(idx);
     const a = st.aligned;
     if (!a) {
       // carregando: só os nomes (sem os valores da moeda/vela anterior)
       if (st.series) {
-        titles.oi.innerHTML = tip("oi", "Open interest");
-        titles.ls.innerHTML = tip("ls", "Long/Short");
-        titles.funding.innerHTML = tip("funding", "Funding");
+        texts.oi.innerHTML = tip("oi", "Open interest");
+        texts.ls.innerHTML = tip("ls", "Long/Short");
+        texts.funding.innerHTML = tip("funding", "Funding");
       }
       return;
     }
@@ -633,9 +688,9 @@ export function createFuturesPanes(chart, wrap) {
     const t = at(a.top);
     const f = at(a.funding);
     const next = st.data.nextFunding;
-    titles.oi.innerHTML = `${tip("oi", "Open interest")} <b>${oi === null ? "--" : formatUsdShort(oi)}</b>`;
-    titles.ls.innerHTML = `${tip("ls", "Long/Short")} <span style="color:${COLORS.global}">Contas ${g === null ? "--" : pct(g / 100)}</span> <span style="color:${COLORS.top}">Top traders ${t === null ? "--" : pct(t / 100)}</span>`;
-    titles.funding.innerHTML = `${tip("funding", "Funding")} <b class="${f > 0 ? "pnl-pos" : f < 0 ? "pnl-neg" : ""}">${f === null ? "--" : fundingPct(f / 100)}</b>${
+    texts.oi.innerHTML = `${tip("oi", "Open interest")} <b>${oi === null ? "--" : formatUsdShort(oi)}</b>`;
+    texts.ls.innerHTML = `${tip("ls", "Long/Short")} <span style="color:${COLORS.global}">Contas ${g === null ? "--" : pct(g / 100)}</span> <span style="color:${COLORS.top}">Top traders ${t === null ? "--" : pct(t / 100)}</span>`;
+    texts.funding.innerHTML = `${tip("funding", "Funding")} <b class="${f > 0 ? "pnl-pos" : f < 0 ? "pnl-neg" : ""}">${f === null ? "--" : fundingPct(f / 100)}</b>${
       idx === null && next ? ` <span class="muted">· próxima ≈ ${fundingPct(next.r)}</span>` : ""
     }`;
   }
@@ -676,19 +731,21 @@ export function createFuturesPanes(chart, wrap) {
   return {
     /** points = velas (sem velas, remove tudo); data = resposta de /futures-data (available) ou null para
      *  remover só os painéis de futuros (o de volume fica); liq = resposta de /liquidations (available) ou
-     *  null para remover o painel de liquidações; panes = painéis de futuros ligados (de FUTURES_PANES) */
-    update(points, interval, data, liq = null, panes = FUTURES_PANES) {
+     *  null para remover o painel de liquidações; panes = painéis de futuros ligados (de FUTURES_PANES);
+     *  volume = painel de volume ligado */
+    update(points, interval, data, liq = null, panes = FUTURES_PANES, volume = true) {
       if (!points?.length) return remove();
       const keys = FUTURES_PANES.filter((k) => panes.includes(k));
       if (!keys.length) data = null;
       const candlesChanged = points !== st.points || interval !== st.interval;
       const liqSame = liq === st.liqData && !!liq === !!st.liq;
       const panesSame = keys.join() === st.shown.join();
-      if (st.vol && !candlesChanged && data === st.data && !!data === !!st.series && liqSame && (!data || panesSame)) return;
-      if (!st.vol) createVolume();
+      const volSame = volume === !!st.vol;
+      if (st.points && !candlesChanged && volSame && data === st.data && !!data === !!st.series && liqSame && (!data || panesSame)) return;
       st.points = points;
       st.interval = interval;
-      if (candlesChanged || !st.vol.data().length) setVolumeData();
+      if (!volSame) rebuildTop({ volume, cvd: st.cvd ? st.cvdM : null });
+      if (st.vol && (candlesChanged || !st.vol.data().length)) setVolumeData();
       if (data === PANE_LOADING) {
         // carregando: painéis no lugar, vazios (spinner em positionTitles)
         st.data = data;
@@ -718,7 +775,7 @@ export function createFuturesPanes(chart, wrap) {
     },
     // mira: valores da vela sob o mouse (null = mais recentes)
     crosshair(idx) {
-      if (st.vol) renderTitles(idx);
+      if (st.points) renderTitles(idx);
     },
     setVolumeAverages,
     setCvd,

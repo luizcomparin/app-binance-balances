@@ -81,13 +81,13 @@ docs/                      documentação oficial (índice em docs/README.md)
 | **Gráfico de preço** (visão geral e mapa dos ~25 arquivos) | [funcionalidades/grafico-de-preco/README.md](docs/funcionalidades/grafico-de-preco/README.md) | `components/price-chart/**` |
 | Velas, período, tamanho de vela, histórico antigo | [grafico-de-preco/velas-e-timeframe.md](docs/funcionalidades/grafico-de-preco/velas-e-timeframe.md) | `services/priceChart.js`, `timeframe.js`, `chartData.js` |
 | Linhas de preço médio, ordens no gráfico, legenda, tooltip | [grafico-de-preco/sobreposicoes-e-legenda.md](docs/funcionalidades/grafico-de-preco/sobreposicoes-e-legenda.md) | `chart/overlays.js`, `chart/legend.js`, `chart/tooltip.js` |
-| Médias móveis, Bollinger, média do volume, CVD/Delta | [grafico-de-preco/indicadores.md](docs/funcionalidades/grafico-de-preco/indicadores.md) | `indicatorControls.js`, `chart/movingAverage.js`, `chart/bollinger.js`, `chart/cvd.js` |
+| Médias móveis, Bollinger, média do volume | [grafico-de-preco/indicadores.md](docs/funcionalidades/grafico-de-preco/indicadores.md) | `indicatorControls.js`, `chart/movingAverage.js`, `chart/bollinger.js` |
 | Desenhos e régua de medição | [grafico-de-preco/desenhos-e-regua.md](docs/funcionalidades/grafico-de-preco/desenhos-e-regua.md) | `chart/drawings.js`, `chart/measureTool.js` |
 | Camadas: preços médios projetados e simulador de compra | [grafico-de-preco/simulador-e-projecoes.md](docs/funcionalidades/grafico-de-preco/simulador-e-projecoes.md) | `buySimulator.js` |
 | Camada: faixa estatística (volatilidade) | [grafico-de-preco/faixa-estatistica.md](docs/funcionalidades/grafico-de-preco/faixa-estatistica.md) | `volatility.js` |
 | Camada: comparação com compra mensal fixa (DCA) | [grafico-de-preco/comparacao-dca.md](docs/funcionalidades/grafico-de-preco/comparacao-dca.md) | `dca.js` |
 | Camada: mapa de liquidação estimado | [grafico-de-preco/mapa-de-liquidacao.md](docs/funcionalidades/grafico-de-preco/mapa-de-liquidacao.md) | `services/liquidationMap.js`, `chart/liquidationOverlay.js` |
-| Camada: painéis de volume/OI/long-short/funding | [grafico-de-preco/paineis-de-futuros.md](docs/funcionalidades/grafico-de-preco/paineis-de-futuros.md) | `services/futuresData.js`, `chart/futuresPanes.js` |
+| Camada: painéis de volume/CVD/OI/long-short/funding | [grafico-de-preco/paineis-de-futuros.md](docs/funcionalidades/grafico-de-preco/paineis-de-futuros.md) | `services/futuresData.js`, `chart/futuresPanes.js`, `chart/cvd.js`, `paneSettings.js` |
 | Camada: liquidações reais (Coinalyze) | [grafico-de-preco/liquidacoes-reais.md](docs/funcionalidades/grafico-de-preco/liquidacoes-reais.md) | `services/liquidations.js` |
 | Watchlist e seletor de moeda | [grafico-de-preco/watchlist-e-seletor.md](docs/funcionalidades/grafico-de-preco/watchlist-e-seletor.md) | `watchlist.js`, `assetPicker.js` |
 | Abas abaixo do gráfico (ordens abertas, históricos) | [grafico-de-preco/abas-de-ordens.md](docs/funcionalidades/grafico-de-preco/abas-de-ordens.md) | `*Table.js`, `periodFilter.js` |

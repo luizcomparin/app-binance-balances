@@ -14,7 +14,8 @@ import { initAssetPicker } from "./assetPicker.js";
 import { initWatchlist } from "./watchlist.js";
 import { buysOf, dcaComparison } from "./dca.js";
 import { initOpenOrdersTable, renderOpenOrdersTable } from "./openOrdersTable.js";
-import { getIndicators, initIndicatorControls } from "./indicatorControls.js";
+import { getIndicators, getVolumeAverages, initIndicatorControls } from "./indicatorControls.js";
+import { getCvdSettings, legacyCvdOn, mountPaneSettings } from "./paneSettings.js";
 import { fetchFuturesData, fetchLiquidationMap, fetchLiquidations } from "../../api/binance.js";
 import { openSettings } from "../settings/SettingsModal.js";
 import { formatUsdShort } from "../../core/format.js";
@@ -64,6 +65,8 @@ const FUT_PANES = {
 const FUT_PERIOD = { "1h": "1h", "4h": "4h" };
 const LIQREAL_STORAGE_KEY = "priceChartRealLiquidations"; // painel de liquidações reais (Coinalyze)
 const LIQREAL_CACHE_MS = 5 * 60 * 1000;
+const VOLUME_PANE_STORAGE_KEY = "priceChartVolumePane"; // painel de volume (ligado por padrão)
+const CVD_PANE_STORAGE_KEY = "priceChartCvdPane"; // painel de CVD/Delta
 const ORDERS_TAB_STORAGE_KEY = "priceChartOrdersTab"; // aba abaixo do gráfico: open | history | trades
 
 let chart = null; // controlador do Lightweight Charts (criado uma vez no init)
@@ -102,6 +105,9 @@ const view = {
   fut: null, // { key, data } | { key, data: null (erro) } | { key, loading: true }
   // painel de liquidações reais: ligado? e dados (por moeda + tamanho de vela)
   showLiqReal: readStored(LIQREAL_STORAGE_KEY) === "1",
+  // painéis de volume e de CVD/Delta (sem escolha salva, o CVD herda o indicador da versão anterior)
+  showVolume: readStored(VOLUME_PANE_STORAGE_KEY) !== "0",
+  showCvd: (readStored(CVD_PANE_STORAGE_KEY) ?? (legacyCvdOn() ? "1" : "0")) === "1",
   liqReal: null, // { key, data } | { key, data: null (erro) } | { key, loading: true }
 };
 
@@ -286,6 +292,9 @@ function render(extra = {}) {
     fixedAvg: view.showDca ? view.dca?.yourAvg ?? null : null,
     dcaAvg: view.showDca ? view.dca?.dcaAvg ?? null : null,
     indicators: getIndicators(),
+    volume: view.showVolume,
+    volumeAverages: getVolumeAverages(),
+    cvd: view.showCvd ? getCvdSettings() : null,
     summary: chartSummary(),
     liquidation: view.showLiq && view.liq?.available ? view.liq : null,
     futures: futuresForChart(),
@@ -701,9 +710,10 @@ async function loadOlder() {
 // médias móveis: velas de "aquecimento" antes da janela visível
 // ---------------------------------------------------------------------------
 
-// maior período entre as médias visíveis (0 = nenhuma; o CVD não tem período)
+// maior período entre as médias visíveis, do preço e do volume (0 = nenhuma)
 function maxMaPeriod() {
-  return Math.max(0, ...getIndicators().filter((m) => m.visible && m.kind !== "cvd").map((m) => m.period));
+  const volumeAvgs = view.showVolume ? getVolumeAverages() : [];
+  return Math.max(0, ...[...getIndicators(), ...volumeAvgs].filter((m) => m.visible).map((m) => m.period));
 }
 
 // Média nova/maior: se não há velas suficientes antes do que está na tela, busca a página anterior
@@ -809,8 +819,33 @@ export function initPriceChartPanel() {
   if (container && wrap && window.LightweightCharts) {
     chart = createPriceChart(
       { container, wrap, legend: document.getElementById("price-chart-legend") },
-      { onNeedOlder: loadOlder }
+      {
+        onNeedOlder: loadOlder,
+        // engrenagem nos títulos dos painéis de volume e de CVD
+        mountPaneSettings: (key, el) =>
+          mountPaneSettings(key, el, () => {
+            render();
+            ensureWarmup();
+          }),
+      }
     );
+  }
+
+  // painéis de volume e de CVD/Delta (configurações pela engrenagem no título de cada um)
+  for (const [id, flag, storage] of [
+    ["price-chart-volume-pane", "showVolume", VOLUME_PANE_STORAGE_KEY],
+    ["price-chart-cvd-pane", "showCvd", CVD_PANE_STORAGE_KEY],
+  ]) {
+    const input = document.getElementById(id);
+    if (!input) continue;
+    input.checked = view[flag];
+    if (readStored(storage) === null) writeStored(storage, view[flag] ? "1" : "0"); // fixa o padrão herdado
+    input.addEventListener("change", () => {
+      view[flag] = input.checked;
+      writeStored(storage, input.checked ? "1" : "0");
+      render();
+      ensureWarmup();
+    });
   }
 
   const projectedInput = document.getElementById("price-chart-projected");

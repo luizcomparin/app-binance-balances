@@ -127,6 +127,14 @@
                 <span class="pc-chip-extra">em <input type="number" id="price-chart-stats-days" class="stats-days" min="1" max="365" value="30" /> dias</span>
               </label>
               <span class="pc-label pc-layers-group pc-layers-group-sep">Painéis abaixo do gráfico</span>
+              <label class="price-chart-sim-toggle pc-chip" title="Painel do volume negociado em cada vela (USDT, mercado à vista). As médias móveis do volume ficam na engrenagem do título do painel">
+                <input type="checkbox" id="price-chart-volume-pane" />
+                <span>Volume</span>
+              </label>
+              <label class="price-chart-sim-toggle pc-chip" title="Painel do CVD / Delta de volume: compras a mercado − vendas a mercado (mercado à vista). Tipo, cor e opacidade ficam na engrenagem do título do painel">
+                <input type="checkbox" id="price-chart-cvd-pane" />
+                <span>CVD / Delta de volume</span>
+              </label>
               <label class="price-chart-sim-toggle pc-chip" id="price-chart-liqreal-label" title="Painel com as liquidações que de fato aconteceram nos futuros perpétuos (Binance + Bybit + OKX, dados da Coinalyze), abaixo do gráfico">
                 <input type="checkbox" id="price-chart-liqreal" />
                 <span class="mini-spinner sim-spinner"></span>

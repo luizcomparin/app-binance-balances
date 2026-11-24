@@ -4,7 +4,7 @@ resumo: Todas as preferências da página salvas no navegador, com formato, padr
 arquivos: []
 rotas: []
 eventos: []
-storage: [balances-simple-view, ordersOpenPairs, priceChartAsset, priceChartMode, priceChartRange, priceChartInterval, priceChartDynamicAvg, priceChartOpenOrders, priceChartMyOrders, priceChartProjectedAvg, priceChartSimulator, priceChartStats, priceChartStatsDays, priceChartDca, priceChartLiquidation, priceChartFuturesOi, priceChartFuturesLs, priceChartFuturesFunding, priceChartFutures, priceChartRealLiquidations, priceChartOrdersTab, priceChartIndicators, priceChartMovingAverages, priceChartIndicatorsVisible, priceChartWatchlistOrder, priceChartWatchlistOpen, priceChartWatchlistColors, priceChartPaneHeights, price-chart-drawings, price-chart-drawings-visible, price-chart-draw-toolbar]
+storage: [balances-simple-view, ordersOpenPairs, priceChartAsset, priceChartMode, priceChartRange, priceChartInterval, priceChartDynamicAvg, priceChartOpenOrders, priceChartMyOrders, priceChartProjectedAvg, priceChartSimulator, priceChartStats, priceChartStatsDays, priceChartDca, priceChartLiquidation, priceChartFuturesOi, priceChartFuturesLs, priceChartFuturesFunding, priceChartFutures, priceChartRealLiquidations, priceChartOrdersTab, priceChartIndicators, priceChartMovingAverages, priceChartIndicatorsVisible, priceChartVolumeAverages, priceChartVolumePane, priceChartCvdPane, priceChartCvd, priceChartWatchlistOrder, priceChartWatchlistOpen, priceChartWatchlistColors, priceChartPaneHeights, price-chart-drawings, price-chart-drawings-visible, price-chart-draw-toolbar]
 ---
 
 # `localStorage`
@@ -36,13 +36,17 @@ O padrão de nomes é **inconsistente**: há chaves em `camelCase` (`priceChartX
 | `priceChartFutures` | (legado) | — | `PriceChartPanel.js` | Antigo checkbox "Dados de futuros"; só lido como padrão dos 3 acima enquanto não têm valor salvo |
 | `priceChartRealLiquidations` | `"1"`/`"0"` | off | `PriceChartPanel.js` | Painel de liquidações reais |
 | `priceChartOrdersTab` | `open·history·trades` | `open` | `PriceChartPanel.js` | Aba abaixo do gráfico |
-| `priceChartIndicators` | JSON `[{ id, kind: "ma"\|"vma"\|"bb", period, type?, mult?, color, opacity, visible }]` | `[]` | `indicatorControls.js` | Indicadores |
+| `priceChartIndicators` | JSON `[{ id, kind: "ma"\|"bb", period, type?, mult?, color, opacity, visible }]` | `[]` | `indicatorControls.js` | Indicadores do preço. Itens antigos `vma` e `cvd` são copiados para as chaves abaixo e somem no próximo save |
+| `priceChartVolumeAverages` | JSON `[{ id, kind: "vma", period, type, color, opacity, visible }]` | `[]` | `indicatorControls.js` | Médias móveis do volume (engrenagem do painel de Volume) |
+| `priceChartVolumePane` | `"1"`/`"0"` | on | `PriceChartPanel.js` | Painel "Volume" |
+| `priceChartCvdPane` | `"1"`/`"0"` | off (ou o CVD antigo de `priceChartIndicators`) | `PriceChartPanel.js` | Painel "CVD / Delta de volume" |
+| `priceChartCvd` | JSON `{ type: "CVD"\|"DELTA", color, opacity }` | CVD, `#4dd4ff`, 100% | `paneSettings.js` | Configurações do painel de CVD (engrenagem) |
 | `priceChartIndicatorsVisible` | `"1"`/`"0"` | on | `indicatorControls.js` | Olho geral dos indicadores (`"0"` = todos ocultos, sem alterar o `visible` de cada um) |
 | `priceChartMovingAverages` | (legado) | — | `indicatorControls.js` | Lida se `priceChartIndicators` não existir e apagada no 1º save |
 | `priceChartWatchlistOrder` | JSON `string[]` | `[]` | `watchlist.js` | Ordem das moedas na lista lateral e no seletor |
 | `priceChartWatchlistOpen` | `"1"`/`"0"` | fechada | `watchlist.js` | Lista lateral aberta |
 | `priceChartWatchlistColors` | JSON `{ moeda: "#rrggbb" }` | `{}` | `watchlist.js` | Cor de indicação por moeda |
-| `priceChartPaneHeights` | JSON `{ volume, oi, ls, funding, liq: px }` | 96 px cada | `chart/futuresPanes.js` | Altura dos painéis abaixo do preço |
+| `priceChartPaneHeights` | JSON `{ volume, cvd, oi, ls, funding, liq: px }` | 96 px cada | `chart/futuresPanes.js` | Altura dos painéis abaixo do preço |
 | `price-chart-drawings` | JSON `{ moeda: [{ id, type, points: [{ms, price}], dp? }] }` | `{}` | `chart/drawings.js` | Desenhos por moeda |
 | `price-chart-drawings-visible` | `"1"`/`"0"` | on | `chart/drawings.js` | Olho da barra de desenhos (`"0"` = todos os desenhos ocultos) |
 | `price-chart-draw-toolbar` | JSON `{ left, top }` | canto padrão | `chart/drawingToolbar.js` | Posição da barra de desenho |

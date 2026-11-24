@@ -25,12 +25,13 @@ const LWC = window.LightweightCharts;
 
 /**
  * Cria o gráfico uma única vez; depois é só chamar update(opts) a cada mudança.
- * els = { container, wrap, legend }   handlers = { onNeedOlder }
+ * els = { container, wrap, legend }   handlers = { onNeedOlder, mountPaneSettings(key, el) }
  *
  * update(opts): opts = { asset, points, interval, mode, avg, orders: { buys, sells },
  *                        openOrders: { buys, sells } | null, projectedAvg, fixedAvg, dcaAvg, window, prepended,
- *                        indicators: [{ id, kind: "ma"|"bb"|"vma"|"cvd", period, type?, mult?, color, opacity, visible }],
- *                        ("vma" = média do volume, desenhada no painel de volume; "cvd" = painel de CVD/Delta)
+ *                        indicators: [{ id, kind: "ma"|"bb", period, type?, mult?, color, opacity, visible }],
+ *                        volume: painel de volume ligado, volumeAverages: médias do volume ([{ id, kind: "vma", ... }]),
+ *                        cvd: configurações do painel de CVD/Delta ({ type, color, opacity }) | null (desligado),
  *                        liquidation: resposta de /liquidation-map | null,
  *                        futures: resposta de /futures-data | null (painéis de OI, long/short e funding),
  *                        futuresPanes: painéis de futuros ligados (["oi", "ls", "funding"] ou parte),
@@ -88,7 +89,7 @@ export function createPriceChart(els, handlers = {}) {
   const liquidation = new LiquidationOverlay(timeToX);
 
   // painéis de volume, open interest, long/short e funding (mesmo eixo de tempo)
-  const futures = createFuturesPanes(chart, wrap);
+  const futures = createFuturesPanes(chart, wrap, { mountSettings: handlers.mountPaneSettings });
 
   // ferramentas de desenho (linha de tendência, raio, horizontal, retângulo, canal) e a barra delas;
   // criadas antes da régua: nos cliques, a régua em andamento tem prioridade
@@ -312,8 +313,7 @@ export function createPriceChart(els, handlers = {}) {
   }
 
   function drawIndicators() {
-    // médias do volume e CVD ficam nos painéis de baixo (futuresPanes)
-    const visible = (s.opts.indicators || []).filter((m) => m.visible && m.kind !== "vma" && m.kind !== "cvd");
+    const visible = (s.opts.indicators || []).filter((m) => m.visible);
     const ids = new Set(visible.map((m) => m.id));
     for (const [id, ind] of s.inds) {
       if (ids.has(id)) continue;
@@ -516,15 +516,16 @@ export function createPriceChart(els, handlers = {}) {
       summary.hidden = !opts.summary;
       liquidation.setData(opts.liquidation || null);
       // primeiro a altura final do gráfico, depois os painéis (as alturas deles partem dela)
-      // (1 painel de volume sempre que há velas + 1 de CVD + os de futuros ligados, quando há dados + 1 de liquidações reais)
+      // (volume e CVD, quando ligados + os de futuros ligados, quando há dados + 1 de liquidações reais)
       const futPanes = opts.futures ? opts.futuresPanes || [] : [];
-      const cvd = (opts.indicators || []).find((m) => m.kind === "cvd" && m.visible) || null;
+      const volume = opts.volume !== false;
+      const cvd = opts.cvd || null;
       wrap.style.setProperty(
         "--sub-panes",
-        s.points?.length ? 1 + (cvd ? 1 : 0) + futPanes.length + (opts.liquidations ? 1 : 0) : 0
+        s.points?.length ? (volume ? 1 : 0) + (cvd ? 1 : 0) + futPanes.length + (opts.liquidations ? 1 : 0) : 0
       );
-      futures.update(s.points, s.interval, opts.futures || null, opts.liquidations || null, futPanes);
-      futures.setVolumeAverages((opts.indicators || []).filter((m) => m.kind === "vma" && m.visible));
+      futures.update(s.points, s.interval, opts.futures || null, opts.liquidations || null, futPanes, volume);
+      futures.setVolumeAverages(volume ? (opts.volumeAverages || []).filter((m) => m.visible) : []);
       futures.setCvd(cvd);
       scheduleOffscreen();
     },
