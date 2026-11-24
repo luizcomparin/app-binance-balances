@@ -28,6 +28,7 @@ npm test         # testes automatizados (node --test, em test/)
 - Requer Node **≥ 20.12** por causa do `process.loadEnvFile()` (testado no 22).
 - É obrigatório existir um `.env` com `PORT` na pasta onde o comando roda; copie de `.env.example`. As chaves da Binance e da Coinalyze podem ficar vazias e ser informadas depois em **Configurações** (engrenagem no topo).
 - Abra `http://localhost:<PORT>/site`. O server só aceita conexões do próprio computador (`127.0.0.1`/`::1`). Cada aba tem sua URL: `/site/grafico-de-preco`, `/site/saldos` etc.
+- **Atalho no Windows:** `iniciar.bat` (dois cliques) lê a `PORT` do `.env`, roda `npm start` e abre o navegador em `/site`. Fechar a janela do CMD desliga o server. Dá para criar um atalho dele na área de trabalho ou em `shell:startup` (abrir junto com o Windows).
 
 ## Mapa do repositório
 
