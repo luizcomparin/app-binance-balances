@@ -1,18 +1,22 @@
 // RSI (public/components/price-chart/chart/rsi.js).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { normalizeRsiSettings, rsi, RSI_DEFAULT } from "../../public/components/price-chart/chart/rsi.js";
+import { normalizeRsiSettings, rsi, RSI_DEFAULT, rsiMovingAverage } from "../../public/components/price-chart/chart/rsi.js";
+
+const pick = (o, keys) => Object.fromEntries(keys.map((k) => [k, o[k]]));
 
 test("normalizeRsiSettings: padrão, limites e valores inválidos", () => {
   assert.deepEqual(normalizeRsiSettings(null), RSI_DEFAULT);
-  assert.deepEqual(normalizeRsiSettings({ period: 1, overbought: 120, oversold: 0, color: "x", opacity: 0 }), {
+  const low = normalizeRsiSettings({ period: 1, overbought: 120, oversold: 0, color: "x", opacity: 0 });
+  assert.deepEqual(pick(low, ["period", "overbought", "oversold", "color", "opacity"]), {
     period: 2,
     overbought: 99,
     oversold: 1,
     color: RSI_DEFAULT.color,
     opacity: 0.05,
   });
-  assert.deepEqual(normalizeRsiSettings({ period: "21", overbought: 80.4, oversold: 20, color: "#112233", opacity: 0.5 }), {
+  const ok = normalizeRsiSettings({ period: "21", overbought: 80.4, oversold: 20, color: "#112233", opacity: 0.5 });
+  assert.deepEqual(pick(ok, ["period", "overbought", "oversold", "color", "opacity"]), {
     period: 21,
     overbought: 80,
     oversold: 20,
@@ -20,6 +24,35 @@ test("normalizeRsiSettings: padrão, limites e valores inválidos", () => {
     opacity: 0.5,
   });
   assert.equal(normalizeRsiSettings({ period: "abc" }).period, 14);
+});
+
+test("normalizeRsiSettings: média móvel e aparência das linhas", () => {
+  const r = normalizeRsiSettings({
+    maOn: true, maType: "EMA", maPeriod: 500, maColor: "#abcdef",
+    overboughtColor: "#010203", oversoldColor: "nada", lineStyle: "dotted", lineWidth: 9, levelOpacity: 2, showMid: false,
+  });
+  assert.deepEqual(pick(r, ["maOn", "maType", "maPeriod", "maColor", "overboughtColor", "oversoldColor", "lineStyle", "lineWidth", "levelOpacity", "showMid"]), {
+    maOn: true, maType: "EMA", maPeriod: 100, maColor: "#abcdef",
+    overboughtColor: "#010203", oversoldColor: RSI_DEFAULT.oversoldColor, lineStyle: "dotted", lineWidth: 4, levelOpacity: 1, showMid: false,
+  });
+  const bad = normalizeRsiSettings({ maOn: "sim", maType: "WMA", lineStyle: "ondulada", lineWidth: 0 });
+  assert.equal(bad.maOn, false);
+  assert.equal(bad.maType, "SMA");
+  assert.equal(bad.lineStyle, "dashed");
+  assert.equal(bad.lineWidth, 1);
+});
+
+test("rsiMovingAverage: começa depois do aquecimento do RSI", () => {
+  const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-9, `esperado ${b}, veio ${a}`);
+  const r = rsiMovingAverage([null, null, 10, 20, 30, 40], 2, "SMA");
+  assert.deepEqual(r.slice(0, 3), [null, null, null]);
+  close(r[3], 15);
+  close(r[4], 25);
+  close(r[5], 35);
+  // EMA de 2: k = 2/3, começa pela SMA (15) → 30·2/3 + 15/3 = 25
+  close(rsiMovingAverage([null, 10, 20, 30], 2, "EMA")[3], 25);
+  assert.deepEqual(rsiMovingAverage([null, null], 2), [null, null]);
+  assert.deepEqual(rsiMovingAverage([], 2), []);
 });
 
 const pts = (closes) => closes.map((close) => ({ close }));

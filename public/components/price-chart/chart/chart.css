@@ -140,6 +140,53 @@
   width: 150px;
 }
 
+/* RSI: formulário mais longo (RSI, média móvel e linhas de nível) — rola dentro da caixa */
+.fp-settings-rsi {
+  width: 300px;
+  max-height: min(70vh, 620px);
+  overflow-y: auto;
+}
+
+.fp-settings .fps-section {
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  color: #e5ecff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.fp-settings .fps-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.fp-settings .fps-check input {
+  accent-color: var(--accent);
+}
+
+/* nível + cor da linha lado a lado */
+.fp-settings .fps-pair {
+  display: flex;
+  gap: 6px;
+  width: 150px;
+}
+
+.fp-settings .fps-pair input[type="number"] {
+  width: 80px;
+  min-width: 0;
+}
+
+.fp-settings .fps-pair .pcm-color {
+  flex: 1;
+  width: auto;
+  height: 31px;
+}
+
 /* spinner no centro de um painel de baixo enquanto os dados dele carregam */
 .fp-loading {
   position: absolute;

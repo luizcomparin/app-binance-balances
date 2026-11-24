@@ -3,7 +3,8 @@
 // painel fica nas Camadas ("Painéis abaixo do gráfico").
 //   Volume: médias móveis do volume (lista de pílulas, como a dos indicadores do preço)
 //   CVD:    { type: "CVD" (linha acumulada) | "DELTA" (histograma por vela), color, opacity }
-//   RSI:    { period, overbought, oversold, color, opacity } (limites em chart/rsi.js → normalizeRsiSettings)
+//   RSI:    período, níveis, cor e opacidade; média móvel do RSI; aparência das linhas de nível
+//           (campos e limites em chart/rsi.js → RSI_DEFAULT e normalizeRsiSettings)
 import { normalizeRsiSettings } from "./chart/rsi.js";
 import { clampOpacity, handleColorClick, initVolumeAverageControls, watchColorPickerClose } from "./indicatorControls.js";
 
@@ -112,25 +113,47 @@ let rsiSettings = readRsi();
 /** configurações do painel do RSI ({ period, overbought, oversold, color, opacity }) */
 export const getRsiSettings = () => rsiSettings;
 
+// campos do formulário do RSI: cada controle tem data-k = chave das configurações
+//   número: ao confirmar (Enter/sair do campo); select e checkbox: ao mudar; cor e faixas: enquanto escolhe
 function rsiHtml() {
   const r = rsiSettings;
-  const pct = Math.round(r.opacity * 100);
-  const num = (cls, value, min, max, title) =>
-    `<input type="number" class="${cls}" min="${min}" max="${max}" step="1" value="${value}" title="${title}" />`;
+  const num = (k, min, max, title) =>
+    `<input type="number" data-k="${k}" min="${min}" max="${max}" step="1" value="${r[k]}" title="${title}" />`;
+  const color = (k, title) =>
+    `<input type="color" class="pcm-color" data-k="${k}" value="${r[k]}" title="${title} (clique de novo para fechar)" />`;
+  const range = (k, label) => {
+    const pct = Math.round(r[k] * 100);
+    return `<label class="pcm-opacity-row">
+        <span>${label}</span>
+        <input type="range" class="pcm-opacity" data-k="${k}" min="5" max="100" step="5" value="${pct}" />
+        <b class="pcm-opacity-value">${pct}%</b>
+      </label>`;
+  };
+  const select = (k, options, title) =>
+    `<select data-k="${k}" title="${title}">${options
+      .map(([v, label]) => `<option value="${v}"${String(r[k]) === String(v) ? " selected" : ""}>${label}</option>`)
+      .join("")}</select>`;
+  const check = (k, label, title) =>
+    `<label class="fps-check" title="${title}"><input type="checkbox" data-k="${k}"${r[k] ? " checked" : ""} /><span>${label}</span></label>`;
   return `<span class="pcm-pop-title">RSI (Índice de Força Relativa)</span>
     <div class="price-chart-mas fps-form">
-      <label class="pcm-field"><span>Período</span>${num("fps-rsi-period", r.period, 2, 100, "Quantidade de velas (2 a 100; o padrão é 14)")}</label>
-      <label class="pcm-field"><span>Sobrecompra</span>${num("fps-rsi-overbought", r.overbought, 51, 99, "Linha de cima (51 a 99; o padrão é 70)")}</label>
-      <label class="pcm-field"><span>Sobrevenda</span>${num("fps-rsi-oversold", r.oversold, 1, 49, "Linha de baixo (1 a 49; o padrão é 30)")}</label>
-      <label class="pcm-opacity-row">
-        <span>Opacidade</span>
-        <input type="range" class="pcm-opacity fps-rsi-opacity" min="5" max="100" step="5" value="${pct}" />
-        <b class="pcm-opacity-value">${pct}%</b>
-      </label>
-      <label class="pcm-field fps-color-field" title="Cor da linha do RSI">
-        <span>Cor da linha</span>
-        <input type="color" class="pcm-color fps-rsi-color" value="${r.color}" title="Clique para escolher a cor (clique de novo para fechar)" />
-      </label>
+      <label class="pcm-field"><span>Período</span>${num("period", 2, 100, "Quantidade de velas (2 a 100; o padrão é 14)")}</label>
+      ${range("opacity", "Opacidade")}
+      <label class="pcm-field fps-color-field"><span>Cor da linha</span>${color("color", "Cor da linha do RSI")}</label>
+
+      <span class="fps-section">Média móvel do RSI</span>
+      ${check("maOn", "Mostrar a média móvel", "Linha com a média dos valores do RSI (suaviza o RSI; cruzamentos indicam mudança de força)")}
+      <label class="pcm-field"><span>Tipo</span>${select("maType", [["SMA", "SMA (simples)"], ["EMA", "EMA (exponencial)"]], "Simples (SMA) ou exponencial (EMA)")}</label>
+      <label class="pcm-field"><span>Período</span>${num("maPeriod", 2, 100, "Quantidade de valores do RSI na média (2 a 100; o padrão é 14)")}</label>
+      <label class="pcm-field fps-color-field"><span>Cor</span>${color("maColor", "Cor da média móvel do RSI")}</label>
+
+      <span class="fps-section">Linhas de sobrecompra e sobrevenda</span>
+      <label class="pcm-field"><span>Sobrecompra</span><span class="fps-pair">${num("overbought", 51, 99, "Nível da linha de cima (51 a 99; o padrão é 70)")}${color("overboughtColor", "Cor da linha de sobrecompra")}</span></label>
+      <label class="pcm-field"><span>Sobrevenda</span><span class="fps-pair">${num("oversold", 1, 49, "Nível da linha de baixo (1 a 49; o padrão é 30)")}${color("oversoldColor", "Cor da linha de sobrevenda")}</span></label>
+      <label class="pcm-field"><span>Estilo</span>${select("lineStyle", [["dashed", "Tracejada"], ["dotted", "Pontilhada"], ["solid", "Sólida"]], "Estilo das linhas de nível")}</label>
+      <label class="pcm-field"><span>Espessura</span>${select("lineWidth", [[1, "1 px"], [2, "2 px"], [3, "3 px"], [4, "4 px"]], "Espessura das linhas de nível")}</label>
+      ${range("levelOpacity", "Opacidade")}
+      ${check("showMid", "Linha do meio (50)", "Linha pontilhada em 50: acima, altas mais fortes; abaixo, baixas mais fortes")}
     </div>`;
 }
 
@@ -143,22 +166,24 @@ function mountRsi(el, onChange) {
     } catch {}
     onChange();
   };
-  el.addEventListener("click", (e) => handleColorClick(e, ".fps-rsi-color"));
-  watchColorPickerClose(el, "fps-rsi-color");
+  el.addEventListener("click", (e) => handleColorClick(e, ".pcm-color"));
+  watchColorPickerClose(el, "pcm-color");
+  // cor e faixas de opacidade: enquanto escolhe
   el.addEventListener("input", (e) => {
-    if (e.target.classList.contains("fps-rsi-color")) set({ color: e.target.value });
-    else if (e.target.classList.contains("fps-rsi-opacity")) {
-      set({ opacity: Number(e.target.value) / 100 });
-      el.querySelector(".pcm-opacity-value").textContent = `${e.target.value}%`;
+    const k = e.target.dataset.k;
+    if (!k) return;
+    if (e.target.type === "color") set({ [k]: e.target.value });
+    else if (e.target.type === "range") {
+      set({ [k]: Number(e.target.value) / 100 });
+      e.target.closest(".pcm-opacity-row").querySelector(".pcm-opacity-value").textContent = `${e.target.value}%`;
     }
   });
-  // números: ao confirmar (Enter/sair do campo); o campo mostra o valor já dentro dos limites
-  const fields = { "fps-rsi-period": "period", "fps-rsi-overbought": "overbought", "fps-rsi-oversold": "oversold" };
+  // números (ao confirmar), selects e checkboxes; o campo mostra o valor já dentro dos limites
   el.addEventListener("change", (e) => {
-    const key = fields[[...e.target.classList].find((c) => fields[c])];
-    if (!key) return;
-    set({ [key]: e.target.value });
-    e.target.value = rsiSettings[key];
+    const k = e.target.dataset.k;
+    if (!k || e.target.type === "color" || e.target.type === "range") return;
+    set({ [k]: e.target.type === "checkbox" ? e.target.checked : e.target.value });
+    if (e.target.type === "number") e.target.value = rsiSettings[k];
   });
 }
 

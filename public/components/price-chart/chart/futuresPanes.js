@@ -8,10 +8,12 @@ import { formatUsdShort } from "../../../core/format.js";
 import { toChartTime } from "./axis.js";
 import { movingAverage, maColor, maLabel } from "./movingAverage.js";
 import { volumeDelta } from "./cvd.js";
-import { rsi } from "./rsi.js";
+import { rsi, rsiMovingAverage } from "./rsi.js";
 
 const LWC = window.LightweightCharts;
 const PANE_HEIGHT = 96;
+// altura padrão de painéis que precisam de mais espaço (o RSI vai de 0 a 100 com linhas de nível)
+export const PANE_DEFAULT_HEIGHTS = { rsi: 150 };
 
 const GEAR =
   '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
@@ -201,9 +203,12 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
     rsi: null, // série do RSI (painel logo depois do CVD)
     rsiM: null, // configurações ({ period, overbought, oversold, color, opacity })
     rsiVals: null, // RSI por vela
+    rsiMa: null, // série da média móvel do RSI (mesmo painel; só com ela ligada)
+    rsiMaVals: null, // média do RSI por vela
+    rsiMaKey: null, // RSI + tipo + período da média desenhada
     rsiKey: null, // velas + período dos dados desenhados
     rsiLines: [], // linhas de sobrecompra, 50 e sobrevenda
-    rsiLinesKey: null, // níveis das linhas desenhadas
+    rsiLinesKey: null, // níveis e aparência das linhas desenhadas
     points: null,
     interval: null,
   };
@@ -221,7 +226,7 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
     titles[key] = el;
     texts[key] = el;
     if (!SETTINGS_PANES.includes(key) || !handlers.mountSettings) continue;
-    el.innerHTML = `<span class="fp-title-text"></span><button type="button" class="fp-gear" title="Configurações do painel" aria-label="Configurações do painel" aria-expanded="false">${GEAR}</button><div class="fp-settings" hidden></div>`;
+    el.innerHTML = `<span class="fp-title-text"></span><button type="button" class="fp-gear" title="Configurações do painel" aria-label="Configurações do painel" aria-expanded="false">${GEAR}</button><div class="fp-settings fp-settings-${key}" hidden></div>`;
     texts[key] = el.querySelector(".fp-title-text");
     handlers.mountSettings(key, el.querySelector(".fp-settings"));
     el.querySelector(".fp-gear").addEventListener("click", () => toggleSettings(key));
@@ -322,7 +327,7 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
   // altura (px) de cada painel de baixo: PANE_HEIGHT até o usuário arrastar a divisória; daí fica a
   // escolhida (vale ao trocar de moeda, ligar/desligar futuros, redimensionar a janela e recarregar a página)
   const paneHeights = readPaneHeights();
-  const heightOf = (key) => paneHeights[key] ?? PANE_HEIGHT;
+  const heightOf = (key) => paneHeights[key] ?? PANE_DEFAULT_HEIGHTS[key] ?? PANE_HEIGHT;
 
   // painéis de baixo com a altura guardada; o painel de preço fica com o resto. Reaplicada sempre que o
   // gráfico muda de tamanho (a biblioteca redistribui as alturas proporcionalmente ao redimensionar)
@@ -577,25 +582,31 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
   }
 
   // RSI de 0 a 100 sempre (escala fixa, como no TradingView), com as linhas de sobrecompra/sobrevenda
+  const rsiPane = () => 1 + volCount() + cvdCount();
+  const rsiLineOptions = {
+    ...base,
+    lineWidth: 2,
+    priceFormat: { type: "custom", minMove: 0.01, formatter: (v) => String(Math.round(v)) },
+    autoscaleInfoProvider: () => ({ priceRange: { minValue: 0, maxValue: 100 } }),
+  };
+
   function createRsiSeries(m) {
-    const pane = 1 + volCount() + cvdCount();
-    st.rsi = chart.addSeries(
-      LWC.LineSeries,
-      {
-        ...base,
-        lineWidth: 2,
-        priceFormat: { type: "custom", minMove: 0.01, formatter: (v) => String(Math.round(v)) },
-        autoscaleInfoProvider: () => ({ priceRange: { minValue: 0, maxValue: 100 } }),
-      },
-      pane
-    );
+    st.rsi = chart.addSeries(LWC.LineSeries, rsiLineOptions, rsiPane());
     st.rsiM = m;
     st.rsiKey = null;
     st.rsiLines = [];
     st.rsiLinesKey = null;
   }
 
+  function removeRsiMa() {
+    if (st.rsiMa) chart.removeSeries(st.rsiMa);
+    st.rsiMa = null;
+    st.rsiMaVals = null;
+    st.rsiMaKey = null;
+  }
+
   function removeRsiSeries() {
+    removeRsiMa();
     if (st.rsi) chart.removeSeries(st.rsi);
     st.rsi = null;
     st.rsiKey = null;
@@ -646,15 +657,17 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
     const m = st.rsiM;
     if (!st.rsi || !m || !st.points) return;
     st.rsi.applyOptions({ color: maColor(m) });
-    const linesKey = `${m.overbought}|${m.oversold}`;
+    // linhas de nível: refeitas só quando muda um nível ou a aparência
+    const linesKey = [m.overbought, m.oversold, m.overboughtColor, m.oversoldColor, m.lineStyle, m.lineWidth, m.levelOpacity, m.showMid].join("|");
     if (st.rsiLinesKey !== linesKey) {
       for (const line of st.rsiLines) st.rsi.removePriceLine(line);
-      const line = (price, color, lineStyle) =>
-        st.rsi.createPriceLine({ price, color, lineWidth: 1, lineStyle, axisLabelVisible: false });
+      const style = { solid: LWC.LineStyle.Solid, dashed: LWC.LineStyle.Dashed, dotted: LWC.LineStyle.Dotted }[m.lineStyle];
+      const line = (price, color, lineStyle = style) =>
+        st.rsi.createPriceLine({ price, color, lineWidth: m.lineWidth, lineStyle, axisLabelVisible: false });
       st.rsiLines = [
-        line(m.overbought, "rgba(255, 114, 114, 0.55)", LWC.LineStyle.Dashed),
-        line(50, "rgba(155, 176, 214, 0.3)", LWC.LineStyle.Dotted),
-        line(m.oversold, "rgba(82, 255, 168, 0.55)", LWC.LineStyle.Dashed),
+        line(m.overbought, maColor({ color: m.overboughtColor, opacity: m.levelOpacity })),
+        ...(m.showMid ? [line(50, maColor({ color: "#9bb0d6", opacity: m.levelOpacity / 2 }), LWC.LineStyle.Dotted)] : []),
+        line(m.oversold, maColor({ color: m.oversoldColor, opacity: m.levelOpacity })),
       ];
       st.rsiLinesKey = linesKey;
     }
@@ -668,6 +681,24 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
         })
       );
     }
+    drawRsiMa();
+  }
+
+  // média móvel do RSI (no mesmo painel e na mesma escala); recalcula quando muda o RSI, o tipo ou o período
+  function drawRsiMa() {
+    const m = st.rsiM;
+    if (!m.maOn) return removeRsiMa();
+    if (!st.rsiMa) st.rsiMa = chart.addSeries(LWC.LineSeries, { ...rsiLineOptions, lineWidth: 1 }, rsiPane());
+    st.rsiMa.applyOptions({ color: maColor({ color: m.maColor, opacity: m.opacity }) });
+    if (st.rsiMaKey?.vals === st.rsiVals && st.rsiMaKey.type === m.maType && st.rsiMaKey.period === m.maPeriod) return;
+    st.rsiMaKey = { vals: st.rsiVals, type: m.maType, period: m.maPeriod };
+    st.rsiMaVals = rsiMovingAverage(st.rsiVals, m.maPeriod, m.maType);
+    st.rsiMa.setData(
+      st.points.map((p, i) => {
+        const time = toChartTime(p.time, st.interval);
+        return st.rsiMaVals[i] === null ? { time } : { time, value: st.rsiMaVals[i] };
+      })
+    );
   }
 
   // painel de CVD/Delta: configurações ({ type: "CVD"|"DELTA", color, opacity }) ou null (desligado);
@@ -783,8 +814,12 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
       const m = st.rsiM;
       const zone =
         v === null ? "" : v >= m.overbought ? ' <span class="pnl-neg">sobrecomprado</span>' : v <= m.oversold ? ' <span class="pnl-pos">sobrevendido</span>' : "";
+      const num = (x) => (x == null ? "--" : x.toFixed(1).replace(".", ","));
+      const ma = st.rsiMa && st.rsiMaVals
+        ? ` <span style="color:${m.maColor}">${m.maType} ${m.maPeriod} ${num(st.rsiMaVals[i])}</span>`
+        : "";
       texts.rsi.innerHTML =
-        `${tip("rsi", `RSI ${m.period}`)} <b style="color:${maColor({ ...m, opacity: 1 })}">${v === null ? "--" : v.toFixed(1).replace(".", ",")}</b>${zone}`;
+        `${tip("rsi", `RSI ${m.period}`)} <b style="color:${maColor({ ...m, opacity: 1 })}">${num(v)}</b>${ma}${zone}`;
     }
     renderLiquidationTitle(idx);
     const a = st.aligned;

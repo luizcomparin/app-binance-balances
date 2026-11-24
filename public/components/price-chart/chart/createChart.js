@@ -517,14 +517,15 @@ export function createPriceChart(els, handlers = {}) {
       summary.hidden = !opts.summary;
       liquidation.setData(opts.liquidation || null);
       // primeiro a altura final do gráfico, depois os painéis (as alturas deles partem dela)
-      // (volume, CVD e RSI, quando ligados + os de futuros ligados, quando há dados + 1 de liquidações reais)
+      // (volume, CVD e RSI, quando ligados + os de futuros ligados, quando há dados + 1 de liquidações reais;
+      // o RSI conta 1,5: a altura padrão dele é maior, PANE_DEFAULT_HEIGHTS)
       const futPanes = opts.futures ? opts.futuresPanes || [] : [];
       const volume = opts.volume !== false;
       const cvd = opts.cvd || null;
       const rsi = opts.rsi || null;
       wrap.style.setProperty(
         "--sub-panes",
-        s.points?.length ? (volume ? 1 : 0) + (cvd ? 1 : 0) + (rsi ? 1 : 0) + futPanes.length + (opts.liquidations ? 1 : 0) : 0
+        s.points?.length ? (volume ? 1 : 0) + (cvd ? 1 : 0) + (rsi ? 1.5 : 0) + futPanes.length + (opts.liquidations ? 1 : 0) : 0
       );
       futures.update(s.points, s.interval, opts.futures || null, opts.liquidations || null, futPanes, volume);
       futures.setVolumeAverages(volume ? (opts.volumeAverages || []).filter((m) => m.visible) : []);
