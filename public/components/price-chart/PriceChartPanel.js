@@ -756,6 +756,18 @@ function renderLiq() {
   box.innerHTML = lines.map((l) => `<div>${l}</div>`).join("") + disclaimer;
 }
 
+// Engrenagem dentro de um checkbox das Camadas: mostra/esconde a caixa de opções logo abaixo dele
+function bindLayerGear(gearId, boxId) {
+  const gear = document.getElementById(gearId);
+  const box = document.getElementById(boxId);
+  if (!gear || !box) return;
+  gear.addEventListener("click", (e) => {
+    e.preventDefault(); // o botão fica dentro do <label>: não marcar/desmarcar o checkbox
+    box.hidden = !box.hidden;
+    gear.setAttribute("aria-expanded", String(!box.hidden));
+  });
+}
+
 // Linha da caixa do mapa sobre o ajuste com liquidações reais (calibration de /liquidation-map)
 function calibrationText(c) {
   if (!c) return "";
@@ -1065,15 +1077,11 @@ export function initPriceChartPanel() {
     showBubblesMin();
   });
 
-  // engrenagem do mapa de liquidação: abre/fecha as opções logo abaixo do checkbox (dentro das Camadas)
-  const liqGear = document.getElementById("price-chart-liq-gear");
+  // engrenagens do mapa de liquidação e das bolhas: abrem/fecham as opções logo abaixo do checkbox
   const liqSettings = document.getElementById("price-chart-liq-settings");
   if (liqSettings) mountLiqMapSettings(liqSettings, () => render());
-  liqGear?.addEventListener("click", (e) => {
-    e.preventDefault(); // o botão fica dentro do <label>: não marcar/desmarcar o checkbox
-    liqSettings.hidden = !liqSettings.hidden;
-    liqGear.setAttribute("aria-expanded", String(!liqSettings.hidden));
-  });
+  bindLayerGear("price-chart-liq-gear", "price-chart-liq-settings");
+  bindLayerGear("price-chart-liqbubbles-gear", "price-chart-liqbubbles-settings");
 
   const liqInput = document.getElementById("price-chart-liq");
   if (liqInput) liqInput.checked = view.showLiq;

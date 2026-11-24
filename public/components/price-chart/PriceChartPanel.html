@@ -130,12 +130,20 @@
                 <input type="checkbox" id="price-chart-liqbubbles" />
                 <span class="mini-spinner sim-spinner"></span>
                 <span id="price-chart-liqbubbles-text">Bolhas de liquidações (reais)</span>
-                <span class="pc-chip-extra">de <select id="price-chart-liqbubbles-source" class="pc-chip-select" title="Corretoras somadas nas bolhas">
-                  <option value="all">Binance + Bybit + OKX</option>
-                  <option value="binance">só Binance</option>
-                </select>
-                acima de <input type="text" id="price-chart-liqbubbles-min" class="pc-chip-amount" inputmode="decimal" placeholder="0" title="Só mostra as bolhas a partir desse valor liquidado na vela (US$). Ex.: 5M, 500K, 1,5M. Vazio = todas" /></span>
+                <button type="button" class="pc-chip-gear" id="price-chart-liqbubbles-gear" title="Configurações das bolhas" aria-label="Configurações das bolhas" aria-expanded="false" aria-controls="price-chart-liqbubbles-settings">
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                </button>
               </label>
+              <!-- opções das bolhas (engrenagem acima) -->
+              <div class="fp-settings pc-chip-settings" id="price-chart-liqbubbles-settings" hidden>
+                <div class="price-chart-mas fps-form">
+                  <label class="pcm-field"><span>Corretoras</span><select id="price-chart-liqbubbles-source" title="Corretoras somadas nas bolhas">
+                    <option value="all">Binance + Bybit + OKX</option>
+                    <option value="binance">Só Binance</option>
+                  </select></label>
+                  <label class="pcm-field"><span>Acima de (US$)</span><input type="text" id="price-chart-liqbubbles-min" inputmode="decimal" placeholder="todas" title="Só mostra as bolhas a partir desse valor liquidado na vela (US$), em todas as moedas. Ex.: 5M, 500K, 1,5M. Vazio = todas" /></label>
+                </div>
+              </div>
               <label class="price-chart-sim-toggle pc-chip" id="price-chart-stats-label" title="Faixa de preço típica a partir da volatilidade do último ano (não é previsão)">
                 <input type="checkbox" id="price-chart-stats" />
                 <span>Faixa estatística</span>

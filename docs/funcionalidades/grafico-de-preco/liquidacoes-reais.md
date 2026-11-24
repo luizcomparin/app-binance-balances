@@ -25,9 +25,9 @@ O checkbox `#price-chart-liqbubbles` ("Bolhas de liquidações (reais)", no grup
 - **verde na máxima**: shorts liquidados;
 - as 3 maiores bolhas visíveis ganham o valor (`formatUsdShort`).
 
-A Coinalyze não diz o preço de cada liquidação, só quanto foi liquidado no período: a altura da bolha é aproximada (o extremo da vela). Com o checkbox ligado aparece o seletor `#price-chart-liqbubbles-source`: **Binance + Bybit + OKX** (padrão, soma de `long`/`short`) ou **só Binance** (`by.Binance`, a mesma corretora do mapa estimado).
+A Coinalyze não diz o preço de cada liquidação, só quanto foi liquidado no período: a altura da bolha é aproximada (o extremo da vela). As opções ficam na engrenagem do próprio checkbox (`#price-chart-liqbubbles-gear`), que abre uma caixa logo abaixo dele, dentro das Camadas (`#price-chart-liqbubbles-settings`, mesmo `bindLayerGear` da engrenagem do mapa de liquidação). **Corretoras** (`#price-chart-liqbubbles-source`): **Binance + Bybit + OKX** (padrão, soma de `long`/`short`) ou **só Binance** (`by.Binance`, a mesma corretora do mapa estimado).
 
-Ao lado fica o limite **acima de** (`#price-chart-liqbubbles-min`): só aparecem as bolhas a partir desse valor liquidado na vela, por lado. Aceita `5M`, `500K`, `1,5M`, `2B` ou um número (`parseUsdAmount`). Vazio ou 0 mostra todas, e texto inválido volta ao valor anterior. O limite é **global**, o mesmo para todas as moedas (`view.liqBubblesMin`). Uma versão anterior salvava um limite por moeda (`{ MOEDA: US$ }`). Nesse caso, `readBubblesMin` passa a usar o limite da última moeda vista. Esconder as menores não muda o tamanho das que ficam, porque a escala é calculada com todas as bolhas (`bubblesAbove`).
+**Acima de (US$)** (`#price-chart-liqbubbles-min`): só aparecem as bolhas a partir desse valor liquidado na vela, por lado. Aceita `5M`, `500K`, `1,5M`, `2B` ou um número (`parseUsdAmount`). Vazio ou 0 mostra todas, e texto inválido volta ao valor anterior. O limite é **global**, o mesmo para todas as moedas (`view.liqBubblesMin`). Uma versão anterior salvava um limite por moeda (`{ MOEDA: US$ }`). Nesse caso, `readBubblesMin` passa a usar o limite da última moeda vista. Esconder as menores não muda o tamanho das que ficam, porque a escala é calculada com todas as bolhas (`bubblesAbove`).
 
 As liquidações reais também calibram o [mapa de liquidação estimado](mapa-de-liquidacao.md) (só com a parte da Binance).
 
@@ -71,6 +71,6 @@ Cache de 5 min por `asset:interval`.
 1. Sem chave, ligue a camada: as Configurações abrem.
 2. Salve a chave: o painel aparece.
 3. Troque a vela entre 4h e D.
-4. Ligue as bolhas: bolhas vermelhas nas mínimas e verdes nas máximas das velas com liquidação. Troque para "só Binance": as bolhas encolhem e a escolha continua depois de recarregar a página.
-5. Digite `20M` em "acima de": ficam só as bolhas grandes, com o mesmo tamanho de antes. Apague o campo: voltam todas.
+4. Ligue as bolhas: bolhas vermelhas nas mínimas e verdes nas máximas das velas com liquidação. Abra a engrenagem do checkbox (a camada continua ligada) e troque Corretoras para "Só Binance": as bolhas encolhem e a escolha continua depois de recarregar a página.
+5. Digite `20M` em "Acima de (US$)": ficam só as bolhas grandes, com o mesmo tamanho de antes. Apague o campo: voltam todas.
 6. Ponha `20M` em BTC e troque para ETH: o campo continua `20,0M` (o limite vale para todas as moedas).

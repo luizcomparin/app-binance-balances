@@ -369,38 +369,7 @@
   cursor: text;
 }
 
-/* "de [Binance + Bybit + OKX]" das bolhas de liquidações reais */
-.pc-chip .pc-chip-select {
-  padding: 2px 4px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 6px;
-  color: #e5ecff;
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-/* "acima de [5M]" das bolhas de liquidações reais */
-.pc-chip .pc-chip-amount {
-  width: 58px;
-  padding: 2px 6px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 6px;
-  color: #e5ecff;
-  font: inherit;
-  font-size: 12px;
-  text-align: center;
-  cursor: text;
-}
-
-.pc-chip .pc-chip-select option {
-  background: #141a33;
-  color: #e5ecff;
-}
-
-/* engrenagem dentro de um checkbox das Camadas (mapa de liquidação): abre as opções logo abaixo */
+/* engrenagem dentro de um checkbox das Camadas (mapa de liquidação, bolhas): abre as opções logo abaixo */
 .pc-chip .pc-chip-gear {
   display: inline-flex;
   align-items: center;
