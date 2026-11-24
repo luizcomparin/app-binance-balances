@@ -116,7 +116,7 @@ const view = {
   liqBubblesSource: BUBBLE_SOURCES.includes(readStored(LIQBUBBLES_SOURCE_STORAGE_KEY))
     ? readStored(LIQBUBBLES_SOURCE_STORAGE_KEY)
     : "all",
-  liqBubblesMin: Math.max(0, Number(readStored(LIQBUBBLES_MIN_STORAGE_KEY)) || 0),
+  liqBubblesMin: readBubblesMin(), // limite mínimo das bolhas por moeda: { BTC: 20000000, ... }
   // painéis de volume e de CVD/Delta (sem escolha salva, o CVD herda o indicador da versão anterior)
   showVolume: readStored(VOLUME_PANE_STORAGE_KEY) !== "0",
   showCvd: (readStored(CVD_PANE_STORAGE_KEY) ?? (legacyCvdOn() ? "1" : "0")) === "1",
@@ -560,12 +560,41 @@ function liquidationsForChart() {
   return view.showLiqReal ? liqRealData() : null;
 }
 
+// Limites mínimos das bolhas salvos ({ MOEDA: US$ }). Antes era um número só, para todas as moedas:
+// passa a valer para a última moeda vista.
+function readBubblesMin() {
+  const raw = readStored(LIQBUBBLES_MIN_STORAGE_KEY);
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed === "number") {
+      const asset = readStored(ASSET_STORAGE_KEY);
+      return parsed > 0 && asset ? { [asset]: parsed } : {};
+    }
+    if (!parsed || typeof parsed !== "object") return {};
+    return Object.fromEntries(Object.entries(parsed).filter(([, v]) => Number(v) > 0).map(([k, v]) => [k, Number(v)]));
+  } catch {
+    return {};
+  }
+}
+
+const bubblesMinOf = (asset) => (asset && view.liqBubblesMin[asset]) || 0;
+
+// campo "acima de" com o limite da moeda aberta
+function showBubblesMin() {
+  const input = document.getElementById("price-chart-liqbubbles-min");
+  if (!input) return;
+  const min = bubblesMinOf(view.asset);
+  input.value = min > 0 ? formatUsdShort(min) : "";
+  input.title = `Só mostra as bolhas a partir desse valor liquidado na vela (US$), salvo para ${view.asset || "cada moeda"}. Ex.: 5M, 500K, 1,5M. Vazio = todas`;
+}
+
 // bolhas sobre o gráfico (velas atuais) ou null
 function liquidationBubblesForChart() {
   if (!view.showLiqBubbles || !view.points) return null;
   const data = liqRealData();
   if (!data || data === PANE_LOADING) return null;
-  return { list: liquidationBubbles(view.points, data.rows, view.liqBubblesSource), minUsd: view.liqBubblesMin };
+  return { list: liquidationBubbles(view.points, data.rows, view.liqBubblesSource), minUsd: bubblesMinOf(view.asset) };
 }
 
 async function loadLiquidations() {
@@ -1023,17 +1052,15 @@ export function initPriceChartPanel() {
     writeStored(LIQBUBBLES_SOURCE_STORAGE_KEY, view.liqBubblesSource);
     render();
   });
-  // limite mínimo: aceita "5M", "500K", "1,5M"...; inválido volta ao valor anterior
+  // limite mínimo da moeda aberta: aceita "5M", "500K", "1,5M"...; inválido volta ao valor anterior
   const bubblesMin = document.getElementById("price-chart-liqbubbles-min");
-  const showBubblesMin = () => {
-    if (bubblesMin) bubblesMin.value = view.liqBubblesMin > 0 ? formatUsdShort(view.liqBubblesMin) : "";
-  };
   showBubblesMin();
   bubblesMin?.addEventListener("change", () => {
     const value = parseUsdAmount(bubblesMin.value);
-    if (value !== null) {
-      view.liqBubblesMin = value;
-      writeStored(LIQBUBBLES_MIN_STORAGE_KEY, String(value));
+    if (value !== null && view.asset) {
+      if (value > 0) view.liqBubblesMin[view.asset] = value;
+      else delete view.liqBubblesMin[view.asset];
+      writeStored(LIQBUBBLES_MIN_STORAGE_KEY, JSON.stringify(view.liqBubblesMin));
       render();
     }
     showBubblesMin();
@@ -1184,6 +1211,7 @@ function openInitialAsset(balancesLoaded = false) {
 export function openPriceChart(asset) {
   view.asset = asset;
   writeStored(ASSET_STORAGE_KEY, asset);
+  showBubblesMin(); // o limite das bolhas é por moeda
   showTab(PANEL_TAB); // com view.asset já definido, a aba não abre a moeda padrão por cima
   view.points = null;
   view.openOrders = null;
