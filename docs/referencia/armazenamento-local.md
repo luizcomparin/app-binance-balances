@@ -4,7 +4,7 @@ resumo: Todas as preferências da página salvas no navegador, com formato, padr
 arquivos: []
 rotas: []
 eventos: []
-storage: [balances-simple-view, ordersOpenPairs, priceChartAsset, priceChartMode, priceChartRange, priceChartInterval, priceChartDynamicAvg, priceChartOpenOrders, priceChartMyOrders, priceChartProjectedAvg, priceChartSimulator, priceChartStats, priceChartStatsDays, priceChartDca, priceChartLiquidation, priceChartFuturesOi, priceChartFuturesLs, priceChartFuturesFunding, priceChartFutures, priceChartRealLiquidations, priceChartOrdersTab, priceChartIndicators, priceChartMovingAverages, priceChartIndicatorsVisible, priceChartVolumeAverages, priceChartVolumePane, priceChartCvdPane, priceChartCvd, priceChartRsiPane, priceChartRsi, priceChartMacdPane, priceChartMacd, priceChartWatchlistOrder, priceChartWatchlistOpen, priceChartWatchlistColors, priceChartPaneHeights, price-chart-drawings, price-chart-drawings-visible, price-chart-draw-toolbar]
+storage: [balances-simple-view, ordersOpenPairs, priceChartAsset, priceChartMode, priceChartRange, priceChartInterval, priceChartDynamicAvg, priceChartOpenOrders, priceChartMyOrders, priceChartProjectedAvg, priceChartSimulator, priceChartStats, priceChartStatsDays, priceChartDca, priceChartLiquidation, priceChartFuturesOi, priceChartFuturesLs, priceChartFuturesFunding, priceChartFutures, priceChartRealLiquidations, priceChartLiqBubbles, priceChartLiqBubblesSource, priceChartOrdersTab, priceChartIndicators, priceChartMovingAverages, priceChartIndicatorsVisible, priceChartVolumeAverages, priceChartVolumePane, priceChartCvdPane, priceChartCvd, priceChartRsiPane, priceChartRsi, priceChartMacdPane, priceChartMacd, priceChartWatchlistOrder, priceChartWatchlistOpen, priceChartWatchlistColors, priceChartPaneHeights, price-chart-drawings, price-chart-drawings-visible, price-chart-draw-toolbar]
 ---
 
 # `localStorage`
@@ -35,6 +35,8 @@ O padrão de nomes é **inconsistente**: há chaves em `camelCase` (`priceChartX
 | `priceChartFuturesFunding` | `"1"`/`"0"` | off | `PriceChartPanel.js` | Painel "Taxa de funding (futuros)" |
 | `priceChartFutures` | (legado) | — | `PriceChartPanel.js` | Antigo checkbox "Dados de futuros"; só lido como padrão dos 3 acima enquanto não têm valor salvo |
 | `priceChartRealLiquidations` | `"1"`/`"0"` | off | `PriceChartPanel.js` | Painel de liquidações reais |
+| `priceChartLiqBubbles` | `"1"`/`"0"` | off | `PriceChartPanel.js` | Bolhas das liquidações reais sobre o gráfico |
+| `priceChartLiqBubblesSource` | `"all"`/`"binance"` | `all` | `PriceChartPanel.js` | Corretoras das bolhas: Binance + Bybit + OKX ou só Binance |
 | `priceChartOrdersTab` | `open·history·trades` | `open` | `PriceChartPanel.js` | Aba abaixo do gráfico |
 | `priceChartIndicators` | JSON `[{ id, kind: "ma"\|"bb", period, type?, mult?, color, opacity, visible }]` | `[]` | `indicatorControls.js` | Indicadores do preço. Itens antigos `vma` e `cvd` são copiados para as chaves abaixo e somem no próximo save |
 | `priceChartVolumeAverages` | JSON `[{ id, kind: "vma", period, type, color, opacity, visible }]` | `[]` | `indicatorControls.js` | Médias móveis do volume (engrenagem do painel de Volume) |

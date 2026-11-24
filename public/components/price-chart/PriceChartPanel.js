@@ -20,6 +20,7 @@ import { fetchFuturesData, fetchLiquidationMap, fetchLiquidations } from "../../
 import { openSettings } from "../settings/SettingsModal.js";
 import { formatUsdShort } from "../../core/format.js";
 import { FUTURES_HELP, FUTURES_PANES, PANE_LOADING } from "./chart/futuresPanes.js";
+import { BUBBLE_SOURCES, liquidationBubbles } from "./chart/liquidationBubbles.js";
 import { initOrderHistory, setHistoryAsset, showHistory, reloadHistory } from "./orderHistoryTable.js";
 import { initTradeHistory, setTradesAsset, showTrades, reloadTrades } from "./tradeHistoryTable.js";
 import { annualizedPct, dailyVolatility, priceBand, touchProbability } from "./volatility.js";
@@ -65,6 +66,8 @@ const FUT_PANES = {
 const FUT_PERIOD = { "1h": "1h", "4h": "4h" };
 const LIQREAL_STORAGE_KEY = "priceChartRealLiquidations"; // painel de liquidações reais (Coinalyze)
 const LIQREAL_CACHE_MS = 5 * 60 * 1000;
+const LIQBUBBLES_STORAGE_KEY = "priceChartLiqBubbles"; // bolhas das liquidações reais sobre o gráfico
+const LIQBUBBLES_SOURCE_STORAGE_KEY = "priceChartLiqBubblesSource"; // "all" (3 corretoras) | "binance"
 const VOLUME_PANE_STORAGE_KEY = "priceChartVolumePane"; // painel de volume (ligado por padrão)
 const CVD_PANE_STORAGE_KEY = "priceChartCvdPane"; // painel de CVD/Delta
 const RSI_PANE_STORAGE_KEY = "priceChartRsiPane"; // painel do RSI
@@ -107,6 +110,11 @@ const view = {
   fut: null, // { key, data } | { key, data: null (erro) } | { key, loading: true }
   // painel de liquidações reais: ligado? e dados (por moeda + tamanho de vela)
   showLiqReal: readStored(LIQREAL_STORAGE_KEY) === "1",
+  // bolhas das liquidações reais sobre o gráfico (mesmos dados do painel) e de quais corretoras
+  showLiqBubbles: readStored(LIQBUBBLES_STORAGE_KEY) === "1",
+  liqBubblesSource: BUBBLE_SOURCES.includes(readStored(LIQBUBBLES_SOURCE_STORAGE_KEY))
+    ? readStored(LIQBUBBLES_SOURCE_STORAGE_KEY)
+    : "all",
   // painéis de volume e de CVD/Delta (sem escolha salva, o CVD herda o indicador da versão anterior)
   showVolume: readStored(VOLUME_PANE_STORAGE_KEY) !== "0",
   showCvd: (readStored(CVD_PANE_STORAGE_KEY) ?? (legacyCvdOn() ? "1" : "0")) === "1",
@@ -303,6 +311,7 @@ function render(extra = {}) {
     macd: view.showMacd ? getMacdSettings() : null,
     summary: chartSummary(),
     liquidation: view.showLiq && view.liq?.available ? view.liq : null,
+    liquidationBubbles: liquidationBubblesForChart(),
     futures: futuresForChart(),
     futuresPanes: futPanesOn(),
     liquidations: liquidationsForChart(),
@@ -533,13 +542,28 @@ function updateFuturesAvailability() {
 const liqRealCache = new Map(); // "ASSET|vela" -> { at, data }
 const liqRealKey = () => `${view.asset}|${view.interval}`;
 
-// dados prontos para o gráfico, PANE_LOADING (painel fica com spinner) ou null; se faltam para a
-// moeda/vela atual, começa a carregar
-function liquidationsForChart() {
-  if (!view.showLiqReal || !view.asset) return null;
+// os mesmos dados servem ao painel e às bolhas sobre o gráfico
+const liqRealWanted = () => view.showLiqReal || view.showLiqBubbles;
+
+// dados prontos, PANE_LOADING (carregando) ou null; se faltam para a moeda/vela atual, começa a carregar
+function liqRealData() {
+  if (!liqRealWanted() || !view.asset) return null;
   if (view.liqReal?.key !== liqRealKey()) loadLiquidations();
   if (view.liqReal?.loading) return PANE_LOADING;
   return view.liqReal?.data?.available ? view.liqReal.data : null;
+}
+
+// painel de liquidações: dados, PANE_LOADING (painel fica com spinner) ou null
+function liquidationsForChart() {
+  return view.showLiqReal ? liqRealData() : null;
+}
+
+// bolhas sobre o gráfico (velas atuais) ou null
+function liquidationBubblesForChart() {
+  if (!view.showLiqBubbles || !view.points) return null;
+  const data = liqRealData();
+  if (!data || data === PANE_LOADING) return null;
+  return liquidationBubbles(view.points, data.rows, view.liqBubblesSource);
 }
 
 async function loadLiquidations() {
@@ -565,42 +589,53 @@ async function loadLiquidations() {
   render();
 }
 
-// chave da Coinalyze salva ou removida nas Configurações: recarrega o painel
+// chave da Coinalyze salva ou removida nas Configurações: recarrega o painel, as bolhas e o mapa
+// estimado (com chave, o mapa é ajustado pelas liquidações reais)
 function reloadLiquidations() {
   liqRealCache.clear();
   view.liqReal = null;
   updateLiquidationsAvailability();
+  liqCache.clear();
+  view.liq = null;
+  if (view.showLiq && view.asset) loadLiquidation(view.asset);
   render();
 }
 
 const needsCoinalyzeKey = () => ["no-key", "invalid-key"].includes(view.liqReal?.data?.reason);
 
-// checkbox: spinner enquanto carrega; avisos sem chave, sem contrato ou com erro
+// checkboxes (painel e bolhas): spinner enquanto carrega; avisos sem chave, sem contrato ou com erro
 function updateLiquidationsAvailability() {
-  const label = document.getElementById("price-chart-liqreal-label");
-  const text = document.getElementById("price-chart-liqreal-text");
+  updateLiqRealChip("price-chart-liqreal", view.showLiqReal, "Liquidações", LIQREAL_TITLE);
+  updateLiqRealChip("price-chart-liqbubbles", view.showLiqBubbles, "Bolhas de liquidações (reais)", LIQBUBBLES_TITLE);
+}
+
+function updateLiqRealChip(id, shown, name, title) {
+  const label = document.getElementById(`${id}-label`);
+  const text = document.getElementById(`${id}-text`);
   if (!label || !text) return;
   const r = view.liqReal;
-  const loading = view.showLiqReal && !!r?.loading;
-  const unavailable = view.showLiqReal && r && !r.loading && !r.data?.available;
+  const loading = shown && !!r?.loading;
+  const unavailable = shown && r && !r.loading && !r.data?.available;
   label.classList.toggle("is-loading", loading);
   label.classList.toggle("disabled", unavailable);
   const reason = r?.data?.reason;
   text.textContent = loading
     ? "Carregando liquidações..."
     : !unavailable
-      ? "Liquidações"
+      ? name
       : reason === "no-key"
-        ? "Liquidações: configure a chave da Coinalyze"
+        ? `${name}: configure a chave da Coinalyze`
         : reason === "invalid-key"
-          ? "Liquidações: chave da Coinalyze recusada"
+          ? `${name}: chave da Coinalyze recusada`
           : reason === "no-market"
-            ? `Liquidações: ${view.asset} sem contrato perpétuo`
-            : "Liquidações indisponíveis";
-  label.title = unavailable && r.data?.message ? r.data.message : LIQREAL_TITLE;
+            ? `${name}: ${view.asset} sem contrato perpétuo`
+            : `${name} indisponíveis`;
+  label.title = unavailable && r.data?.message ? r.data.message : title;
 }
 const LIQREAL_TITLE =
   "Painel com as liquidações que de fato aconteceram nos futuros perpétuos (Binance + Bybit + OKX, dados da Coinalyze), abaixo do gráfico";
+const LIQBUBBLES_TITLE =
+  "Bolhas das liquidações que de fato aconteceram em cada vela (dados da Coinalyze): longs liquidados em vermelho na mínima, shorts em verde na máxima. O tamanho é o valor liquidado; a posição na vela é aproximada";
 
 // ---------------------------------------------------------------------------
 // mapa de liquidação estimado (futuros: open interest + long/short)
@@ -683,7 +718,35 @@ function renderLiq() {
   lines.push(
     `${tip("Contas compradas", FUTURES_HELP.ls)}: ${pctTxt(d.ratios.globalLongAccount)} · ${tip("Top traders (posição) comprados", FUTURES_HELP.ls)}: ${pctTxt(d.ratios.topLongPosition)}`
   );
+  const cal = calibrationText(d.calibration);
+  if (cal) lines.push(cal);
   box.innerHTML = lines.map((l) => `<div>${l}</div>`).join("") + disclaimer;
+}
+
+// Linha da caixa do mapa sobre o ajuste com liquidações reais (calibration de /liquidation-map)
+function calibrationText(c) {
+  if (!c) return "";
+  if (!c.available) {
+    const why = {
+      "no-key": "configure a chave da Coinalyze (engrenagem no topo) para ajustar o mapa pelas liquidações reais da Binance",
+      "invalid-key": "a Coinalyze recusou a chave",
+      "no-market": `${view.asset} sem contrato perpétuo na Binance pela Coinalyze`,
+      "few-hours": "poucas horas de liquidações reais para comparar",
+      "no-data": "sem liquidações reais no período",
+    }[c.reason] || "liquidações reais indisponíveis";
+    return `<span class="muted">Sem ajuste por liquidações reais: ${why}.</span>`;
+  }
+  const factor = (f) => (f === null ? "sem ajuste" : `×${f.toFixed(2).replace(".", ",")}`);
+  const r = c.correlation;
+  const strength = r === null ? "" : Math.abs(r) < 0.3 ? " (fraca)" : Math.abs(r) < 0.6 ? " (moderada)" : " (forte)";
+  const corr = r === null ? "--" : r.toFixed(2).replace(".", ",");
+  return (
+    `Ajustado com as liquidações reais da ${c.exchange} (Coinalyze, ${Math.round(c.hours / 24)} dias comparados): ` +
+    `o modelo previu ≈ ${formatUsdShort(c.model.long)} em longs e ≈ ${formatUsdShort(c.model.short)} em shorts liquidados; ` +
+    `aconteceram ≈ ${formatUsdShort(c.real.long)} e ≈ ${formatUsdShort(c.real.short)}. ` +
+    `Níveis de longs ${factor(c.factor.long)} · de shorts ${factor(c.factor.short)} · ` +
+    `<span class="help-tip" data-tip="Quanto o liquidado pelo modelo acompanha o liquidado de verdade, hora a hora (−1 a 1). Perto de 1: o mapa costuma acertar onde e quando as cascatas acontecem.">correlação hora a hora</span>: ${corr}${strength}`
+  );
 }
 
 // Arrastou até o começo dos dados: busca a página anterior de velas e coloca no início
@@ -915,6 +978,27 @@ export function initPriceChartPanel() {
     render();
   });
 
+  // bolhas das liquidações reais: mesmos dados (e mesma chave da Coinalyze) do painel
+  const bubblesInput = document.getElementById("price-chart-liqbubbles");
+  const bubblesSource = document.getElementById("price-chart-liqbubbles-source");
+  if (bubblesInput) bubblesInput.checked = view.showLiqBubbles;
+  if (bubblesSource) bubblesSource.value = view.liqBubblesSource;
+  bubblesInput?.addEventListener("change", () => {
+    view.showLiqBubbles = bubblesInput.checked;
+    writeStored(LIQBUBBLES_STORAGE_KEY, view.showLiqBubbles ? "1" : "0");
+    if (view.showLiqBubbles && needsCoinalyzeKey()) {
+      openSettings("coinalyze");
+      view.liqReal = null; // tenta de novo (a chave pode ter sido salva enquanto isso)
+    }
+    updateLiquidationsAvailability();
+    render();
+  });
+  bubblesSource?.addEventListener("change", () => {
+    view.liqBubblesSource = BUBBLE_SOURCES.includes(bubblesSource.value) ? bubblesSource.value : "all";
+    writeStored(LIQBUBBLES_SOURCE_STORAGE_KEY, view.liqBubblesSource);
+    render();
+  });
+
   const liqInput = document.getElementById("price-chart-liq");
   if (liqInput) liqInput.checked = view.showLiq;
   liqInput?.addEventListener("change", () => {
@@ -1133,7 +1217,7 @@ function refreshLayers(asset) {
   // painéis de futuros e de liquidações reais (as funções de carga usam a moeda/vela atuais)
   if (futPanesOn().length) tasks.push(loadFutures());
   else view.fut = null;
-  if (view.showLiqReal) tasks.push(loadLiquidations());
+  if (liqRealWanted()) tasks.push(loadLiquidations());
   else view.liqReal = null;
   return tasks;
 }

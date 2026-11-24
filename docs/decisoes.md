@@ -12,7 +12,7 @@ São comportamentos que **parecem** errados ou incompletos, mas são escolhas do
 | Quantidade sem trade conhecido (depósito, Convert, Earn) **herda o mesmo preço médio** | Melhor do que ignorá-la. A `coverage` < 95% mostra ⚠ | `positions.js`, `BalancesPanel.js` |
 | P&L, Ordens Executadas, marcadores e DCA cobrem **só as moedas em carteira hoje** | Limita o número de pares consultados em `myTrades` (peso da API) | `tradeHistory.js` |
 | Conversão de trades em BRL/BTC/ETH/BNB pelo **fechamento diário** da data | Precisão suficiente com custo baixo (1 vela por dia) | `tradeHistory.js` (`rateToUSDTAt`) |
-| **Mapa de liquidação é estimativa** e diz isso na interface. Os parâmetros (alavancagens, pesos 0,4/0,3/0,3, faixas de 0,25%) são suposições do modelo | Não existe dado público de posições | `liquidationMap.js` |
+| **Mapa de liquidação é estimativa** e diz isso na interface. Os parâmetros (alavancagens, pesos 0,4/0,3/0,3, faixas de 0,25%) são suposições do modelo. Com a chave da Coinalyze, o modelo é **calibrado** pelas liquidações reais da Binance (só ela: o open interest do modelo é da Binance), mas continua estimativa | Não existe dado público de posições | `liquidationMap.js`, `liquidationModel.js` |
 | Faixa estatística e chance de tocar com **aviso de "não é previsão"** | Modelo lognormal sem tendência | `PriceChartPanel.js` (`renderStats`) |
 | Aba padrão = **Gráfico de preço**. Timeframe padrão = **D + 1 ano**. Moeda padrão = última vista → BTC → a maior | Uso mais comum | `Tabs.html`, `PriceChartPanel.js` |
 | Velas **intradiárias em hora local**, diárias e maiores no **dia UTC** | Mesmo comportamento da Binance | `chart/axis.js` |

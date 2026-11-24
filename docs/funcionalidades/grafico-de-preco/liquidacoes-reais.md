@@ -1,10 +1,10 @@
 ---
 titulo: Liquidações reais (Coinalyze)
-resumo: Painel com as liquidações que de fato aconteceram nos perpétuos USDT da moeda (Binance + Bybit + OKX), por vela; exige chave gratuita da Coinalyze.
-arquivos: [server/services/liquidations.js, server/coinalyze/client.js, server/config.js, public/components/price-chart/chart/futuresPanes.js, public/components/price-chart/PriceChartPanel.js]
+resumo: Painel e bolhas sobre o gráfico com as liquidações que de fato aconteceram nos perpétuos USDT da moeda (Binance + Bybit + OKX, ou só Binance nas bolhas), por vela; exige chave gratuita da Coinalyze. Também calibra o mapa de liquidação estimado.
+arquivos: [server/services/liquidations.js, server/coinalyze/client.js, server/config.js, public/components/price-chart/chart/futuresPanes.js, public/components/price-chart/chart/liquidationBubbles.js, public/components/price-chart/chart/createChart.js, public/components/price-chart/PriceChartPanel.js, public/components/price-chart/PriceChartPanel.html, public/components/price-chart/PriceChartPanel.css]
 rotas: [GET /liquidations/:asset]
 eventos: [COINALYZE_KEY_CHANGED]
-storage: [priceChartRealLiquidations]
+storage: [priceChartRealLiquidations, priceChartLiqBubbles, priceChartLiqBubblesSource]
 ---
 
 # Liquidações reais
@@ -17,7 +17,19 @@ O checkbox `#price-chart-liqreal` ("Liquidações") adiciona um painel abaixo do
 - barras **verdes para baixo**: shorts liquidados (compras forçadas);
 - no título: Longs, Shorts e a divisão por corretora na vela sob a mira.
 
-**Sem chave da Coinalyze**, ligar a camada abre as Configurações direto na seção da Coinalyze (`openSettings("coinalyze")`). O texto do checkbox avisa "configure a chave", "chave recusada", "sem contrato perpétuo" ou "indisponíveis".
+### Bolhas sobre o gráfico
+
+O checkbox `#price-chart-liqbubbles` ("Bolhas de liquidações (reais)", no grupo das camadas sobre o gráfico, logo depois do mapa de liquidação) desenha uma bolha por vela e por lado, com área proporcional ao valor liquidado:
+
+- **vermelha na mínima** da vela: longs liquidados;
+- **verde na máxima**: shorts liquidados;
+- as 3 maiores bolhas visíveis ganham o valor (`formatUsdShort`).
+
+A Coinalyze não diz o preço de cada liquidação, só quanto foi liquidado no período: a altura da bolha é aproximada (o extremo da vela). Com o checkbox ligado aparece o seletor `#price-chart-liqbubbles-source`: **Binance + Bybit + OKX** (padrão, soma de `long`/`short`) ou **só Binance** (`by.Binance`, a mesma corretora do mapa estimado).
+
+As liquidações reais também calibram o [mapa de liquidação estimado](mapa-de-liquidacao.md) (só com a parte da Binance).
+
+**Sem chave da Coinalyze**, ligar o painel ou as bolhas abre as Configurações direto na seção da Coinalyze (`openSettings("coinalyze")`). O texto dos dois checkboxes avisa "configure a chave", "chave recusada", "sem contrato perpétuo" ou "indisponíveis".
 
 ## Server (`services/liquidations.js`)
 
@@ -38,8 +50,10 @@ Cache de 5 min por `asset:interval`.
 
 ## Página
 
-- `PriceChartPanel.liquidationsForChart()` / `loadLiquidations()` funcionam como os painéis de futuros, com chave `asset|vela` e `liqRealCache` de 5 min. Só ficam em cache as respostas com sucesso ou `no-market`; sem chave ou com erro, tenta de novo na próxima vez.
-- `COINALYZE_KEY_CHANGED` → `reloadLiquidations()` limpa o cache e recarrega.
+- O painel e as bolhas usam os mesmos dados: `liqRealData()` carrega quando um dos dois está ligado (`liqRealWanted()`), `liquidationsForChart()` entrega ao painel e `liquidationBubblesForChart()` monta as bolhas com `liquidationBubbles(points, rows, source)` (`chart/liquidationBubbles.js`, testado em `test/public/liquidationBubbles.test.js`). `updateLiquidationsAvailability()` atualiza os dois checkboxes (`updateLiqRealChip`).
+- `chart/liquidationBubbles.js` → `LiquidationBubbles`, primitive anexado à série principal (como o mapa). Escala pelo percentil 98; bolhas menores que 3% da escala não são desenhadas.
+- `loadLiquidations()` funciona como os painéis de futuros, com chave `asset|vela` e `liqRealCache` de 5 min. Só ficam em cache as respostas com sucesso ou `no-market`; sem chave ou com erro, tenta de novo na próxima vez.
+- `COINALYZE_KEY_CHANGED` → `reloadLiquidations()` limpa o cache e recarrega (também o mapa de liquidação).
 - `futuresPanes`:
   - `alignLiquidations()` soma as linhas por vela (`sum`);
   - dentro do período coberto, vela sem linha vale 0 (a Coinalyze omite períodos zerados);
@@ -55,3 +69,4 @@ Cache de 5 min por `asset:interval`.
 1. Sem chave, ligue a camada: as Configurações abrem.
 2. Salve a chave: o painel aparece.
 3. Troque a vela entre 4h e D.
+4. Ligue as bolhas: bolhas vermelhas nas mínimas e verdes nas máximas das velas com liquidação. Troque para "só Binance": as bolhas encolhem e a escolha continua depois de recarregar a página.

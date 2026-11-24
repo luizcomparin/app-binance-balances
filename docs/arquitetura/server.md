@@ -51,6 +51,7 @@ config.js            .env, chaves em memória, gravação no .env, constantes (B
 | `orderHistory.js` | `/order-history/:asset` | [abas-de-ordens](../funcionalidades/grafico-de-preco/abas-de-ordens.md) |
 | `assetTrades.js` | `/trade-history/:asset` | [abas-de-ordens](../funcionalidades/grafico-de-preco/abas-de-ordens.md) |
 | `liquidationMap.js` | `/liquidation-map/:asset` | [mapa-de-liquidacao](../funcionalidades/grafico-de-preco/mapa-de-liquidacao.md) |
+| `liquidationModel.js` | — (modelo puro do mapa, testado) | [mapa-de-liquidacao](../funcionalidades/grafico-de-preco/mapa-de-liquidacao.md) |
 | `futuresData.js` | `/futures-data/:asset` | [paineis-de-futuros](../funcionalidades/grafico-de-preco/paineis-de-futuros.md) |
 | `liquidations.js` | `/liquidations/:asset` | [liquidacoes-reais](../funcionalidades/grafico-de-preco/liquidacoes-reais.md) |
 | `apiKeySettings.js`, `coinalyzeKeySettings.js` | `/settings/*` | [configuracoes](../funcionalidades/configuracoes.md) |

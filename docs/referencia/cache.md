@@ -30,7 +30,7 @@ O app tem **duas camadas de cache**: memória do server, que se perde ao reinici
 | Trades de uma moeda | `assetTrades:<ASSET>` | 30 s | `services/assetTrades.js` |
 | Velas | `chart:<SYMBOL>:<interval>:<limit>:<before>` | 60 s | `services/priceChart.js` |
 | Dados de futuros | `futures:<ASSET>:<period>` | 2 min | `services/futuresData.js` |
-| Mapa de liquidação | `liqmap:<ASSET>` | 5 min | `services/liquidationMap.js` |
+| Mapa de liquidação | `liqmap:<ASSET>:real` (com chave da Coinalyze) / `liqmap:<ASSET>:est` (sem) | 5 min | `services/liquidationMap.js` |
 | Liquidações reais | `liquidations:<ASSET>:<interval>` | 5 min | `services/liquidations.js` |
 | Mercados da Coinalyze | `coinalyze:markets` | 24 h | `services/liquidations.js` |
 

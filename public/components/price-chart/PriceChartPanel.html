@@ -121,6 +121,15 @@
                 <input type="checkbox" id="price-chart-liq" />
                 <span>Mapa de liquidação (estimado)</span>
               </label>
+              <label class="price-chart-sim-toggle pc-chip" id="price-chart-liqbubbles-label" title="Bolhas das liquidações que de fato aconteceram em cada vela (dados da Coinalyze): longs liquidados em vermelho na mínima, shorts em verde na máxima. O tamanho é o valor liquidado; a posição na vela é aproximada">
+                <input type="checkbox" id="price-chart-liqbubbles" />
+                <span class="mini-spinner sim-spinner"></span>
+                <span id="price-chart-liqbubbles-text">Bolhas de liquidações (reais)</span>
+                <span class="pc-chip-extra">de <select id="price-chart-liqbubbles-source" class="pc-chip-select" title="Corretoras somadas nas bolhas">
+                  <option value="all">Binance + Bybit + OKX</option>
+                  <option value="binance">só Binance</option>
+                </select></span>
+              </label>
               <label class="price-chart-sim-toggle pc-chip" id="price-chart-stats-label" title="Faixa de preço típica a partir da volatilidade do último ano (não é previsão)">
                 <input type="checkbox" id="price-chart-stats" />
                 <span>Faixa estatística</span>

@@ -31,9 +31,9 @@ Todas as rotas estão em `server/routes.js`. Do lado da página, as funções co
 | `GET /orders/:asset` | idem, filtrado | `fetchOpenOrdersForAsset` | gráfico de preço (`chartData.loadOpenOrders`) | 15 s |
 | `GET /order-history/:asset` | `buildOrderHistory` | `fetchOrderHistory` | `orderHistoryTable.js` | `allOrders` 60 s + trades |
 | `GET /trade-history/:asset` | `buildAssetTrades` | `fetchAssetTrades` | `tradeHistoryTable.js` | 30 s + trades |
-| `GET /liquidation-map/:asset` | `buildLiquidationMap` | `fetchLiquidationMap` | PriceChartPanel (camada mapa) | 5 min |
+| `GET /liquidation-map/:asset` | `buildLiquidationMap` | `fetchLiquidationMap` | PriceChartPanel (camada mapa) | 5 min (+ `/liquidations` 1h, com chave) |
 | `GET /futures-data/:asset` | `buildFuturesData` | `fetchFuturesData` | PriceChartPanel (painéis) | 2 min |
-| `GET /liquidations/:asset` | `buildLiquidations` | `fetchLiquidations` | PriceChartPanel (painel) | 5 min |
+| `GET /liquidations/:asset` | `buildLiquidations` | `fetchLiquidations` | PriceChartPanel (painel e bolhas) | 5 min |
 | `GET /executed-orders` | `buildExecutedOrders` | `fetchExecutedOrders` | ExecutedOrdersPanel, `chartData.loadMyOrders` | 15 s + trades |
 | `GET /price-chart/:asset` | `buildPriceChart` | `fetchKlines` | `chartData.getKlines` | 60 s |
 | `GET /site`, `/site/:page` | `server.js` | — | navegador | — |
@@ -108,7 +108,9 @@ Resposta: `{ asset, symbol, interval, points: [{ time, open, high, low, close, v
 Erro quando não existe par: `500 "Não existe par X/USDT na Binance"`. Veja [velas-e-timeframe](../funcionalidades/grafico-de-preco/velas-e-timeframe.md).
 
 ### `GET /liquidation-map/:asset`
-`{ available: true, asset, symbol, multiplier, price, bucket, from, hours, ratios: { globalLongAccount, topLongPosition }, levels: [{ price, long, short }], segments: [{ p, s: "L"|"S", f, t|null, u }], model, generatedAt }`.
+`{ available: true, asset, symbol, multiplier, price, bucket, from, hours, ratios: { globalLongAccount, topLongPosition }, levels: [{ price, long, short }], segments: [{ p, s: "L"|"S", f, t|null, u }], calibration, model, generatedAt }`.
+
+`calibration` (ajuste com liquidações reais da Binance via Coinalyze): `{ available: true, exchange: "Binance", hours, model: { long, short }, real: { long, short }, factor: { long, short } (número ou null), correlation (−1 a 1 ou null) }` ou `{ available: false, reason: "no-key" | "invalid-key" | "no-market" | "error" | "few-hours" | "no-data", message? }`. Com a calibração, `levels` e `segments` já vêm multiplicados pelo fator de cada lado.
 
 Sem dados: `{ available: false, reason: "no-perpetual" | "no-data" }`. Veja [mapa-de-liquidacao](../funcionalidades/grafico-de-preco/mapa-de-liquidacao.md).
 

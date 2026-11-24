@@ -369,6 +369,23 @@
   cursor: text;
 }
 
+/* "de [Binance + Bybit + OKX]" das bolhas de liquidações reais */
+.pc-chip .pc-chip-select {
+  padding: 2px 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  color: #e5ecff;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.pc-chip .pc-chip-select option {
+  background: #141a33;
+  color: #e5ecff;
+}
+
 /* desabilitada / carregando (spinner no lugar do checkbox) */
 .price-chart-sim-toggle.disabled {
   opacity: 0.5;

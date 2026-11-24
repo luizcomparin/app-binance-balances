@@ -15,6 +15,7 @@ import { createLegend } from "./legend.js";
 import { maColor, maLabel, movingAverage } from "./movingAverage.js";
 import { BandFill, bollinger } from "./bollinger.js";
 import { LiquidationOverlay } from "./liquidationOverlay.js";
+import { LiquidationBubbles } from "./liquidationBubbles.js";
 import { createFuturesPanes } from "./futuresPanes.js";
 import { createMeasureTool } from "./measureTool.js";
 import { createDrawings } from "./drawings.js";
@@ -35,6 +36,7 @@ const LWC = window.LightweightCharts;
  *                        rsi: configurações do painel do RSI (chart/rsi.js) | null,
  *                        macd: configurações do painel do MACD (chart/macd.js) | null,
  *                        liquidation: resposta de /liquidation-map | null,
+ *                        liquidationBubbles: bolhas das liquidações reais (chart/liquidationBubbles.js) | null,
  *                        futures: resposta de /futures-data | null (painéis de OI, long/short e funding),
  *                        futuresPanes: painéis de futuros ligados (["oi", "ls", "funding"] ou parte),
  *                        liquidations: resposta de /liquidations | null (painel de liquidações reais) }
@@ -89,6 +91,8 @@ export function createPriceChart(els, handlers = {}) {
 
   // mapa de liquidação estimado (anexado à série principal; reanexado quando ela é recriada)
   const liquidation = new LiquidationOverlay(timeToX);
+  // bolhas das liquidações reais (Coinalyze) nas velas; anexadas à série principal como o mapa
+  const bubbles = new LiquidationBubbles();
 
   // painéis de volume, open interest, long/short e funding (mesmo eixo de tempo)
   const futures = createFuturesPanes(chart, wrap, { mountSettings: handlers.mountPaneSettings });
@@ -189,12 +193,14 @@ export function createPriceChart(els, handlers = {}) {
           });
     if (old) {
       old.detachPrimitive(liquidation);
+      old.detachPrimitive(bubbles);
       old.detachPrimitive(measure.primitive);
       old.detachPrimitive(drawings.primitive);
       chart.removeSeries(old);
     }
     s.markersApi = LWC.createSeriesMarkers(s.series, []);
     s.series.attachPrimitive(liquidation);
+    s.series.attachPrimitive(bubbles);
     s.series.attachPrimitive(measure.primitive);
     s.series.attachPrimitive(drawings.primitive);
     s.priceLines = [];
@@ -517,6 +523,7 @@ export function createPriceChart(els, handlers = {}) {
       summary.textContent = opts.summary || "";
       summary.hidden = !opts.summary;
       liquidation.setData(opts.liquidation || null);
+      bubbles.setData(opts.liquidationBubbles || null);
       // primeiro a altura final do gráfico, depois os painéis (as alturas deles partem dela)
       // (volume, CVD, RSI e MACD, quando ligados + os de futuros ligados, quando há dados + 1 de liquidações reais;
       // RSI e MACD contam 1,5 e 1,3: a altura padrão deles é maior, PANE_DEFAULT_HEIGHTS)
@@ -556,6 +563,7 @@ export function createPriceChart(els, handlers = {}) {
       }
       removeIndicators();
       liquidation.setData(null);
+      bubbles.setData(null);
       measure.clear();
       drawings.setAsset(null);
       futures.remove();

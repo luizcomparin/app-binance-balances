@@ -86,11 +86,11 @@ docs/                      documentação oficial (índice em docs/README.md)
 | Camadas: preços médios projetados e simulador de compra | [grafico-de-preco/simulador-e-projecoes.md](docs/funcionalidades/grafico-de-preco/simulador-e-projecoes.md) | `buySimulator.js` |
 | Camada: faixa estatística (volatilidade) | [grafico-de-preco/faixa-estatistica.md](docs/funcionalidades/grafico-de-preco/faixa-estatistica.md) | `volatility.js` |
 | Camada: comparação com compra mensal fixa (DCA) | [grafico-de-preco/comparacao-dca.md](docs/funcionalidades/grafico-de-preco/comparacao-dca.md) | `dca.js` |
-| Camada: mapa de liquidação estimado | [grafico-de-preco/mapa-de-liquidacao.md](docs/funcionalidades/grafico-de-preco/mapa-de-liquidacao.md) | `services/liquidationMap.js`, `chart/liquidationOverlay.js` |
+| Camada: mapa de liquidação estimado | [grafico-de-preco/mapa-de-liquidacao.md](docs/funcionalidades/grafico-de-preco/mapa-de-liquidacao.md) | `services/liquidationMap.js`, `services/liquidationModel.js`, `chart/liquidationOverlay.js` |
 | Camada: MACD (painel com engrenagem de configurações) | [grafico-de-preco/macd.md](docs/funcionalidades/grafico-de-preco/macd.md) | `chart/macd.js`, `paneSettings.js`, `chart/futuresPanes.js` |
 | Camada: RSI (painel com engrenagem de configurações) | [grafico-de-preco/rsi.md](docs/funcionalidades/grafico-de-preco/rsi.md) | `chart/rsi.js`, `paneSettings.js`, `chart/futuresPanes.js` |
 | Camada: painéis de volume/CVD/OI/long-short/funding | [grafico-de-preco/paineis-de-futuros.md](docs/funcionalidades/grafico-de-preco/paineis-de-futuros.md) | `services/futuresData.js`, `chart/futuresPanes.js`, `chart/cvd.js`, `paneSettings.js` |
-| Camada: liquidações reais (Coinalyze) | [grafico-de-preco/liquidacoes-reais.md](docs/funcionalidades/grafico-de-preco/liquidacoes-reais.md) | `services/liquidations.js` |
+| Camada: liquidações reais (Coinalyze) | [grafico-de-preco/liquidacoes-reais.md](docs/funcionalidades/grafico-de-preco/liquidacoes-reais.md) | `services/liquidations.js`, `chart/liquidationBubbles.js` |
 | Watchlist e seletor de moeda | [grafico-de-preco/watchlist-e-seletor.md](docs/funcionalidades/grafico-de-preco/watchlist-e-seletor.md) | `watchlist.js`, `assetPicker.js` |
 | Abas abaixo do gráfico (ordens abertas, históricos) | [grafico-de-preco/abas-de-ordens.md](docs/funcionalidades/grafico-de-preco/abas-de-ordens.md) | `*Table.js`, `periodFilter.js` |
 | Decisões intencionais (não "corrigir") | [decisoes.md](docs/decisoes.md) | — |

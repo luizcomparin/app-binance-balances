@@ -32,7 +32,7 @@ O modal fecha pelo ×, por clique fora ou por Esc. Ao fechar, o campo do secret 
   - `initSettings()`, chamada em `index.js`, liga os eventos, busca os dois status e **devolve se há chave da Binance**. Sem chave, chama `openSettings()`.
   - `openSettings(section)`: com `section === "coinalyze"`, rola até a seção da Coinalyze e abre o tutorial se ainda não houver chave.
   - `onSubmit` → `saveApiKey(apiKey, apiSecret)` → `renderStatus` + mensagem (com os `warnings`) → `location.reload()`.
-  - `submitCoinalyze(apiKey)` → `saveCoinalyzeKey(apiKey)` (vazio = remover) → `emit(COINALYZE_KEY_CHANGED)`. O gráfico de preço então recarrega o painel de liquidações.
+  - `submitCoinalyze(apiKey)` → `saveCoinalyzeKey(apiKey)` (vazio = remover) → `emit(COINALYZE_KEY_CHANGED)`. O gráfico de preço então recarrega o painel e as bolhas de liquidações e o mapa de liquidação (que passa a ser, ou deixa de ser, ajustado pelas liquidações reais).
 - Ids: `#settings-modal`, `#settings-close`, `#settings-status`, `#settings-form`, `#settings-api-key`, `#settings-api-secret`, `#settings-secret-toggle`, `#settings-message`, `#settings-save`, `#settings-tutorial`, `#settings-coinalyze`, `#settings-coinalyze-status`, `#settings-coinalyze-form`, `#settings-coinalyze-key`, `#settings-coinalyze-message`, `#settings-coinalyze-save`, `#settings-coinalyze-remove`, `#settings-coinalyze-tutorial`.
 
 ## Server
