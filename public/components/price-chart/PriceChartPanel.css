@@ -400,6 +400,42 @@
   color: #e5ecff;
 }
 
+/* engrenagem dentro de um checkbox das Camadas (mapa de liquidação): abre as opções logo abaixo */
+.pc-chip .pc-chip-gear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin: -2px -4px -2px auto;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 5px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.pc-chip .pc-chip-gear:hover,
+.pc-chip .pc-chip-gear[aria-expanded="true"] {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e5ecff;
+}
+
+/* caixa das opções: dentro da lista de Camadas, logo abaixo do checkbox (não flutua como a dos painéis) */
+.pc-layers-pop .fp-settings.pc-chip-settings {
+  position: static;
+  width: auto;
+  margin: -2px 0 4px 12px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: none;
+}
+
+.pc-layers-pop .fp-settings.pc-chip-settings[hidden] {
+  display: none;
+}
+
 /* desabilitada / carregando (spinner no lugar do checkbox) */
 .price-chart-sim-toggle.disabled {
   opacity: 0.5;

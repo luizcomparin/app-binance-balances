@@ -15,7 +15,15 @@ import { initWatchlist } from "./watchlist.js";
 import { buysOf, dcaComparison } from "./dca.js";
 import { initOpenOrdersTable, renderOpenOrdersTable } from "./openOrdersTable.js";
 import { getIndicators, getVolumeAverages, initIndicatorControls } from "./indicatorControls.js";
-import { getCvdSettings, getMacdSettings, getRsiSettings, legacyCvdOn, mountPaneSettings } from "./paneSettings.js";
+import {
+  getCvdSettings,
+  getLiqMapSettings,
+  getMacdSettings,
+  getRsiSettings,
+  legacyCvdOn,
+  mountLiqMapSettings,
+  mountPaneSettings,
+} from "./paneSettings.js";
 import { fetchFuturesData, fetchLiquidationMap, fetchLiquidations } from "../../api/binance.js";
 import { openSettings } from "../settings/SettingsModal.js";
 import { formatUsdShort } from "../../core/format.js";
@@ -313,6 +321,7 @@ function render(extra = {}) {
     macd: view.showMacd ? getMacdSettings() : null,
     summary: chartSummary(),
     liquidation: view.showLiq && view.liq?.available ? view.liq : null,
+    liquidationSettings: getLiqMapSettings(),
     liquidationBubbles: liquidationBubblesForChart(),
     futures: futuresForChart(),
     futuresPanes: futPanesOn(),
@@ -1054,6 +1063,16 @@ export function initPriceChartPanel() {
       render();
     }
     showBubblesMin();
+  });
+
+  // engrenagem do mapa de liquidação: abre/fecha as opções logo abaixo do checkbox (dentro das Camadas)
+  const liqGear = document.getElementById("price-chart-liq-gear");
+  const liqSettings = document.getElementById("price-chart-liq-settings");
+  if (liqSettings) mountLiqMapSettings(liqSettings, () => render());
+  liqGear?.addEventListener("click", (e) => {
+    e.preventDefault(); // o botão fica dentro do <label>: não marcar/desmarcar o checkbox
+    liqSettings.hidden = !liqSettings.hidden;
+    liqGear.setAttribute("aria-expanded", String(!liqSettings.hidden));
   });
 
   const liqInput = document.getElementById("price-chart-liq");

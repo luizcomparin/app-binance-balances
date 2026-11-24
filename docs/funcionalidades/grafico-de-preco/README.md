@@ -46,7 +46,7 @@ Qualquer parte do app abre uma moeda aqui com `window.openPriceChart(asset)`.
 | `dca.js` | Comparação com compra mensal fixa | [comparacao-dca](comparacao-dca.md) |
 | `chart/liquidationOverlay.js` | Mapa de liquidação desenhado | [mapa-de-liquidacao](mapa-de-liquidacao.md) |
 | `chart/liquidationBubbles.js` | Bolhas das liquidações reais sobre as velas | [liquidacoes-reais](liquidacoes-reais.md) |
-| `chart/futuresPanes.js`, `chart/cvd.js`, `paneSettings.js` | Painéis de volume, CVD/Delta, RSI, MACD, OI, L/S, funding e liquidações (engrenagem de configurações no volume, no CVD, no RSI e no MACD) | [paineis-de-futuros](paineis-de-futuros.md), [liquidacoes-reais](liquidacoes-reais.md), [rsi](rsi.md), [macd](macd.md) |
+| `chart/futuresPanes.js`, `chart/cvd.js`, `paneSettings.js` | Painéis de volume, CVD/Delta, RSI, MACD, OI, L/S, funding e liquidações (engrenagem de configurações no volume, no CVD, no RSI e no MACD; `paneSettings.js` também tem o formulário da engrenagem do mapa de liquidação) | [paineis-de-futuros](paineis-de-futuros.md), [liquidacoes-reais](liquidacoes-reais.md), [rsi](rsi.md), [macd](macd.md), [mapa-de-liquidacao](mapa-de-liquidacao.md) |
 | `chart/rsi.js` | Cálculo do RSI e limites das configurações | [rsi](rsi.md) |
 | `chart/macd.js` | Cálculo do MACD, tons do histograma e limites das configurações | [macd](macd.md) |
 | `watchlist.js`, `assetPicker.js` | Lista lateral e seletor do título | [watchlist-e-seletor](watchlist-e-seletor.md) |

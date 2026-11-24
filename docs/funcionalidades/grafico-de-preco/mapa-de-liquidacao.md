@@ -1,17 +1,29 @@
 ---
 titulo: Mapa de liquidação estimado
 resumo: Camada que estima, a partir de 30 dias de open interest e razões long/short dos futuros da Binance, onde ainda haveria liquidações; desenhada como mapa de calor + perfil à direita. Com a chave da Coinalyze, é calibrada pelas liquidações reais da Binance (valores e divisão por alavancagem). É estimativa, não dado real.
-arquivos: [server/services/liquidationMap.js, server/services/liquidationModel.js, server/binance/futures.js, public/components/price-chart/chart/liquidationOverlay.js, public/components/price-chart/PriceChartPanel.js, public/components/price-chart/chart/createChart.js]
+arquivos: [server/services/liquidationMap.js, server/services/liquidationModel.js, server/binance/futures.js, public/components/price-chart/chart/liquidationOverlay.js, public/components/price-chart/PriceChartPanel.js, public/components/price-chart/PriceChartPanel.html, public/components/price-chart/PriceChartPanel.css, public/components/price-chart/paneSettings.js, public/components/price-chart/chart/createChart.js]
 rotas: [GET /liquidation-map/:asset]
 eventos: [COINALYZE_KEY_CHANGED]
-storage: [priceChartLiquidation]
+storage: [priceChartLiquidation, priceChartLiqMapSettings]
 ---
 
 # Mapa de liquidação estimado
 
 ## O que faz
 
-Checkbox `#price-chart-liq`.
+Checkbox `#price-chart-liq`. A engrenagem no próprio checkbox (`#price-chart-liq-gear`) abre as opções logo abaixo dele, dentro das Camadas (`#price-chart-liq-settings`):
+
+| Opção | Padrão | O que faz |
+|---|---|---|
+| Mostrar | Longs e shorts | Só longs (abaixo do preço) ou só shorts (acima), no mapa, no perfil e nos rótulos |
+| Faixas já liquidadas (histórico) | ligado | Desligado: só os níveis ainda pendentes, sem o rastro do que já foi liquidado ou mudou |
+| Esconder fracas | 6% | Faixas abaixo dessa fração do percentil 98 não são desenhadas (0 a 50%) |
+| Opacidade | 100% | Transparência do mapa e do perfil (10 a 100%) |
+| Cor fraca / Cor forte | roxo `#5032a0` / amarelo `#ffd200` | Escala do mapa de calor; a cor forte também pinta os rótulos |
+| Perfil à direita | ligado | Barras do que está pendente na borda direita |
+| Rótulos | 3 por lado | Valor das maiores concentrações acima e abaixo do preço: nenhum, 1, 3 ou 5 |
+
+As opções valem para todas as moedas e ficam salvas em `priceChartLiqMapSettings`. Os padrões reproduzem o desenho de antes das opções.
 
 - **Mapa de calor sobre o preço:** cada nível estimado é uma faixa horizontal, desde quando as posições foram abertas até o preço passar por ele (liquidadas) ou até agora. A cor vai de roxo apagado (pouco dinheiro) a amarelo forte (muito).
 - **Perfil à direita:** o volume pendente por nível visível, com rótulos nas 3 maiores concentrações acima e abaixo do preço.
@@ -59,7 +71,8 @@ O formato da resposta está em [api.md](../../referencia/api.md#get-liquidation-
 ## Página
 
 - `PriceChartPanel.loadLiquidation(asset)` tem cache de 2 min por moeda (`liqCache`) e `renderLiq()` preenche a caixa (as linhas do ajuste vêm de `calibrationText()` e `leverageText()`). `COINALYZE_KEY_CHANGED` → `reloadLiquidations()` limpa o `liqCache` e recarrega o mapa. O `render()` passa `liquidation` só com `available`.
-- `chart/liquidationOverlay.js` → `LiquidationOverlay`, um primitive anexado à série principal com `zOrder: "bottom"`. Recebe `timeToX(ms)` do `createChart`, que interpola dentro da vela porque o mapa é horário e o gráfico pode estar em D. A intensidade é normalizada pelo **percentil 98**, e abaixo de 6% a faixa não é desenhada.
+- `chart/liquidationOverlay.js` → `LiquidationOverlay`, um primitive anexado à série principal com `zOrder: "bottom"`. Recebe `timeToX(ms)` do `createChart`, que interpola dentro da vela porque o mapa é horário e o gráfico pode estar em D. A intensidade é normalizada pelo **percentil 98** dos trechos desenhados (depois dos filtros de lado e histórico), e abaixo de "Esconder fracas" a faixa não é desenhada. `setData(data, settings)` recebe as opções (`LIQ_MAP_DEFAULT` e `normalizeLiqMapSettings`, testadas em `test/public/liquidationOverlay.test.js`); o `render()` passa `liquidationSettings: getLiqMapSettings()`.
+- O formulário da engrenagem é `paneSettings.mountLiqMapSettings` (os mesmos campos `data-k` das engrenagens de RSI e MACD). O botão fica dentro do `<label>` do checkbox, e o clique nele não marca nem desmarca a camada.
 - Os rótulos de valor usam `formatUsdShort` (≈ "100,6M"), de `core/format.js`.
 
 ## Como verificar
@@ -70,3 +83,4 @@ O formato da resposta está em [api.md](../../referencia/api.md#get-liquidation-
 4. Com a chave, a caixa mostra a linha "Alavancagem": a divisão usada e o acerto fora do ajuste.
 5. Salve ou remova a chave nas Configurações: o mapa recarrega e as linhas do ajuste mudam.
 6. Ligue as **Bolhas de liquidações (reais)** junto: as bolhas grandes devem cair perto das faixas amarelas que somem.
+7. Clique na engrenagem do checkbox: as opções abrem logo abaixo, sem desligar o mapa. Escolha "Só shorts (acima)", desligue o histórico e suba "Esconder fracas": ficam só as faixas pendentes acima do preço. Recarregue a página: as opções continuam.

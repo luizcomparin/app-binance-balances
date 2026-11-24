@@ -7,13 +7,17 @@
 //           (campos e limites em chart/rsi.js → RSI_DEFAULT e normalizeRsiSettings)
 //   MACD:   médias rápida/lenta/sinal e tipos, cores das linhas e do histograma
 //           (campos e limites em chart/macd.js → MACD_DEFAULT e normalizeMacdSettings)
+// Também o formulário da engrenagem do Mapa de liquidação (camada, não painel): lados, histórico, faixas
+// fracas, opacidade, cores, perfil e rótulos (chart/liquidationOverlay.js → LIQ_MAP_DEFAULT).
 import { normalizeRsiSettings } from "./chart/rsi.js";
 import { normalizeMacdSettings } from "./chart/macd.js";
+import { normalizeLiqMapSettings } from "./chart/liquidationOverlay.js";
 import { clampOpacity, handleColorClick, initVolumeAverageControls, watchColorPickerClose } from "./indicatorControls.js";
 
 const CVD_STORAGE_KEY = "priceChartCvd";
 const RSI_STORAGE_KEY = "priceChartRsi";
 const MACD_STORAGE_KEY = "priceChartMacd";
+const LIQMAP_STORAGE_KEY = "priceChartLiqMapSettings";
 const LEGACY_INDICATORS_KEY = "priceChartIndicators"; // o CVD já foi um item da lista de indicadores
 const CVD_DEFAULT = { type: "CVD", color: "#4dd4ff", opacity: 1 };
 
@@ -113,11 +117,11 @@ function fieldBuilders(values) {
       `<input type="number" data-k="${k}" min="${min}" max="${max}" step="1" value="${values[k]}" title="${title}" />`,
     color: (k, title) =>
       `<input type="color" class="pcm-color" data-k="${k}" value="${values[k]}" title="${title} (clique de novo para fechar)" />`,
-    range: (k, label) => {
+    range: (k, label, min = 5, max = 100, step = 5) => {
       const pct = Math.round(values[k] * 100);
       return `<label class="pcm-opacity-row">
         <span>${label}</span>
-        <input type="range" class="pcm-opacity" data-k="${k}" min="5" max="100" step="5" value="${pct}" />
+        <input type="range" class="pcm-opacity" data-k="${k}" min="${min}" max="${max}" step="${step}" value="${pct}" />
         <b class="pcm-opacity-value">${pct}%</b>
       </label>`;
     },
@@ -247,6 +251,37 @@ function mountMacd(el, onChange) {
     writeSettings(MACD_STORAGE_KEY, macdSettings);
     onChange();
     return macdSettings;
+  });
+}
+
+// ---- Mapa de liquidação (engrenagem do checkbox nas Camadas) ----
+
+let liqMapSettings = readSettings(LIQMAP_STORAGE_KEY, normalizeLiqMapSettings);
+
+/** opções do desenho do mapa de liquidação (chart/liquidationOverlay.js → LIQ_MAP_DEFAULT) */
+export const getLiqMapSettings = () => liqMapSettings;
+
+function liqMapHtml() {
+  const { color, range, select, check } = fieldBuilders(liqMapSettings);
+  return `<div class="price-chart-mas fps-form">
+      <label class="pcm-field"><span>Mostrar</span>${select("sides", [["both", "Longs e shorts"], ["long", "Só longs (abaixo)"], ["short", "Só shorts (acima)"]], "Quais posições estimadas aparecem no mapa e no perfil")}</label>
+      ${check("history", "Faixas já liquidadas (histórico)", "Desligado: só os níveis que ainda estão pendentes, sem o rastro do que já foi liquidado ou mudou")}
+      ${range("minIntensity", "Esconder fracas", 0, 50, 2)}
+      ${range("opacity", "Opacidade", 10, 100, 5)}
+      <label class="pcm-field fps-color-field"><span>Cor fraca</span>${color("lowColor", "Cor das faixas com pouco dinheiro")}</label>
+      <label class="pcm-field fps-color-field"><span>Cor forte</span>${color("highColor", "Cor das faixas com muito dinheiro (e dos rótulos)")}</label>
+      ${check("profile", "Perfil à direita", "Barras com o que ainda está pendente em cada nível, na borda direita do gráfico")}
+      <label class="pcm-field"><span>Rótulos</span>${select("labels", [[0, "Nenhum"], [1, "1 por lado"], [3, "3 por lado"], [5, "5 por lado"]], "Valor das maiores concentrações acima e abaixo do preço")}</label>
+    </div>`;
+}
+
+/** Preenche a caixa da engrenagem do mapa de liquidação; onChange() a cada mudança */
+export function mountLiqMapSettings(el, onChange) {
+  mountKeyedForm(el, liqMapHtml(), (changes) => {
+    liqMapSettings = normalizeLiqMapSettings({ ...liqMapSettings, ...changes });
+    writeSettings(LIQMAP_STORAGE_KEY, liqMapSettings);
+    onChange();
+    return liqMapSettings;
   });
 }
 
