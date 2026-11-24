@@ -12,6 +12,8 @@ export const PNL_QUOTES = ["USDT", "FDUSD", "USDC", "BUSD", "BRL", "BTC", "ETH",
 export const USD_STABLES = new Set(["USDT", "FDUSD", "USDC", "BUSD"]);
 // Ativos para os quais não faz sentido calcular P&L
 const NO_PNL_ASSETS = new Set([...USD_STABLES, "BRL"]);
+// Ativos sem P&L cujos trades ainda assim são carregados (pares em que são a base, ex.: USDTBRL)
+const TRADES_ONLY_ASSETS = ["USDT"];
 
 // ---------------------------------------------------------------------------
 // Cotação diária histórica (fechamento 1d) de um ativo em USDT, para converter
@@ -91,8 +93,11 @@ async function fetchTradeHistory() {
 		}
 	}
 
-	const jobs = holdings.flatMap((h) =>
-		(symbolsByAsset[h.asset] || []).map((symbol) => ({ asset: h.asset, symbol }))
+	// USDT fica fora do P&L, mas os trades dele (par USDTBRL) entram no histórico: aparecem em Ordens
+	// Executadas e no gráfico USDT/BRL
+	const tradedAssets = [...holdings.map((h) => h.asset), ...TRADES_ONLY_ASSETS];
+	const jobs = tradedAssets.flatMap((asset) =>
+		(symbolsByAsset[asset] || []).map((symbol) => ({ asset, symbol }))
 	);
 
 	const errors = [];

@@ -62,11 +62,11 @@ JSON cru de `/api/v3/account` (saldos, permissões…). Não é usada pela pági
 
 ### `GET /balances`
 ```js
-{ total_usdt, usdt_brl_price | null, change_24h_usdt, change_24h_pct | null,
+{ total_usdt, usdt_brl_price | null, usdt_brl_change_24h_pct | null, change_24h_usdt, change_24h_pct | null,
   assets: [{ asset, qty, priceUSDT, freeUSDT, lockedUSDT, totalUSDT, change24hPct, change24hUSDT, pct }], // ordenado por pct desc
   unpriced: [{ asset, qty }] }   // sem cotação: fora do total
 ```
-Note o **snake_case** no nível de cima e o camelCase dentro de `assets`. Veja [carteira-e-cards](../funcionalidades/carteira-e-cards.md).
+`usdt_brl_change_24h_pct` é a variação de 24h do par USDT/BRL (watchlist do gráfico de preço). Note o **snake_case** no nível de cima e o camelCase dentro de `assets`. Veja [carteira-e-cards](../funcionalidades/carteira-e-cards.md).
 
 ### `GET /positions`
 ```js
@@ -103,9 +103,9 @@ Parâmetros:
 - `interval=1h|4h|1d|1w|1M`, com `limit` opcional de 1 a 1000 (padrão 1000) e `before=<ms>` opcional (velas que terminam antes desse instante). Qualquer outro `interval` dá `400 "Intervalo inválido"`.
 - Compatibilidade: sem `interval`, `range=7d|30d|90d|1y|all` ou `<n>d|<n>m|<n>y` escolhe a vela. Com `before`, devolve 500 velas.
 
-Resposta: `{ asset, symbol, interval, points: [{ time, open, high, low, close, volume, buyVolume }] }`. O volume vem em USDT. `buyVolume` é a parte do volume que veio de compras agressivas da moeda (o *taker buy*), também em USDT, e alimenta o indicador CVD/Delta. No par invertido, vale `volume − USDT comprado`. Para moeda só com par `USDT<asset>`, o preço é invertido.
+Resposta: `{ asset, symbol, quote, interval, points: [{ time, open, high, low, close, volume, buyVolume }] }`. `quote` é a moeda dos preços: `"USDT"` ou, para `asset = USDT`, `"BRL"` (par `USDTBRL` como na Binance, sem inverter). O volume vem em USDT. `buyVolume` é a parte do volume que veio de compras agressivas da moeda (o *taker buy*), também em USDT, e alimenta o indicador CVD/Delta. No par invertido, vale `volume − USDT comprado`. Para moeda só com par `USDT<asset>`, o preço é invertido.
 
-Erro quando não existe par: `500 "Não existe par X/USDT na Binance"`. Veja [velas-e-timeframe](../funcionalidades/grafico-de-preco/velas-e-timeframe.md).
+Erro quando não existe par: `500 "Não existe par X/USDT na Binance"` (ou `"Não existe par USDT/BRL na Binance"`). Veja [velas-e-timeframe](../funcionalidades/grafico-de-preco/velas-e-timeframe.md).
 
 ### `GET /liquidation-map/:asset`
 `{ available: true, asset, symbol, multiplier, price, bucket, from, hours, ratios: { globalLongAccount, topLongPosition }, levels: [{ price, long, short }], segments: [{ p, s: "L"|"S", f, t|null, u }], calibration, leverage, model, generatedAt }`.

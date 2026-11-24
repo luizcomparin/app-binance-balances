@@ -50,6 +50,7 @@ Qualquer parte do app abre uma moeda aqui com `window.openPriceChart(asset)`.
 | `chart/rsi.js` | Cálculo do RSI e limites das configurações | [rsi](rsi.md) |
 | `chart/macd.js` | Cálculo do MACD, tons do histograma e limites das configurações | [macd](macd.md) |
 | `watchlist.js`, `assetPicker.js` | Lista lateral e seletor do título | [watchlist-e-seletor](watchlist-e-seletor.md) |
+| `chartQuote.js` | Cotação do gráfico: USDT em USDT/BRL, demais em USDT (`quoteOf`, `pairLabel`, preço das ordens na cotação do gráfico) | [watchlist-e-seletor](watchlist-e-seletor.md) |
 | `openOrdersTable.js`, `orderHistoryTable.js`, `tradeHistoryTable.js`, `periodFilter.js`, `loadError.js` | Abas abaixo do gráfico | [abas-de-ordens](abas-de-ordens.md) |
 | `PriceChartPanel.css`, `chart/chart.css` | Estilos do painel e do que é desenhado por cima do canvas (tooltip, títulos dos painéis, barra de desenho…) | — |
 

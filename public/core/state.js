@@ -1,6 +1,7 @@
 ﻿export const state = {
   currentAssets: [],
   usdtBrlPrice: 0,
+  usdtBrlChange24hPct: null, // variação de 24h do par USDT/BRL (watchlist do gráfico de preço)
   positions: {},
   positionsTotals: null,
   positionsLoading: false,

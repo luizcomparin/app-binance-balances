@@ -13,6 +13,7 @@ import { avgAfterBuys, avgAfterSells, initBuySimulator, setSimContext, updateSim
 import { initAssetPicker } from "./assetPicker.js";
 import { initWatchlist } from "./watchlist.js";
 import { buysOf, dcaComparison } from "./dca.js";
+import { chartAssetOf, executedTotalOnChart, pairLabel, quoteOf } from "./chartQuote.js";
 import { initOpenOrdersTable, renderOpenOrdersTable } from "./openOrdersTable.js";
 import { getIndicators, getVolumeAverages, initIndicatorControls } from "./indicatorControls.js";
 import {
@@ -279,7 +280,7 @@ function updateProjectedAvailability() {
 // render
 // ---------------------------------------------------------------------------
 
-// resumo no canto do gráfico: "BTC/USDT · 4h · 30 dias"
+// resumo no canto do gráfico: "BTC/USDT · 4h · 30 dias" (o USDT é visto em USDT/BRL)
 const INTERVAL_LABELS = { "1h": "1h", "4h": "4h", "1d": "Diário", "1w": "Semanal", "1M": "Mensal" };
 const RANGE_LABELS = { "7d": "7 dias", "30d": "30 dias", "90d": "90 dias", "6m": "6 meses", "1y": "1 ano", "2y": "2 anos", all: "Tudo" };
 
@@ -295,7 +296,7 @@ function customRangeLabel(range) {
 function chartSummary() {
   if (!view.asset) return "";
   const range = RANGE_LABELS[view.range] || customRangeLabel(view.range);
-  return [`${view.asset}/USDT`, INTERVAL_LABELS[view.interval] || view.interval, range].filter(Boolean).join(" · ");
+  return [pairLabel(view.asset), INTERVAL_LABELS[view.interval] || view.interval, range].filter(Boolean).join(" · ");
 }
 
 // a aba do gráfico está na tela? (fora dela, o que mudar é redesenhado ao voltar)
@@ -417,7 +418,10 @@ async function loadDca(asset) {
   view.dca = undefined;
   renderDca();
   try {
-    const buys = buysOf(await loadMyOrders(), asset);
+    // total de cada compra na cotação do gráfico (BRL no USDT/BRL), a mesma das velas diárias
+    const buys = buysOf(await loadMyOrders(), asset)
+      .map((o) => ({ ...o, totalUSDT: executedTotalOnChart(asset, o, state.usdtBrlPrice) }))
+      .filter((o) => o.totalUSDT > 0);
     let daily = [];
     if (buys.length) {
       const start = Math.min(...buys.map((o) => o.time));
@@ -451,7 +455,7 @@ function renderDca() {
   const date = (ms) => new Date(ms).toLocaleDateString("pt-BR");
   // quantidade comparável: 4 dígitos significativos abaixo de 1, 2 casas acima
   const qty = (v) => v.toLocaleString("pt-BR", v >= 1 ? { maximumFractionDigits: 2 } : { maximumSignificantDigits: 4 });
-  const usdt = (v) => `${v.toFixed(2).formatCurrency()} USDT`;
+  const usdt = (v) => `${v.toFixed(2).formatCurrency()} ${quoteOf(view.asset)}`;
   const note =
     '<p class="stats-disclaimer">Considera só as suas compras executadas (vendas ficam de fora), com parcelas mensais iguais entre a primeira e a última compra, pelo fechamento diário de cada data.</p>';
 
@@ -1297,6 +1301,7 @@ function openInitialAsset(balancesLoaded = false) {
 }
 
 export function openPriceChart(asset) {
+  asset = chartAssetOf(asset); // BRL abre no USDT/BRL
   view.asset = asset;
   writeStored(ASSET_STORAGE_KEY, asset);
   showTab(PANEL_TAB); // com view.asset já definido, a aba não abre a moeda padrão por cima
@@ -1312,7 +1317,7 @@ export function openPriceChart(asset) {
   if (view.showLiq) loadLiquidation(asset);
   else renderLiq();
 
-  document.getElementById("price-chart-title").innerText = `${asset} / USDT`;
+  document.getElementById("price-chart-title").innerText = pairLabel(asset, " / ");
   watchlist?.refresh(); // destaca a moeda aberta
   setSimContext({ asset, lastPrice: null });
   chart?.clear(); // não mostrar (esmaecido) o gráfico da moeda anterior
@@ -1489,10 +1494,11 @@ function renderInfo() {
   const tip = (label, help) => `<span class="help-tip" data-tip="${help}">${label}</span>`;
   const avgSell = state.positions?.[view.asset]?.avgSellPriceUSDT ?? null;
   const avgLabel = tip("Preço médio dinâmico de compra", INFO_HELP.avg);
-  const blocks = [stat("Preço atual", `${big(lastPrice)} <small>USDT</small>`)];
+  const quote = quoteOf(view.asset);
+  const blocks = [stat("Preço atual", `${big(lastPrice)} <small>${quote}</small>`)];
   if (avg !== null) {
     const diff = ((lastPrice - avg) / avg) * 100;
-    blocks.push(stat(avgLabel, `${big(avg)} <small>USDT</small>`));
+    blocks.push(stat(avgLabel, `${big(avg)} <small>${quote}</small>`));
     // quanto o preço precisa andar para voltar ao preço médio (no prejuízo: alta; no lucro: queda)
     const back = (avg / lastPrice - 1) * 100;
     const pct = (v) => `<span class="${v >= 0 ? "pnl-pos" : "pnl-neg"}">${v >= 0 ? "+" : ""}${v.toFixed(2).formatCurrency()}%</span>`;
@@ -1506,7 +1512,7 @@ function renderInfo() {
     blocks.push(stat(avgLabel, `<span class="pc-stat-pending"><span class="mini-spinner"></span> calculando...</span>`));
   }
   if (avgSell !== null) {
-    blocks.push(stat(tip("Preço médio dinâmico de venda", INFO_HELP.avgSell), `${big(avgSell)} <small>USDT</small>`));
+    blocks.push(stat(tip("Preço médio dinâmico de venda", INFO_HELP.avgSell), `${big(avgSell)} <small>${quote}</small>`));
   }
   info.innerHTML = blocks.join("");
 }

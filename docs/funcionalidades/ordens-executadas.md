@@ -34,7 +34,7 @@ A aba `data-tab="executed"` (URL `/site/ordens-executadas`) tem:
 
 `GET /executed-orders` → `services/executedOrders.js` `buildExecutedOrders()`:
 
-1. `loadTradeHistory()`: o **mesmo** histórico do P&L (ver [saldos-e-pnl](saldos-e-pnl.md)).
+1. `loadTradeHistory()`: o **mesmo** histórico do P&L (ver [saldos-e-pnl](saldos-e-pnl.md)). Inclui também os trades do USDT como base (par `USDTBRL`, `TRADES_ONLY_ASSETS` em `tradeHistory.js`), que ficam fora do P&L.
 2. Agrupa os trades por `symbol:orderId` e soma `qty`, `quoteQty`, `totalUSDT` (convertido na data de cada fill), `fees` por moeda, `feeUSDT` e `fills`. `time` = último fill.
 3. Uma taxa paga na própria moeda base é convertida por `commission × preço do fill × cotação`.
 4. `avgPrice = quoteQty / qty`. A ordenação é por `time` desc.

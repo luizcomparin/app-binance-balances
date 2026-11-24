@@ -1,4 +1,5 @@
-// Gráfico de preço (rota /price-chart/:asset): velas OHLC em USDT, por tamanho de vela ou por período.
+// Gráfico de preço (rota /price-chart/:asset): velas OHLC em USDT (o USDT em BRL: par USDTBRL), por tamanho de
+// vela ou por período.
 import { cached } from "../lib/cache.js";
 import { publicGet } from "../binance/client.js";
 import { getAllPrices } from "../binance/market.js";
@@ -40,6 +41,9 @@ function parseCustomRange(range) {
 // Tamanhos de vela aceitos explicitamente (todos existem na Binance)
 export const CHART_INTERVALS = new Set(["1h", "4h", "1d", "1w", "1M"]);
 
+// Par do gráfico do USDT: visto em reais, como na Binance
+const USDT_CHART_SYMBOL = "USDTBRL";
+
 // Página de velas anteriores (histórico carregado ao arrastar o gráfico para o passado)
 const OLDER_PAGE_LIMIT = 500;
 
@@ -56,7 +60,12 @@ export async function buildPriceChart(asset, { range = "30d", interval = null, l
 
 	let symbol = `${asset}USDT`;
 	let inverted = false;
-	if (!prices[symbol]) {
+	// USDT é visto como USDT/BRL, o par como existe na Binance (preço do dólar em reais, sem inverter)
+	const usdtQuoted = asset === "USDT";
+	if (usdtQuoted) {
+		symbol = USDT_CHART_SYMBOL;
+		if (!prices[symbol]) throw new Error("Não existe par USDT/BRL na Binance");
+	} else if (!prices[symbol]) {
 		if (!prices[`USDT${asset}`]) throw new Error(`Não existe par ${asset}/USDT na Binance`);
 		symbol = `USDT${asset}`;
 		inverted = true;
@@ -70,14 +79,21 @@ export async function buildPriceChart(asset, { range = "30d", interval = null, l
 		return {
 			asset,
 			symbol,
+			quote: usdtQuoted ? "BRL" : "USDT",
 			interval: config.interval,
 			points: rows.map((k) => {
 				const [open, high, low, close] = [k[1], k[2], k[3], k[4]].map(Number);
-				// volume negociado em USDT: volume da moeda de cotação (k[7]); no par invertido o USDT é a base (k[5])
-				const volume = Number(inverted ? k[5] : k[7]) || 0;
+				// volume negociado em USDT: volume da moeda de cotação (k[7]); no par invertido e no USDT/BRL o USDT
+				// é a base (k[5])
+				const volume = Number(inverted || usdtQuoted ? k[5] : k[7]) || 0;
 				// volume das compras agressivas (a mercado) da moeda, em USDT (indicador CVD/Delta): é o "taker buy"
-				// da cotação (k[10]); no par invertido, comprar USDT é vender a moeda, então é o resto do volume (k[9] = USDT comprado)
-				const buyVolume = inverted ? Math.max(0, volume - (Number(k[9]) || 0)) : Number(k[10]) || 0;
+				// da cotação (k[10]); no par invertido, comprar USDT é vender a moeda, então é o resto do volume (k[9] = USDT comprado);
+				// no USDT/BRL a moeda é o próprio USDT (k[9])
+				const buyVolume = usdtQuoted
+					? Number(k[9]) || 0
+					: inverted
+						? Math.max(0, volume - (Number(k[9]) || 0))
+						: Number(k[10]) || 0;
 				if (!inverted) return { time: k[0], open, high, low, close, volume, buyVolume };
 				// par invertido (USDT/X): 1/preço — máxima e mínima trocam de lugar
 				const inv = (v) => (v ? 1 / v : 0);

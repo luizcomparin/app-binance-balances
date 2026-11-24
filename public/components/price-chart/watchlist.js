@@ -5,6 +5,7 @@
 // na bolinha tira a cor.
 import { state } from "../../core/state.js";
 import { formatPrice, formatSigned, signClass } from "../../core/format.js";
+import { pairLabel, quoteOf } from "./chartQuote.js";
 
 const ORDER_KEY = "priceChartWatchlistOrder";
 const OPEN_KEY = "priceChartWatchlistOpen";
@@ -49,9 +50,22 @@ function readColors() {
 let order = readOrder();
 let colors = readColors();
 
-/** Moedas da lista na ordem definida (salva; as novas no fim por valor em carteira). Sem o USDT. */
+// Entrada do USDT/BRL: preço do USDT em reais e variação de 24h do par; participação e valor em carteira
+// vêm do saldo de USDT (ou do de BRL, se não houver USDT). Sem cotação USDT/BRL, não entra.
+function usdtBrlEntry() {
+  if (!state.usdtBrlPrice) return null;
+  const holding = state.currentAssets.find((a) => a.asset === "USDT") || state.currentAssets.find((a) => a.asset === "BRL");
+  if (!holding) return null;
+  return { ...holding, asset: "USDT", priceUSDT: state.usdtBrlPrice, change24hPct: state.usdtBrlChange24hPct };
+}
+
+/**
+ * Moedas da lista na ordem definida (salva; as novas no fim por valor em carteira). O USDT entra como
+ * USDT/BRL (no lugar do BRL/USDT); priceUSDT de cada item = preço na cotação do gráfico dele.
+ */
 export function watchlistAssets() {
-  const assets = state.currentAssets.filter((a) => a.asset !== "USDT");
+  const usdt = usdtBrlEntry();
+  const assets = [...state.currentAssets.filter((a) => a.asset !== "USDT" && a.asset !== "BRL"), ...(usdt ? [usdt] : [])];
   const byAsset = new Map(assets.map((a) => [a.asset, a]));
   const saved = order.filter((s) => byAsset.has(s)).map((s) => byAsset.get(s));
   const rest = assets.filter((a) => !order.includes(a.asset)).sort((a, b) => b.totalUSDT - a.totalUSDT);
@@ -88,12 +102,12 @@ export function initWatchlist({ getCurrent, onSelect }) {
         const color = colors[a.asset];
         return `
           <li class="wl-item${a.asset === current ? " current" : ""}" draggable="true" data-asset="${a.asset}"
-              title="Abrir ${a.asset}/USDT · arraste para reorganizar">
+              title="Abrir ${pairLabel(a.asset)} · arraste para reorganizar">
             <label class="wl-flag${color ? " has-color" : ""}"${color ? ` style="--flag: ${color}"` : ""}
                    title="Cor de indicação (botão direito tira a cor)">
               <input type="color" class="wl-color" value="${color || DEFAULT_PICK}" aria-label="Cor de indicação de ${a.asset}" />
             </label>
-            <span class="wl-symbol">${a.asset}<span class="wl-quote">USDT</span></span>
+            <span class="wl-symbol">${a.asset}<span class="wl-quote">${quoteOf(a.asset)}</span></span>
             <span class="wl-price">${formatPrice(a.priceUSDT)}</span>
             <span class="wl-change ${signClass(a.change24hPct)}">${change}</span>
           </li>`;

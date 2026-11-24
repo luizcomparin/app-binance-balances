@@ -21,6 +21,7 @@ import { createMeasureTool } from "./measureTool.js";
 import { createDrawings } from "./drawings.js";
 import { createDrawingToolbar } from "./drawingToolbar.js";
 import { candleTooltipHtml, createTooltip, lineHelpTooltipHtml, ordersTooltipHtml, simTooltipHtml } from "./tooltip.js";
+import { quoteOf } from "../chartQuote.js";
 
 const LWC = window.LightweightCharts;
 
@@ -491,7 +492,7 @@ export function createPriceChart(els, handlers = {}) {
 
     // senão → a vela sob o mouse
     const title = formatChartTime(param.time, INTRADAY.has(s.interval));
-    tooltip.show(param.point, candleTooltipHtml(title, s.points[idx], s.mode === "candle", atCandle));
+    tooltip.show(param.point, candleTooltipHtml(title, s.points[idx], s.mode === "candle", atCandle, quoteOf(s.opts.asset)));
   });
 
   // ---------------------------------------------------------------------------

@@ -22,11 +22,12 @@ storage: [priceChartMode, priceChartRange, priceChartInterval]
 
 `GET /price-chart/:asset` → `services/priceChart.js` `buildPriceChart(asset, { range, interval, limit, before })`:
 
-- Escolhe o símbolo `<asset>USDT`. Se não existir, usa `USDT<asset>` (**invertido**: `1/preço`, com máxima e mínima trocadas). Se nenhum existir, lança `"Não existe par X/USDT na Binance"`.
+- **USDT** usa o par `USDTBRL` como está na Binance (preço do dólar em reais, sem inverter) e devolve `quote: "BRL"`. É o gráfico "USDT / BRL"; o BRL abre nele (ver [watchlist-e-seletor](watchlist-e-seletor.md)).
+- As demais moedas usam o símbolo `<asset>USDT` (`quote: "USDT"`). Se não existir, usa `USDT<asset>` (**invertido**: `1/preço`, com máxima e mínima trocadas). Se nenhum existir, lança `"Não existe par X/USDT na Binance"`.
 - Com `interval` explícito (o caso usado pelo front): `/api/v3/klines?symbol&interval&limit&endTime=before-1`.
 - Modo compatível por `range`: `CHART_RANGES` (`7d, 30d, 90d, 1y, all`) ou personalizado `<n>[dmy]`, com até cerca de 500 pontos. Com `before`, 500 por página.
-- Volume em USDT: `k[7]` (volume na moeda de cotação) ou, no par invertido, `k[5]`.
-- `buyVolume` (compras agressivas, em USDT, para o CVD/Delta): `k[10]` (*taker buy* na cotação) ou, no par invertido, `volume − k[9]`.
+- Volume em USDT: `k[7]` (volume na moeda de cotação) ou, no par invertido e no USDT/BRL, `k[5]`.
+- `buyVolume` (compras agressivas, em USDT, para o CVD/Delta): `k[10]` (*taker buy* na cotação); no par invertido, `volume − k[9]`; no USDT/BRL, `k[9]` (USDT comprado).
 - Cache de 60 s por `símbolo:intervalo:limite:before`.
 
 ## Página

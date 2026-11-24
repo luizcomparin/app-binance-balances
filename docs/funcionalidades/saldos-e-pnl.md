@@ -71,6 +71,7 @@ qty < 1e-12 → qty = cost = 0
 - A **primeira** carga pode levar vários segundos (centenas de `myTrades`). Por isso o P&L chega depois dos saldos.
 - Trades em cotações fora de `PNL_QUOTES` (EUR, TRY…), Convert, P2P e Earn **não entram**.
 - Moeda zerada não aparece (só as holdings atuais).
+- USDT e BRL não têm P&L. Os trades do USDT (par `USDTBRL`) são carregados mesmo assim (`TRADES_ONLY_ASSETS`), só para Ordens Executadas e o gráfico USDT/BRL; eles não viram posição.
 - Sem histórico diário de uma moeda de cotação, a conversão cai para o preço **atual**, o que distorce trades antigos em BRL/BTC.
 
 ## Checklist ao alterar

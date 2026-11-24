@@ -17,6 +17,7 @@ export async function buildWalletData() {
 	);
 
 	const usdtBrlPrice = Number(allPrices.USDTBRL || 0);
+	const usdtBrlOpen = Number(openPrices.USDTBRL || 0);
 
 	const rows = [];
 	const unpriced = [];
@@ -71,6 +72,8 @@ export async function buildWalletData() {
 	return {
 		total_usdt: totalWalletUSDT,
 		usdt_brl_price: usdtBrlPrice || null,
+		// variação de 24h do par USDT/BRL (gráfico de preço)
+		usdt_brl_change_24h_pct: usdtBrlPrice && usdtBrlOpen ? (usdtBrlPrice / usdtBrlOpen - 1) * 100 : null,
 		change_24h_usdt: change24hUSDT,
 		change_24h_pct: value24hAgo ? (change24hUSDT / value24hAgo) * 100 : null,
 		assets: sortByPercentage(processed),

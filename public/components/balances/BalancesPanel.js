@@ -55,6 +55,7 @@ export async function loadBalances() {
     const data = await fetchBalances(); // erro da API vira exceção (getJson)
 
     state.usdtBrlPrice = Number(data.usdt_brl_price || 0);
+    state.usdtBrlChange24hPct = data.usdt_brl_change_24h_pct ?? null;
     state.currentAssets = data.assets.slice();
     mergePositions();
 

@@ -4,6 +4,7 @@
 import { state } from "../../core/state.js";
 import { formatSigned, signClass } from "../../core/format.js";
 import { watchlistAssets, watchlistColors } from "./watchlist.js";
+import { pairLabel } from "./chartQuote.js";
 
 /**
  * getCurrent(): moeda aberta agora; onSelect(asset): trocar o gráfico para `asset`.
@@ -23,7 +24,8 @@ export function initAssetPicker({ getCurrent, onSelect }) {
 
   function render() {
     const term = search.value.trim().toUpperCase();
-    items = available().filter((a) => !term || a.asset.includes(term));
+    // o USDT/BRL também é encontrado por "BRL"
+    items = available().filter((a) => !term || (a.asset === "USDT" ? pairLabel(a.asset) : a.asset).includes(term));
     active = Math.min(active, Math.max(0, items.length - 1));
 
     if (!items.length) {
@@ -43,7 +45,7 @@ export function initAssetPicker({ getCurrent, onSelect }) {
           <li role="option" data-idx="${i}" class="ap-item${i === active ? " active" : ""}${a.asset === current ? " current" : ""}"
               aria-selected="${a.asset === current}">
             <span class="ap-flag${colors[a.asset] ? " has-color" : ""}"${colors[a.asset] ? ` style="--flag: ${colors[a.asset]}"` : ""}></span>
-            <span class="ap-symbol">${a.asset}</span>
+            <span class="ap-symbol">${a.asset === "USDT" ? pairLabel(a.asset) : a.asset}</span>
             <span class="ap-pct">${a.pct.toFixed(2)}%</span>
             <span class="ap-usdt">${a.totalUSDT.toFixed(2).formatCurrency()} USDT</span>
             ${change}

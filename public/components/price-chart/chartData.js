@@ -1,5 +1,7 @@
 // Dados do gráfico de preço: velas (OHLC) e suas ordens executadas, com cache curto no cliente.
 import { fetchKlines, fetchExecutedOrders, fetchOpenOrdersForAsset } from "../../api/binance.js";
+import { state } from "../../core/state.js";
+import { executedTotalOnChart, orderPriceOnChart } from "./chartQuote.js";
 
 const CLIENT_CACHE_MS = 60 * 1000;
 // páginas antigas não mudam mais: podem ficar mais tempo em cache
@@ -41,8 +43,9 @@ export function loadMyOrders() {
   return myOrders.loading;
 }
 
-// Ordens abertas por moeda, já convertidas para USDT: { buys, sells, all, error }, cada item de buys/sells =
-// { priceUSDT, qty, order }; all = lista crua de todas as ordens (null se a requisição falhou, com o
+// Ordens abertas por moeda, já convertidas para a cotação do gráfico (USDT; BRL no USDT/BRL, ver
+// chartQuote.js): { buys, sells, all, error }, cada item de buys/sells = { priceUSDT (preço na cotação do
+// gráfico), qty, order }; all = lista crua de todas as ordens (null se a requisição falhou, com o
 // motivo em error). Falhas não entram no cache: chamar de novo tenta de novo.
 const openOrdersCache = new Map();
 
@@ -64,8 +67,9 @@ export async function loadOpenOrders(asset) {
   for (const o of raw) {
     const price = Number(o.price) || Number(o.stopPrice) || 0;
     const qty = Number(o.remainingQty ?? o.origQty) || 0;
-    if (!price || !qty || o.quotePriceUSDT == null) continue;
-    const item = { priceUSDT: price * Number(o.quotePriceUSDT), qty, order: o };
+    const chartPrice = orderPriceOnChart(asset, { price, quoteAsset: o.quoteAsset, quotePriceUSDT: o.quotePriceUSDT }, state.usdtBrlPrice);
+    if (!chartPrice || !qty) continue;
+    const item = { priceUSDT: chartPrice, qty, order: o };
     (o.side === "BUY" ? buys : sells).push(item);
   }
   const data = { buys, sells, all: raw };
@@ -85,7 +89,7 @@ export function invalidateAssetCache(asset) {
 
 /**
  * Encaixa cada ordem da moeda na vela/ponto do gráfico em que ela aconteceu.
- * Retorna { buys, sells }, cada item = { idx (índice da vela), y (preço USDT), order }.
+ * Retorna { buys, sells }, cada item = { idx (índice da vela), y (preço na cotação do gráfico), order }.
  */
 export function ordersOnChart(points, asset) {
   if (!myOrders.list || !points.length) return { buys: [], sells: [] };
@@ -96,8 +100,10 @@ export function ordersOnChart(points, asset) {
   const last = points.at(-1).time + step;
 
   for (const o of myOrders.list) {
-    // sem valor em USDT (sem cotação) não há preço para posicionar o marcador
-    if (o.baseAsset !== asset || !o.qty || o.totalUSDT == null || o.time < first || o.time > last) continue;
+    if (o.baseAsset !== asset || !o.qty || o.time < first || o.time > last) continue;
+    // sem valor na cotação do gráfico (sem cotação) não há preço para posicionar o marcador
+    const total = executedTotalOnChart(asset, o, state.usdtBrlPrice);
+    if (total == null) continue;
     // busca binária: última vela com time <= o.time
     let lo = 0;
     let hi = points.length - 1;
@@ -106,7 +112,7 @@ export function ordersOnChart(points, asset) {
       if (points[mid].time <= o.time) lo = mid;
       else hi = mid - 1;
     }
-    (o.side === "BUY" ? buys : sells).push({ idx: lo, y: o.totalUSDT / o.qty, order: o });
+    (o.side === "BUY" ? buys : sells).push({ idx: lo, y: total / o.qty, order: o });
   }
   return { buys, sells };
 }

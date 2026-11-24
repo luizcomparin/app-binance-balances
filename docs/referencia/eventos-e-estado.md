@@ -17,6 +17,7 @@ storage: []
 |---|---|---|---|
 | `currentAssets` | `BalancesPanel.loadBalances` / `mergePositions` | StatGrid (indireto), Simulação, orderSimulation, watchlist, assetPicker, PriceChartPanel (`defaultAsset`) | `assets` de `/balances`, com os campos de posição mesclados (`avgBuyPriceUSDT`, `unrealizedPnlUSDT`…) |
 | `usdtBrlPrice` | `loadBalances` | StatGrid, AssetStrip, ChartsPanel, BalancesPanel | Cotação USDT→BRL (0 se não houver) |
+| `usdtBrlChange24hPct` | `loadBalances` | watchlist do gráfico de preço | Variação de 24h do par USDT/BRL (null se não houver) |
 | `positions` | `core/positions.js` | BalancesPanel, pnlCharts, PriceChartPanel, buySimulator | `positions` de `/positions` (mapa por moeda) |
 | `positionsTotals` | `core/positions.js` | BalancesPanel (resumo de P&L) | `totals` de `/positions` |
 | `positionsLoading` | `core/positions.js` | BalancesPanel, pnlCharts, PriceChartPanel, buySimulator | `true` enquanto `/positions` carrega |
