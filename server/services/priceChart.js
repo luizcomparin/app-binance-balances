@@ -75,10 +75,13 @@ export async function buildPriceChart(asset, { range = "30d", interval = null, l
 				const [open, high, low, close] = [k[1], k[2], k[3], k[4]].map(Number);
 				// volume negociado em USDT: volume da moeda de cotação (k[7]); no par invertido o USDT é a base (k[5])
 				const volume = Number(inverted ? k[5] : k[7]) || 0;
-				if (!inverted) return { time: k[0], open, high, low, close, volume };
+				// volume das compras agressivas (a mercado) da moeda, em USDT (indicador CVD/Delta): é o "taker buy"
+				// da cotação (k[10]); no par invertido, comprar USDT é vender a moeda, então é o resto do volume (k[9] = USDT comprado)
+				const buyVolume = inverted ? Math.max(0, volume - (Number(k[9]) || 0)) : Number(k[10]) || 0;
+				if (!inverted) return { time: k[0], open, high, low, close, volume, buyVolume };
 				// par invertido (USDT/X): 1/preço — máxima e mínima trocam de lugar
 				const inv = (v) => (v ? 1 / v : 0);
-				return { time: k[0], open: inv(open), high: inv(low), low: inv(high), close: inv(close), volume };
+				return { time: k[0], open: inv(open), high: inv(low), low: inv(high), close: inv(close), volume, buyVolume };
 			}),
 		};
 	});

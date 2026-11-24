@@ -39,7 +39,7 @@ Qualquer parte do app abre uma moeda aqui com `window.openPriceChart(asset)`.
 | `chartData.js` | Cache no cliente: `getKlines`, `loadMyOrders`, `loadOpenOrders`, `ordersOnChart`, `invalidateAssetCache` | [velas-e-timeframe](velas-e-timeframe.md), [sobreposicoes-e-legenda](sobreposicoes-e-legenda.md) |
 | `timeframe.js`, `chart/axis.js` | Período × vela; tempo/fuso e formato de preço | [velas-e-timeframe](velas-e-timeframe.md) |
 | `chart/overlays.js`, `chart/legend.js`, `chart/tooltip.js` | Linhas de preço, marcadores, legenda, tooltip | [sobreposicoes-e-legenda](sobreposicoes-e-legenda.md) |
-| `indicatorControls.js`, `chart/movingAverage.js`, `chart/bollinger.js` | Indicadores | [indicadores](indicadores.md) |
+| `indicatorControls.js`, `chart/movingAverage.js`, `chart/bollinger.js`, `chart/cvd.js` | Indicadores | [indicadores](indicadores.md) |
 | `chart/drawings.js`, `chart/drawingToolbar.js`, `chart/measureTool.js` | Desenhos e régua | [desenhos-e-regua](desenhos-e-regua.md) |
 | `buySimulator.js` | Simulador de compra e médios projetados | [simulador-e-projecoes](simulador-e-projecoes.md) |
 | `volatility.js` | Faixa estatística | [faixa-estatistica](faixa-estatistica.md) |

@@ -103,7 +103,7 @@ Parâmetros:
 - `interval=1h|4h|1d|1w|1M`, com `limit` opcional de 1 a 1000 (padrão 1000) e `before=<ms>` opcional (velas que terminam antes desse instante). Qualquer outro `interval` dá `400 "Intervalo inválido"`.
 - Compatibilidade: sem `interval`, `range=7d|30d|90d|1y|all` ou `<n>d|<n>m|<n>y` escolhe a vela. Com `before`, devolve 500 velas.
 
-Resposta: `{ asset, symbol, interval, points: [{ time, open, high, low, close, volume }] }`. O volume vem em USDT. Para moeda só com par `USDT<asset>`, o preço é invertido.
+Resposta: `{ asset, symbol, interval, points: [{ time, open, high, low, close, volume, buyVolume }] }`. O volume vem em USDT. `buyVolume` é a parte do volume que veio de compras agressivas da moeda (o *taker buy*), também em USDT, e alimenta o indicador CVD/Delta. No par invertido, vale `volume − USDT comprado`. Para moeda só com par `USDT<asset>`, o preço é invertido.
 
 Erro quando não existe par: `500 "Não existe par X/USDT na Binance"`. Veja [velas-e-timeframe](../funcionalidades/grafico-de-preco/velas-e-timeframe.md).
 

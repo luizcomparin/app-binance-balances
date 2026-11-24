@@ -13,7 +13,7 @@ storage: [priceChartFuturesOi, priceChartFuturesLs, priceChartFuturesFunding, pr
 
 Os painéis ficam abaixo do preço, na mesma ordem do gráfico. Zoom, arrasto e mira são compartilhados.
 
-1. **Volume** (USDT, spot). Aparece sempre que há velas: verde se a vela fechou em alta, vermelho se em baixa. Também recebe as médias do volume ([indicadores](indicadores.md)).
+1. **Volume** (USDT, spot). Aparece sempre que há velas: verde se a vela fechou em alta, vermelho se em baixa. Também recebe as médias do volume ([indicadores](indicadores.md)). Logo abaixo dele, quando ligado, vem o painel do indicador CVD/Delta ([indicadores](indicadores.md)).
 2. **Open interest** (USDT), com a camada "Open interest (futuros)" (`#price-chart-fut-oi`).
 3. **Long/Short** (camada "Long/short ratio (futuros)", `#price-chart-fut-ls`): % de contas compradas (amarelo) e de top traders comprados (azul), com uma linha em 50%.
 4. **Funding** (camada "Taxa de funding (futuros)", `#price-chart-fut-funding`): histograma; o título mostra a taxa prevista para a próxima cobrança.
@@ -38,7 +38,7 @@ Cache de 2 min. O formato está em [api.md](../../referencia/api.md#get-futures-
 - `PriceChartPanel.futuresForChart()` devolve os dados, `PANE_LOADING` (painéis vazios com spinner) ou `null`, e dispara `loadFutures()` quando a chave `asset|período` muda. `loadChart()` também dispara a busca logo no início (em paralelo com as velas), para o spinner dos checkboxes aparecer desde já. O cache no cliente (`futCache`) vale 2 min.
 - Cada checkbox tem sua flag (`view.showFut.oi|ls|funding`) e chave de storage (`FUT_PANES`). Sem escolha salva, herda o antigo `priceChartFutures` (um checkbox para os três). `futPanesOn()` lista os ligados, enviados ao gráfico em `futuresPanes`.
 - O texto dos checkboxes ligados é atualizado por `updateFuturesAvailability()` ("Carregando…", "sem contrato perpétuo"…).
-- `chart/futuresPanes.js` → `createFuturesPanes(chart, wrap)` devolve `{ update(points, interval, data, liq, panes), crosshair(idx), setVolumeAverages, remove, active, count }`. `panes` é o subconjunto de `FUTURES_PANES` (`["oi", "ls", "funding"]`) ligado; quando muda, os painéis de futuros são recriados (`createSeries(keys)`) e o de liquidações continua por último.
+- `chart/futuresPanes.js` → `createFuturesPanes(chart, wrap)` devolve `{ update(points, interval, data, liq, panes), crosshair(idx), setVolumeAverages, setCvd, remove, active, count }`. `panes` é o subconjunto de `FUTURES_PANES` (`["oi", "ls", "funding"]`) ligado; quando muda, os painéis de futuros são recriados (`createSeries(keys)`) e o de liquidações continua por último.
   - `alignToBars(points, rows, get, mode)` encaixa as séries nas velas (`barIndex`, busca binária). Os modos são `last` (OI, L/S), `avg` (funding em D ou maior), `ffill` (funding em 1h/4h, repetindo a taxa vigente) e `sum` (liquidações).
   - Alturas: `PANE_HEIGHT = 96` px até a pessoa arrastar; depois vale `priceChartPaneHeights`. `applyHeights()` reaplica com `setStretchFactor` a cada resize.
   - Os títulos e spinners são HTML sobre o canvas, reposicionados por `ResizeObserver`.

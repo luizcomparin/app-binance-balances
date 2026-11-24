@@ -1,11 +1,12 @@
 // Painéis abaixo do gráfico de preço (mesmo eixo de tempo: zoom, arrasto e mira sincronizados):
-//   1. Volume (USDT, sempre que há velas)
+//   1. Volume (USDT, sempre que há velas)   1b. CVD / Delta de volume (indicador, logo abaixo do volume)
 //   2. Open interest (USDT)   3. Long/Short (% comprados: contas e top traders)   4. Taxa de funding
 //   5. Liquidações reais (longs e shorts liquidados em US$; independente dos de futuros, sempre por último)
 // Os de futuros vêm em períodos próprios (1h/4h/1d e funding a cada 8h) e são encaixados nas velas do gráfico.
 import { formatUsdShort } from "../../../core/format.js";
 import { toChartTime } from "./axis.js";
 import { movingAverage, maColor, maLabel } from "./movingAverage.js";
+import { volumeDelta } from "./cvd.js";
 
 const LWC = window.LightweightCharts;
 const PANE_HEIGHT = 96;
@@ -23,6 +24,8 @@ const COLORS = {
   fundingDown: "rgba(255, 114, 114, 0.8)",
   liqLong: "rgba(255, 114, 114, 0.85)",
   liqShort: "rgba(82, 255, 168, 0.85)",
+  deltaUp: [82, 255, 168],
+  deltaDown: [255, 114, 114],
 };
 
 // Dicas (hover no título de cada painel)
@@ -61,6 +64,19 @@ export const FUTURES_HELP = {
     "• Positiva: quem está comprado paga → muita gente apostando na alta.",
     "• Negativa: quem está vendido paga → muita gente apostando na queda.",
     "• Normal: perto de +0,01%. Valores muito acima ou abaixo costumam aparecer perto de viradas.",
+  ].join("\n"),
+  cvd: [
+    "Quem está mais agressivo: compradores ou vendedores (mercado à vista, em USDT).",
+    "• Delta da vela: compras a mercado − vendas a mercado. Positivo = predominou compra agressiva.",
+    "• CVD: soma dos deltas desde a primeira vela carregada. Vale a direção da linha, não o nível.",
+    "",
+    "Leia junto com o preço:",
+    "• Preço ↑ + CVD ↑: alta puxada por compra real.",
+    "• Preço ↑ + CVD ↓ ou parado: alta sem compra agressiva por trás (divergência), tende a ser frágil.",
+    "• Preço ↓ + CVD ↑ ou parado: venda perdendo força ou compras sendo absorvidas (divergência de alta).",
+    "• Preço lateral + CVD subindo forte: compradores batendo numa parede de venda (absorção).",
+    "",
+    "Não é sinal de entrada sozinho: divergências podem durar bastante.",
   ].join("\n"),
   liq: [
     "Liquidações que de fato aconteceram nos futuros perpétuos (Binance + Bybit + OKX, dados da Coinalyze), em US$.",
@@ -156,13 +172,18 @@ export function createFuturesPanes(chart, wrap) {
     liq: null,
     liqData: null,
     liqAligned: null,
+    cvd: null, // série do CVD/Delta (painel logo depois do volume)
+    cvdType: null, // "CVD" | "DELTA" da série atual
+    cvdM: null, // indicador ({ type, color, opacity })
+    cvdVals: null, // { delta, cvd } por vela
+    cvdKey: null, // velas + cor + opacidade dos dados desenhados
     points: null,
     interval: null,
   };
 
   // títulos dos painéis (HTML por cima do gráfico, com dica no hover): volume, OI, long/short, funding, liquidações
   const titles = {};
-  for (const key of ["volume", "oi", "ls", "funding", "liq"]) {
+  for (const key of ["volume", "cvd", "oi", "ls", "funding", "liq"]) {
     const el = document.createElement("div");
     el.className = "fp-title";
     el.hidden = true;
@@ -228,11 +249,14 @@ export function createFuturesPanes(chart, wrap) {
   // painéis de baixo em uso, na ordem do gráfico
   const subKeys = () => [
     ...(st.vol ? ["volume"] : []),
+    ...(st.cvd ? ["cvd"] : []),
     ...st.shown,
     ...(st.liq ? ["liq"] : []),
   ];
   // quantos painéis abaixo do preço devem existir
   const subCount = () => subKeys().length;
+  // painéis entre o volume e os de futuros (o de CVD, quando ligado)
+  const cvdCount = () => (st.cvd ? 1 : 0);
 
   // altura (px) de cada painel de baixo: PANE_HEIGHT até o usuário arrastar a divisória; daí fica a
   // escolhida (vale ao trocar de moeda, ligar/desligar futuros, redimensionar a janela e recarregar a página)
@@ -301,7 +325,7 @@ export function createFuturesPanes(chart, wrap) {
   // painel de liquidações: sempre o último (logo depois do volume, ou depois dos de futuros). Quando os de
   // futuros entram ou saem, ele é recriado no lugar certo (withLiquidationsMoved)
   function createLiquidationSeries() {
-    const pane = 2 + st.shown.length;
+    const pane = 2 + cvdCount() + st.shown.length;
     // sem etiqueta de último valor no eixo (as duas se sobrepõem; os valores já estão no título)
     const opts = { ...base, lastValueVisible: false, priceFormat: usd, base: 0 };
     st.liq = {
@@ -385,7 +409,7 @@ export function createFuturesPanes(chart, wrap) {
     const fundingFmt = { type: "custom", minMove: 0.000001, formatter: (v) => `${v.toFixed(3).replace(".", ",")}%` };
     st.series = {};
     keys.forEach((key, k) => {
-      const pane = 2 + k;
+      const pane = 2 + cvdCount() + k;
       if (key === "oi") {
         st.series.oi = chart.addSeries(
           LWC.AreaSeries,
@@ -462,7 +486,69 @@ export function createFuturesPanes(chart, wrap) {
     renderTitles();
   }
 
+  const signedUsd = (v) => `${v < 0 ? "−" : ""}${formatUsdShort(Math.abs(v))}`;
+  const deltaColor = (v, opacity) => `rgba(${(v >= 0 ? COLORS.deltaUp : COLORS.deltaDown).join(", ")}, ${0.8 * opacity})`;
+
+  // (re)cria a série do CVD/Delta (m = indicador, ou null para tirar). Ela fica logo depois do volume:
+  // os painéis de futuros e o de liquidações saem e voltam depois dela, com os dados que já tinham
+  function rebuildCvd(m) {
+    const keys = st.series ? [...st.shown] : [];
+    withLiquidationsMoved(() => {
+      removeFuturesSeries();
+      if (st.cvd) chart.removeSeries(st.cvd);
+      st.cvd = null;
+      removeEmptyPanes();
+      if (m) {
+        const opts = { ...base, priceFormat: { type: "custom", minMove: 1, formatter: signedUsd } };
+        st.cvd =
+          m.type === "DELTA"
+            ? chart.addSeries(LWC.HistogramSeries, { ...opts, base: 0 }, 2)
+            : chart.addSeries(LWC.LineSeries, { ...opts, lineWidth: 2 }, 2);
+      }
+      if (keys.length) {
+        addFuturesSeries(keys);
+        if (st.data && st.data !== PANE_LOADING) setData();
+      }
+    });
+    st.cvdType = m ? m.type : null;
+    st.cvdKey = null;
+    relayout();
+  }
+
+  // indicador CVD/Delta visível ({ type: "CVD"|"DELTA", color, opacity }) ou null; recalcula só quando
+  // mudam as velas (ou, no Delta, a opacidade, que vai na cor de cada barra)
+  function setCvd(m) {
+    if (!st.vol) m = null;
+    if ((m ? m.type : null) !== st.cvdType) rebuildCvd(m);
+    st.cvdM = m;
+    if (!m) {
+      st.cvdVals = null;
+      return;
+    }
+    if (m.type === "CVD") st.cvd.applyOptions({ color: maColor(m) });
+    const key = m.type === "DELTA" ? m.opacity : "";
+    if (st.cvdKey?.points === st.points && st.cvdKey.key === key) return renderTitles();
+    st.cvdKey = { points: st.points, key };
+    st.cvdVals = volumeDelta(st.points);
+    const values = m.type === "DELTA" ? st.cvdVals.delta : st.cvdVals.cvd;
+    st.cvd.setData(
+      st.points.map((p, i) => {
+        const time = toChartTime(p.time, st.interval);
+        const v = values[i];
+        if (v === null) return { time };
+        return m.type === "DELTA" ? { time, value: v, color: deltaColor(v, m.opacity) } : { time, value: v };
+      })
+    );
+    renderTitles();
+  }
+
   function remove() {
+    if (st.cvd) chart.removeSeries(st.cvd);
+    st.cvd = null;
+    st.cvdType = null;
+    st.cvdM = null;
+    st.cvdVals = null;
+    st.cvdKey = null;
     removeLiquidations();
     removeFutures();
     for (const id of [...st.vmas.keys()]) removeVolumeAverage(id);
@@ -515,6 +601,16 @@ export function createFuturesPanes(chart, wrap) {
         })
         .join(" ");
       titles.volume.innerHTML = `${tip("volume", "Volume")} <b class="${p.close >= p.open ? "pnl-pos" : "pnl-neg"}">${v == null ? "--" : formatUsdShort(v)}</b>${avgs ? ` ${avgs}` : ""}`;
+    }
+    if (st.cvd && st.cvdVals && pts?.length) {
+      const i = idx !== null && idx >= 0 && idx < pts.length ? idx : pts.length - 1;
+      const d = st.cvdVals.delta[i];
+      const c = st.cvdVals.cvd[i];
+      const cls = (v) => (v > 0 ? "pnl-pos" : v < 0 ? "pnl-neg" : "");
+      titles.cvd.innerHTML =
+        `${tip("cvd", st.cvdM.type === "DELTA" ? "Delta" : "CVD")}` +
+        ` <span class="muted">CVD</span> <b style="color:${maColor({ ...st.cvdM, opacity: 1 })}">${c === null ? "--" : signedUsd(c)}</b>` +
+        ` <span class="muted">Delta da vela</span> <b class="${cls(d)}">${d === null ? "--" : `${d > 0 ? "+" : ""}${signedUsd(d)}`}</b>`;
     }
     renderLiquidationTitle(idx);
     const a = st.aligned;
@@ -625,6 +721,7 @@ export function createFuturesPanes(chart, wrap) {
       if (st.vol) renderTitles(idx);
     },
     setVolumeAverages,
+    setCvd,
     remove,
     active: () => !!st.series,
     /** quantos painéis existem abaixo do preço */

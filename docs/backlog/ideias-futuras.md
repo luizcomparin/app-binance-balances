@@ -35,7 +35,7 @@ Hoje o app usa da Coinalyze só `/exchanges`, `/future-markets` e `/liquidation-
   1. **OI agregado** (Binance + Bybit + OKX, como nas liquidações reais), com histórico diário longo em vez dos 30 dias da fapi.
   2. **Funding previsto** no painel de funding (atual e histórico).
   3. **Funding comparado ou agregado entre corretoras.**
-  4. **Volume comprador × vendedor (delta / CVD)** em spot e futuros, a partir de `bv` no `/ohlcv-history`, num painel novo.
+  4. **Volume comprador × vendedor (delta / CVD)** em futuros e agregado entre corretoras, a partir de `bv` no `/ohlcv-history`. O CVD do spot da Binance **já existe** como indicador ([indicadores](../funcionalidades/grafico-de-preco/indicadores.md)) e usa as próprias velas.
   5. **Long/short de outras corretoras**, além da Binance.
   6. **Basis** entre spot e perpétuo, ou entre corretoras, cruzando os `/ohlcv-history`.
   7. **Curva de basis dos futuros com vencimento** (`is_perpetual: false`, `expire_at`).

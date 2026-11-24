@@ -81,7 +81,7 @@ docs/                      documentação oficial (índice em docs/README.md)
 | **Gráfico de preço** (visão geral e mapa dos ~25 arquivos) | [funcionalidades/grafico-de-preco/README.md](docs/funcionalidades/grafico-de-preco/README.md) | `components/price-chart/**` |
 | Velas, período, tamanho de vela, histórico antigo | [grafico-de-preco/velas-e-timeframe.md](docs/funcionalidades/grafico-de-preco/velas-e-timeframe.md) | `services/priceChart.js`, `timeframe.js`, `chartData.js` |
 | Linhas de preço médio, ordens no gráfico, legenda, tooltip | [grafico-de-preco/sobreposicoes-e-legenda.md](docs/funcionalidades/grafico-de-preco/sobreposicoes-e-legenda.md) | `chart/overlays.js`, `chart/legend.js`, `chart/tooltip.js` |
-| Médias móveis, Bollinger, média do volume | [grafico-de-preco/indicadores.md](docs/funcionalidades/grafico-de-preco/indicadores.md) | `indicatorControls.js`, `chart/movingAverage.js`, `chart/bollinger.js` |
+| Médias móveis, Bollinger, média do volume, CVD/Delta | [grafico-de-preco/indicadores.md](docs/funcionalidades/grafico-de-preco/indicadores.md) | `indicatorControls.js`, `chart/movingAverage.js`, `chart/bollinger.js`, `chart/cvd.js` |
 | Desenhos e régua de medição | [grafico-de-preco/desenhos-e-regua.md](docs/funcionalidades/grafico-de-preco/desenhos-e-regua.md) | `chart/drawings.js`, `chart/measureTool.js` |
 | Camadas: preços médios projetados e simulador de compra | [grafico-de-preco/simulador-e-projecoes.md](docs/funcionalidades/grafico-de-preco/simulador-e-projecoes.md) | `buySimulator.js` |
 | Camada: faixa estatística (volatilidade) | [grafico-de-preco/faixa-estatistica.md](docs/funcionalidades/grafico-de-preco/faixa-estatistica.md) | `volatility.js` |

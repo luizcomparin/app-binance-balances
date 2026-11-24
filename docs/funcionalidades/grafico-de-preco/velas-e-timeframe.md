@@ -26,6 +26,7 @@ storage: [priceChartMode, priceChartRange, priceChartInterval]
 - Com `interval` explícito (o caso usado pelo front): `/api/v3/klines?symbol&interval&limit&endTime=before-1`.
 - Modo compatível por `range`: `CHART_RANGES` (`7d, 30d, 90d, 1y, all`) ou personalizado `<n>[dmy]`, com até cerca de 500 pontos. Com `before`, 500 por página.
 - Volume em USDT: `k[7]` (volume na moeda de cotação) ou, no par invertido, `k[5]`.
+- `buyVolume` (compras agressivas, em USDT, para o CVD/Delta): `k[10]` (*taker buy* na cotação) ou, no par invertido, `volume − k[9]`.
 - Cache de 60 s por `símbolo:intervalo:limite:before`.
 
 ## Página

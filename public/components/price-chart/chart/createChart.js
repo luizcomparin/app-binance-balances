@@ -29,8 +29,8 @@ const LWC = window.LightweightCharts;
  *
  * update(opts): opts = { asset, points, interval, mode, avg, orders: { buys, sells },
  *                        openOrders: { buys, sells } | null, projectedAvg, fixedAvg, dcaAvg, window, prepended,
- *                        indicators: [{ id, kind: "ma"|"bb"|"vma", period, type?, mult?, color, opacity, visible }],
- *                        ("vma" = média do volume, desenhada no painel de volume)
+ *                        indicators: [{ id, kind: "ma"|"bb"|"vma"|"cvd", period, type?, mult?, color, opacity, visible }],
+ *                        ("vma" = média do volume, desenhada no painel de volume; "cvd" = painel de CVD/Delta)
  *                        liquidation: resposta de /liquidation-map | null,
  *                        futures: resposta de /futures-data | null (painéis de OI, long/short e funding),
  *                        futuresPanes: painéis de futuros ligados (["oi", "ls", "funding"] ou parte),
@@ -312,8 +312,8 @@ export function createPriceChart(els, handlers = {}) {
   }
 
   function drawIndicators() {
-    // médias do volume ficam no painel de volume (futuresPanes)
-    const visible = (s.opts.indicators || []).filter((m) => m.visible && m.kind !== "vma");
+    // médias do volume e CVD ficam nos painéis de baixo (futuresPanes)
+    const visible = (s.opts.indicators || []).filter((m) => m.visible && m.kind !== "vma" && m.kind !== "cvd");
     const ids = new Set(visible.map((m) => m.id));
     for (const [id, ind] of s.inds) {
       if (ids.has(id)) continue;
@@ -516,14 +516,16 @@ export function createPriceChart(els, handlers = {}) {
       summary.hidden = !opts.summary;
       liquidation.setData(opts.liquidation || null);
       // primeiro a altura final do gráfico, depois os painéis (as alturas deles partem dela)
-      // (1 painel de volume sempre que há velas + os de futuros ligados, quando há dados + 1 de liquidações reais)
+      // (1 painel de volume sempre que há velas + 1 de CVD + os de futuros ligados, quando há dados + 1 de liquidações reais)
       const futPanes = opts.futures ? opts.futuresPanes || [] : [];
+      const cvd = (opts.indicators || []).find((m) => m.kind === "cvd" && m.visible) || null;
       wrap.style.setProperty(
         "--sub-panes",
-        s.points?.length ? 1 + futPanes.length + (opts.liquidations ? 1 : 0) : 0
+        s.points?.length ? 1 + (cvd ? 1 : 0) + futPanes.length + (opts.liquidations ? 1 : 0) : 0
       );
       futures.update(s.points, s.interval, opts.futures || null, opts.liquidations || null, futPanes);
       futures.setVolumeAverages((opts.indicators || []).filter((m) => m.kind === "vma" && m.visible));
+      futures.setCvd(cvd);
       scheduleOffscreen();
     },
 

@@ -701,9 +701,9 @@ async function loadOlder() {
 // médias móveis: velas de "aquecimento" antes da janela visível
 // ---------------------------------------------------------------------------
 
-// maior período entre as médias visíveis (0 = nenhuma)
+// maior período entre as médias visíveis (0 = nenhuma; o CVD não tem período)
 function maxMaPeriod() {
-  return Math.max(0, ...getIndicators().filter((m) => m.visible).map((m) => m.period));
+  return Math.max(0, ...getIndicators().filter((m) => m.visible && m.kind !== "cvd").map((m) => m.period));
 }
 
 // Média nova/maior: se não há velas suficientes antes do que está na tela, busca a página anterior

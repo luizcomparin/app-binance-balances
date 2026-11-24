@@ -1,11 +1,13 @@
 // Controles dos indicadores (linha "Indicadores" do cabeçalho): médias móveis (do preço e do volume)
-// e Bandas de Bollinger.
+// Bandas de Bollinger e CVD / Delta de volume.
 // Dá para adicionar vários; cada um tem cor (com opacidade), parâmetros, ocultar/exibir e remover.
 // A lista fica salva no navegador. O olho no início da linha exibe/oculta todos de uma vez, por cima
 // da exibição de cada um (sem alterá-la).
 //   média móvel:  { kind: "ma", period, type: "SMA"|"EMA", color, opacity, visible }
 //   média do volume (desenhada no painel de volume): { kind: "vma", period, type, color, opacity, visible }
 //   Bollinger:    { kind: "bb", period, mult (desvios padrão), color, opacity, visible }
+//   CVD / Delta (painel próprio, logo abaixo do volume; no máximo um): { kind: "cvd", type: "CVD"|"DELTA", color, opacity, visible }
+//     (period não se aplica: fica guardado só para manter o formato)
 import { maColor } from "./chart/movingAverage.js";
 
 const STORAGE_KEY = "priceChartIndicators";
@@ -18,6 +20,7 @@ const MAX_MULT = 5;
 const DEFAULT_PERIODS = [20, 50, 100, 200];
 const PALETTE = ["#ffd166", "#ef476f", "#06d6a0", "#a78bfa", "#f78c6b", "#e5ecff"];
 const BB_COLOR = "#4dabf7";
+const CVD_COLOR = "#4dd4ff";
 
 const EYE =
   '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>';
@@ -46,13 +49,15 @@ function clampOpacity(v) {
 function normalize(m) {
   const base = {
     id: m.id,
-    kind: ["bb", "vma"].includes(m.kind) ? m.kind : "ma",
+    kind: ["bb", "vma", "cvd"].includes(m.kind) ? m.kind : "ma",
     period: clampPeriod(m.period),
     color: /^#[0-9a-f]{6}$/i.test(m.color) ? m.color : PALETTE[0],
     opacity: clampOpacity(m.opacity ?? 1),
     visible: m.visible !== false,
   };
-  return base.kind === "bb" ? { ...base, mult: clampMult(m.mult) } : { ...base, type: m.type === "EMA" ? "EMA" : "SMA" };
+  if (base.kind === "bb") return { ...base, mult: clampMult(m.mult) };
+  if (base.kind === "cvd") return { ...base, type: m.type === "DELTA" ? "DELTA" : "CVD" };
+  return { ...base, type: m.type === "EMA" ? "EMA" : "SMA" };
 }
 
 function readList() {
@@ -98,19 +103,25 @@ const newId = (kind) => `${kind}${Date.now().toString(36)}${Math.random().toStri
 // render
 // ---------------------------------------------------------------------------
 
-// "SMA 20" / "EMA 50" / "BB 20 · 2σ" / "Vol SMA 20"
+// "SMA 20" / "EMA 50" / "BB 20 · 2σ" / "Vol SMA 20" / "CVD" / "Delta"
 function labelOf(m) {
+  if (m.kind === "cvd") return m.type === "DELTA" ? "Delta" : "CVD";
   if (m.kind === "bb") return `BB ${m.period} · ${String(m.mult).replace(".", ",")}σ`;
   return `${m.kind === "vma" ? "Vol " : ""}${m.type} ${m.period}`;
 }
 
-const POP_TITLE = { ma: "Média móvel", vma: "Média móvel do volume", bb: "Bandas de Bollinger" };
+const POP_TITLE = { ma: "Média móvel", vma: "Média móvel do volume", bb: "Bandas de Bollinger", cvd: "CVD / Delta de volume" };
 
 // painel de edição (abre ao clicar no nome): parâmetros, opacidade e cor
 function editorHtml(m) {
   const period = `<label class="pcm-field"><span>Período</span><input type="number" class="pcm-period" min="${MIN_PERIOD}" max="${MAX_PERIOD}" step="1" value="${m.period}" title="Quantidade de velas" /></label>`;
   const params =
-    m.kind === "bb"
+    m.kind === "cvd"
+      ? `<label class="pcm-field"><span>Mostrar</span><select class="pcm-type" title="Acumulado (CVD) ou o saldo de cada vela (Delta)">
+          <option value="CVD"${m.type === "CVD" ? " selected" : ""}>CVD (acumulado)</option>
+          <option value="DELTA"${m.type === "DELTA" ? " selected" : ""}>Delta por vela</option>
+        </select></label>`
+      : m.kind === "bb"
       ? `${period}<label class="pcm-field" title="Largura das bandas, em desvios padrão"><span>Desvios (σ)</span><input type="number" class="pcm-mult" min="${MIN_MULT}" max="${MAX_MULT}" step="0.1" value="${m.mult}" /></label>`
       : `<label class="pcm-field"><span>Tipo</span><select class="pcm-type" title="Simples (SMA) ou exponencial (EMA)">
           <option value="SMA"${m.type === "SMA" ? " selected" : ""}>SMA (simples)</option>
@@ -149,6 +160,7 @@ function render() {
         <button type="button" class="pcm-add" data-kind="ma">Média móvel</button>
         <button type="button" class="pcm-add" data-kind="bb">Bandas de Bollinger</button>
         <button type="button" class="pcm-add" data-kind="vma">Média móvel do volume</button>
+        ${list.some((m) => m.kind === "cvd") ? "" : '<button type="button" class="pcm-add" data-kind="cvd" title="Compras a mercado − vendas a mercado (painel próprio)">CVD / Delta de volume</button>'}
       </div>
     </div>`;
 }
@@ -164,7 +176,10 @@ function update(id, changes) {
 }
 
 function add(kind) {
-  if (kind === "bb") {
+  if (kind === "cvd") {
+    if (list.some((m) => m.kind === "cvd")) return; // um painel só
+    list = [...list, { id: newId("cvd"), kind: "cvd", period: MIN_PERIOD, type: "CVD", color: CVD_COLOR, opacity: 1, visible: true }];
+  } else if (kind === "bb") {
     list = [...list, { id: newId("bb"), kind: "bb", period: 20, mult: 2, color: BB_COLOR, opacity: 1, visible: true }];
   } else if (kind === "vma") {
     const usedColors = new Set(list.map((m) => m.color));
@@ -217,7 +232,7 @@ export function initIndicatorControls(container, handlers = {}) {
       closePopovers();
       return add(addBtn.dataset.kind);
     }
-    // "+ Adicionar": abre/fecha o menu (Média móvel / Bandas de Bollinger / Média móvel do volume)
+    // "+ Adicionar": abre/fecha o menu (Média móvel / Bandas de Bollinger / Média móvel do volume / CVD)
     if (e.target.closest(".pcm-add-btn")) {
       const menu = el.querySelector(".pcm-menu");
       const open = menu.hidden;
