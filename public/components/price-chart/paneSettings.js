@@ -1,15 +1,19 @@
-// Configurações dos painéis de Volume, CVD/Delta e RSI, que abrem pela engrenagem no título de cada painel
+// Configurações dos painéis de Volume, CVD/Delta, RSI e MACD, que abrem pela engrenagem no título de cada painel
 // (chart/futuresPanes.js cria a engrenagem e a caixa; aqui se preenche a caixa). Ligar/desligar cada
 // painel fica nas Camadas ("Painéis abaixo do gráfico").
 //   Volume: médias móveis do volume (lista de pílulas, como a dos indicadores do preço)
 //   CVD:    { type: "CVD" (linha acumulada) | "DELTA" (histograma por vela), color, opacity }
 //   RSI:    período, níveis, cor e opacidade; média móvel do RSI; aparência das linhas de nível
 //           (campos e limites em chart/rsi.js → RSI_DEFAULT e normalizeRsiSettings)
+//   MACD:   médias rápida/lenta/sinal e tipos, cores das linhas e do histograma
+//           (campos e limites em chart/macd.js → MACD_DEFAULT e normalizeMacdSettings)
 import { normalizeRsiSettings } from "./chart/rsi.js";
+import { normalizeMacdSettings } from "./chart/macd.js";
 import { clampOpacity, handleColorClick, initVolumeAverageControls, watchColorPickerClose } from "./indicatorControls.js";
 
 const CVD_STORAGE_KEY = "priceChartCvd";
 const RSI_STORAGE_KEY = "priceChartRsi";
+const MACD_STORAGE_KEY = "priceChartMacd";
 const LEGACY_INDICATORS_KEY = "priceChartIndicators"; // o CVD já foi um item da lista de indicadores
 const CVD_DEFAULT = { type: "CVD", color: "#4dd4ff", opacity: 1 };
 
@@ -98,43 +102,85 @@ function mountCvd(el, onChange) {
   });
 }
 
-// ---- RSI ----
+// ---- formulários com campos data-k (RSI e MACD) ----
+// Cada controle tem data-k = chave das configurações. Número: vale ao confirmar (Enter/sair do campo);
+// select e checkbox: ao mudar; cor e faixas de opacidade: enquanto escolhe.
 
-function readRsi() {
-  try {
-    return normalizeRsiSettings(JSON.parse(localStorage.getItem(RSI_STORAGE_KEY) || "null"));
-  } catch {
-    return normalizeRsiSettings(null);
-  }
-}
-
-let rsiSettings = readRsi();
-
-/** configurações do painel do RSI ({ period, overbought, oversold, color, opacity }) */
-export const getRsiSettings = () => rsiSettings;
-
-// campos do formulário do RSI: cada controle tem data-k = chave das configurações
-//   número: ao confirmar (Enter/sair do campo); select e checkbox: ao mudar; cor e faixas: enquanto escolhe
-function rsiHtml() {
-  const r = rsiSettings;
-  const num = (k, min, max, title) =>
-    `<input type="number" data-k="${k}" min="${min}" max="${max}" step="1" value="${r[k]}" title="${title}" />`;
-  const color = (k, title) =>
-    `<input type="color" class="pcm-color" data-k="${k}" value="${r[k]}" title="${title} (clique de novo para fechar)" />`;
-  const range = (k, label) => {
-    const pct = Math.round(r[k] * 100);
-    return `<label class="pcm-opacity-row">
+/** construtores de campos sobre as configurações atuais (values) */
+function fieldBuilders(values) {
+  return {
+    num: (k, min, max, title) =>
+      `<input type="number" data-k="${k}" min="${min}" max="${max}" step="1" value="${values[k]}" title="${title}" />`,
+    color: (k, title) =>
+      `<input type="color" class="pcm-color" data-k="${k}" value="${values[k]}" title="${title} (clique de novo para fechar)" />`,
+    range: (k, label) => {
+      const pct = Math.round(values[k] * 100);
+      return `<label class="pcm-opacity-row">
         <span>${label}</span>
         <input type="range" class="pcm-opacity" data-k="${k}" min="5" max="100" step="5" value="${pct}" />
         <b class="pcm-opacity-value">${pct}%</b>
       </label>`;
+    },
+    select: (k, options, title) =>
+      `<select data-k="${k}" title="${title}">${options
+        .map(([v, label]) => `<option value="${v}"${String(values[k]) === String(v) ? " selected" : ""}>${label}</option>`)
+        .join("")}</select>`,
+    check: (k, label, title) =>
+      `<label class="fps-check" title="${title}"><input type="checkbox" data-k="${k}"${values[k] ? " checked" : ""} /><span>${label}</span></label>`,
   };
-  const select = (k, options, title) =>
-    `<select data-k="${k}" title="${title}">${options
-      .map(([v, label]) => `<option value="${v}"${String(r[k]) === String(v) ? " selected" : ""}>${label}</option>`)
-      .join("")}</select>`;
-  const check = (k, label, title) =>
-    `<label class="fps-check" title="${title}"><input type="checkbox" data-k="${k}"${r[k] ? " checked" : ""} /><span>${label}</span></label>`;
+}
+
+/**
+ * Liga um formulário de campos data-k: el recebe html; set(changes) aplica e devolve as configurações
+ * normalizadas (o campo numérico mostra o valor já dentro dos limites).
+ */
+function mountKeyedForm(el, html, set) {
+  el.innerHTML = html;
+  el.addEventListener("click", (e) => handleColorClick(e, ".pcm-color"));
+  watchColorPickerClose(el, "pcm-color");
+  el.addEventListener("input", (e) => {
+    const k = e.target.dataset.k;
+    if (!k) return;
+    if (e.target.type === "color") set({ [k]: e.target.value });
+    else if (e.target.type === "range") {
+      set({ [k]: Number(e.target.value) / 100 });
+      e.target.closest(".pcm-opacity-row").querySelector(".pcm-opacity-value").textContent = `${e.target.value}%`;
+    }
+  });
+  el.addEventListener("change", (e) => {
+    const k = e.target.dataset.k;
+    if (!k || e.target.type === "color" || e.target.type === "range") return;
+    const values = set({ [k]: e.target.type === "checkbox" ? e.target.checked : e.target.value });
+    if (e.target.type === "number") e.target.value = values[k];
+  });
+}
+
+const MA_TYPES = [["SMA", "SMA (simples)"], ["EMA", "EMA (exponencial)"]];
+
+/** configurações guardadas em key, normalizadas (sem nada salvo ou com erro: o padrão) */
+function readSettings(key, normalize) {
+  try {
+    return normalize(JSON.parse(localStorage.getItem(key) || "null"));
+  } catch {
+    return normalize(null);
+  }
+}
+
+function writeSettings(key, values) {
+  try {
+    localStorage.setItem(key, JSON.stringify(values));
+  } catch {}
+}
+
+// ---- RSI ----
+
+let rsiSettings = readSettings(RSI_STORAGE_KEY, normalizeRsiSettings);
+
+/** configurações do painel do RSI (chart/rsi.js → RSI_DEFAULT) */
+export const getRsiSettings = () => rsiSettings;
+
+function rsiHtml() {
+  const { num, color, range, select, check } = fieldBuilders(rsiSettings);
   return `<span class="pcm-pop-title">RSI (Índice de Força Relativa)</span>
     <div class="price-chart-mas fps-form">
       <label class="pcm-field"><span>Período</span>${num("period", 2, 100, "Quantidade de velas (2 a 100; o padrão é 14)")}</label>
@@ -143,7 +189,7 @@ function rsiHtml() {
 
       <span class="fps-section">Média móvel do RSI</span>
       ${check("maOn", "Mostrar a média móvel", "Linha com a média dos valores do RSI (suaviza o RSI; cruzamentos indicam mudança de força)")}
-      <label class="pcm-field"><span>Tipo</span>${select("maType", [["SMA", "SMA (simples)"], ["EMA", "EMA (exponencial)"]], "Simples (SMA) ou exponencial (EMA)")}</label>
+      <label class="pcm-field"><span>Tipo</span>${select("maType", MA_TYPES, "Simples (SMA) ou exponencial (EMA)")}</label>
       <label class="pcm-field"><span>Período</span>${num("maPeriod", 2, 100, "Quantidade de valores do RSI na média (2 a 100; o padrão é 14)")}</label>
       <label class="pcm-field fps-color-field"><span>Cor</span>${color("maColor", "Cor da média móvel do RSI")}</label>
 
@@ -158,32 +204,49 @@ function rsiHtml() {
 }
 
 function mountRsi(el, onChange) {
-  el.innerHTML = rsiHtml();
-  const set = (changes) => {
+  mountKeyedForm(el, rsiHtml(), (changes) => {
     rsiSettings = normalizeRsiSettings({ ...rsiSettings, ...changes });
-    try {
-      localStorage.setItem(RSI_STORAGE_KEY, JSON.stringify(rsiSettings));
-    } catch {}
+    writeSettings(RSI_STORAGE_KEY, rsiSettings);
     onChange();
-  };
-  el.addEventListener("click", (e) => handleColorClick(e, ".pcm-color"));
-  watchColorPickerClose(el, "pcm-color");
-  // cor e faixas de opacidade: enquanto escolhe
-  el.addEventListener("input", (e) => {
-    const k = e.target.dataset.k;
-    if (!k) return;
-    if (e.target.type === "color") set({ [k]: e.target.value });
-    else if (e.target.type === "range") {
-      set({ [k]: Number(e.target.value) / 100 });
-      e.target.closest(".pcm-opacity-row").querySelector(".pcm-opacity-value").textContent = `${e.target.value}%`;
-    }
+    return rsiSettings;
   });
-  // números (ao confirmar), selects e checkboxes; o campo mostra o valor já dentro dos limites
-  el.addEventListener("change", (e) => {
-    const k = e.target.dataset.k;
-    if (!k || e.target.type === "color" || e.target.type === "range") return;
-    set({ [k]: e.target.type === "checkbox" ? e.target.checked : e.target.value });
-    if (e.target.type === "number") e.target.value = rsiSettings[k];
+}
+
+// ---- MACD ----
+
+let macdSettings = readSettings(MACD_STORAGE_KEY, normalizeMacdSettings);
+
+/** configurações do painel do MACD (chart/macd.js → MACD_DEFAULT) */
+export const getMacdSettings = () => macdSettings;
+
+function macdHtml() {
+  const { num, color, range, select, check } = fieldBuilders(macdSettings);
+  return `<span class="pcm-pop-title">MACD</span>
+    <div class="price-chart-mas fps-form">
+      <label class="pcm-field"><span>Média rápida</span>${num("fast", 2, 100, "Velas da média rápida (2 a 100; o padrão é 12)")}</label>
+      <label class="pcm-field"><span>Média lenta</span>${num("slow", 2, 200, "Velas da média lenta (2 a 200; o padrão é 26)")}</label>
+      <label class="pcm-field"><span>Tipo das médias</span>${select("oscType", MA_TYPES, "Médias rápida e lenta: exponencial (EMA, o padrão) ou simples (SMA)")}</label>
+      <label class="pcm-field"><span>Sinal</span>${num("signal", 1, 100, "Valores do MACD na média da linha de sinal (1 a 100; o padrão é 9)")}</label>
+      <label class="pcm-field"><span>Tipo do sinal</span>${select("signalType", MA_TYPES, "Linha de sinal: exponencial (EMA, o padrão) ou simples (SMA)")}</label>
+
+      <span class="fps-section">Linhas</span>
+      <label class="pcm-field fps-color-field"><span>Cor do MACD</span>${color("macdColor", "Cor da linha MACD")}</label>
+      <label class="pcm-field fps-color-field"><span>Cor do sinal</span>${color("signalColor", "Cor da linha de sinal")}</label>
+
+      <span class="fps-section">Histograma</span>
+      ${check("showHist", "Mostrar o histograma", "Barras com MACD − sinal (tom mais claro quando a força diminui)")}
+      <label class="pcm-field fps-color-field"><span>Cor acima de zero</span>${color("histUpColor", "Cor das barras acima de zero")}</label>
+      <label class="pcm-field fps-color-field"><span>Cor abaixo de zero</span>${color("histDownColor", "Cor das barras abaixo de zero")}</label>
+      ${range("histOpacity", "Opacidade")}
+    </div>`;
+}
+
+function mountMacd(el, onChange) {
+  mountKeyedForm(el, macdHtml(), (changes) => {
+    macdSettings = normalizeMacdSettings({ ...macdSettings, ...changes });
+    writeSettings(MACD_STORAGE_KEY, macdSettings);
+    onChange();
+    return macdSettings;
   });
 }
 
@@ -194,9 +257,10 @@ function mountVolume(el, onChange) {
   initVolumeAverageControls(el.querySelector(".fps-list"), { onChange });
 }
 
-/** Preenche a caixa de configurações do painel key ("volume" | "cvd" | "rsi"); onChange() a cada mudança */
+/** Preenche a caixa de configurações do painel key ("volume" | "cvd" | "rsi" | "macd"); onChange() a cada mudança */
 export function mountPaneSettings(key, el, onChange) {
   if (key === "volume") mountVolume(el, onChange);
   else if (key === "cvd") mountCvd(el, onChange);
   else if (key === "rsi") mountRsi(el, onChange);
+  else if (key === "macd") mountMacd(el, onChange);
 }

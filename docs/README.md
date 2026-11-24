@@ -88,6 +88,7 @@ As seções aparecem sempre nesta ordem; quando uma não se aplica, ela é omiti
 - [grafico-de-preco/mapa-de-liquidacao.md](funcionalidades/grafico-de-preco/mapa-de-liquidacao.md): `/liquidation-map`, modelo e desenho.
 - [grafico-de-preco/paineis-de-futuros.md](funcionalidades/grafico-de-preco/paineis-de-futuros.md): `/futures-data` e painéis de volume, CVD, OI, L/S e funding.
 - [grafico-de-preco/rsi.md](funcionalidades/grafico-de-preco/rsi.md): painel do RSI, fórmula e configurações.
+- [grafico-de-preco/macd.md](funcionalidades/grafico-de-preco/macd.md): painel do MACD, fórmula e configurações.
 - [grafico-de-preco/liquidacoes-reais.md](funcionalidades/grafico-de-preco/liquidacoes-reais.md): `/liquidations` (Coinalyze).
 - [grafico-de-preco/watchlist-e-seletor.md](funcionalidades/grafico-de-preco/watchlist-e-seletor.md): lista lateral e seletor do título.
 - [grafico-de-preco/abas-de-ordens.md](funcionalidades/grafico-de-preco/abas-de-ordens.md): ordens abertas, histórico de ordens e de trades.

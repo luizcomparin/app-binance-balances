@@ -140,8 +140,9 @@
   width: 150px;
 }
 
-/* RSI: formulário mais longo (RSI, média móvel e linhas de nível) — rola dentro da caixa */
-.fp-settings-rsi {
+/* RSI e MACD: formulários mais longos — rolam dentro da caixa */
+.fp-settings-rsi,
+.fp-settings-macd {
   width: 300px;
   max-height: min(70vh, 620px);
   overflow-y: auto;

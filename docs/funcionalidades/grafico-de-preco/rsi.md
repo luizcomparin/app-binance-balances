@@ -11,7 +11,7 @@ storage: [priceChartRsiPane, priceChartRsi]
 
 ## O que faz
 
-O checkbox "RSI" (`#price-chart-rsi-pane`), em "Painéis abaixo do gráfico" nas Camadas, liga um painel com o **RSI** das velas do gráfico. Ele vem depois do Volume e do CVD e antes de Liquidações e dos painéis de futuros, na ordem dos checkboxes.
+O checkbox "RSI" (`#price-chart-rsi-pane`), em "Painéis abaixo do gráfico" nas Camadas, liga um painel com o **RSI** das velas do gráfico. Ele vem depois do Volume e do CVD e antes do MACD, de Liquidações e dos painéis de futuros, na ordem dos checkboxes.
 
 - **Linha do RSI** na cor escolhida. A escala acompanha os valores visíveis (zoom vertical), sempre incluindo as linhas de sobrecompra e sobrevenda e dentro de 0–100, com margens pequenas. Assim a linha usa a altura do painel, em vez de ficar espremida no meio. O painel começa com **150 px** de altura (os outros, 96), porque o oscilador precisa de espaço vertical. Dá para arrastar a divisória, e a altura fica salva.
 - **Média móvel do RSI** (opcional): SMA ou EMA dos valores do RSI, no mesmo painel e na mesma escala.
@@ -41,7 +41,7 @@ O checkbox "RSI" (`#price-chart-rsi-pane`), em "Painéis abaixo do gráfico" nas
   - `rsiMovingAverage(values, period, type)`: a média móvel do RSI. Usa `movingAverage` a partir do primeiro valor não nulo do RSI.
   - `normalizeRsiSettings(c)`: coloca as configurações nos limites; valores inválidos voltam ao padrão (`RSI_DEFAULT`).
 - `paneSettings.js`: `getRsiSettings()` e `mountRsi`, a caixa da engrenagem (`.fp-settings-rsi`).
-  - Cada controle tem `data-k` com a chave da configuração.
+  - Cada controle tem `data-k` com a chave da configuração (`fieldBuilders`, `mountKeyedForm`, também usados pelo [MACD](macd.md)).
   - Números valem ao confirmar (Enter ou sair do campo); selects e checkboxes, ao mudar; cores e opacidades, enquanto se escolhe.
 - `PriceChartPanel.js`: flag `view.showRsi` (`priceChartRsiPane`). `render()` envia `rsi: getRsiSettings()` ou `null`.
 - `chart/createChart.js`: conta o painel como 1,5 em `--sub-panes` (pela altura maior) e chama `futures.setRsi(rsi)`.

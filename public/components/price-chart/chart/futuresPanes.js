@@ -1,25 +1,26 @@
 // Painéis abaixo do gráfico de preço (mesmo eixo de tempo: zoom, arrasto e mira sincronizados):
 // (na mesma ordem dos checkboxes de "Painéis abaixo do gráfico", nas Camadas)
-//   1. Volume (USDT)   2. CVD / Delta de volume   3. RSI (os três com engrenagem de configurações no título)
-//   4. Liquidações reais (longs e shorts liquidados em US$)
-//   5. Open interest (USDT)   6. Long/Short (% comprados: contas e top traders)   7. Taxa de funding
+//   1. Volume (USDT)   2. CVD / Delta de volume   3. RSI   4. MACD (os quatro com engrenagem de configurações)
+//   5. Liquidações reais (longs e shorts liquidados em US$)
+//   6. Open interest (USDT)   7. Long/Short (% comprados: contas e top traders)   8. Taxa de funding
 // Os de futuros vêm em períodos próprios (1h/4h/1d e funding a cada 8h) e são encaixados nas velas do gráfico.
 import { formatUsdShort } from "../../../core/format.js";
 import { toChartTime } from "./axis.js";
 import { movingAverage, maColor, maLabel } from "./movingAverage.js";
 import { volumeDelta } from "./cvd.js";
 import { rsi, rsiMovingAverage } from "./rsi.js";
+import { macd, macdHistogramTones } from "./macd.js";
 
 const LWC = window.LightweightCharts;
 const PANE_HEIGHT = 96;
 // altura padrão de painéis que precisam de mais espaço (o RSI vai de 0 a 100 com linhas de nível)
-export const PANE_DEFAULT_HEIGHTS = { rsi: 150 };
+export const PANE_DEFAULT_HEIGHTS = { rsi: 150, macd: 130 };
 
 const GEAR =
   '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
 
 // painéis com engrenagem de configurações no título (o conteúdo vem de handlers.mountSettings)
-const SETTINGS_PANES = ["volume", "cvd", "rsi"];
+const SETTINGS_PANES = ["volume", "cvd", "rsi", "macd"];
 
 // passado no lugar dos dados enquanto carregam: o painel continua no lugar, vazio e com spinner
 export const PANE_LOADING = Object.freeze({ loading: true });
@@ -99,6 +100,18 @@ export const FUTURES_HELP = {
     "• Preço faz fundo mais baixo e o RSI, fundo mais alto: queda perdendo força (divergência de alta).",
     "",
     "Em tendência forte o RSI pode ficar muito tempo sobrecomprado ou sobrevendido: não é sinal de entrada sozinho.",
+  ].join("\n"),
+  macd: [
+    "MACD: diferença entre uma média rápida e uma lenta do preço (padrão: EMA 12 − EMA 26). Mede a força e a direção da tendência.",
+    "• Linha MACD (azul) e linha de sinal (laranja, a média do MACD, padrão 9).",
+    "• Histograma: MACD − sinal. Barras crescendo = a tendência ganhando força; diminuindo (tom mais claro) = perdendo força.",
+    "",
+    "Como ler:",
+    "• MACD cruza o sinal para cima: força compradora aumentando. Para baixo: força vendedora aumentando.",
+    "• MACD acima de zero: média rápida acima da lenta (viés de alta); abaixo de zero: viés de baixa.",
+    "• Preço faz topo mais alto e o MACD, topo mais baixo: alta perdendo força (divergência).",
+    "",
+    "É um indicador atrasado (usa médias): confirma tendências, não as antecipa. Em mercado lateral dá muitos cruzamentos falsos.",
   ].join("\n"),
   liq: [
     "Liquidações que de fato aconteceram nos futuros perpétuos (Binance + Bybit + OKX, dados da Coinalyze), em US$.",
@@ -209,6 +222,10 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
     rsiKey: null, // velas + período dos dados desenhados
     rsiLines: [], // linhas de sobrecompra, 50 e sobrevenda
     rsiLinesKey: null, // níveis e aparência das linhas desenhadas
+    macd: null, // séries do MACD ({ hist, line, signal }, painel logo depois do RSI)
+    macdM: null, // configurações (chart/macd.js → MACD_DEFAULT)
+    macdVals: null, // { macd, signal, hist } por vela
+    macdKey: null, // velas + parâmetros + cores dos dados desenhados
     points: null,
     interval: null,
   };
@@ -218,7 +235,7 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
   // a caixa de configurações fica fora dele para não ser redesenhada a cada movimento da mira)
   const titles = {};
   const texts = {};
-  for (const key of ["volume", "cvd", "rsi", "oi", "ls", "funding", "liq"]) {
+  for (const key of ["volume", "cvd", "rsi", "macd", "oi", "ls", "funding", "liq"]) {
     const el = document.createElement("div");
     el.className = "fp-title";
     el.hidden = true;
@@ -313,15 +330,17 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
     ...(st.vol ? ["volume"] : []),
     ...(st.cvd ? ["cvd"] : []),
     ...(st.rsi ? ["rsi"] : []),
+    ...(st.macd ? ["macd"] : []),
     ...(st.liq ? ["liq"] : []),
     ...st.shown,
   ];
   // quantos painéis abaixo do preço devem existir
   const subCount = () => subKeys().length;
-  // painéis antes dos de futuros: volume, CVD, RSI e liquidações, quando ligados (nessa ordem, a partir do painel 1)
+  // painéis antes dos de futuros: volume, CVD, RSI, MACD e liquidações, quando ligados (nessa ordem, a partir do painel 1)
   const volCount = () => (st.vol ? 1 : 0);
   const cvdCount = () => (st.cvd ? 1 : 0);
   const rsiCount = () => (st.rsi ? 1 : 0);
+  const macdCount = () => (st.macd ? 1 : 0);
   const liqCount = () => (st.liq ? 1 : 0);
 
   // altura (px) de cada painel de baixo: PANE_HEIGHT até o usuário arrastar a divisória; daí fica a
@@ -388,10 +407,10 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
     relayout();
   }
 
-  // painel de liquidações: depois do volume, do CVD e do RSI, antes dos de futuros (que saem e voltam depois dele
+  // painel de liquidações: depois do volume, do CVD, do RSI e do MACD, antes dos de futuros (que saem e voltam depois dele
   // quando ele entra ou sai: withFuturesMoved)
   function createLiquidationSeries() {
-    const pane = 1 + volCount() + cvdCount() + rsiCount();
+    const pane = 1 + volCount() + cvdCount() + rsiCount() + macdCount();
     // sem etiqueta de último valor no eixo (as duas se sobrepõem; os valores já estão no título)
     const opts = { ...base, lastValueVisible: false, priceFormat: usd, base: 0 };
     st.liq = {
@@ -478,7 +497,7 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
     const fundingFmt = { type: "custom", minMove: 0.000001, formatter: (v) => `${v.toFixed(3).replace(".", ",")}%` };
     st.series = {};
     keys.forEach((key, k) => {
-      const pane = 1 + volCount() + cvdCount() + rsiCount() + liqCount() + k;
+      const pane = 1 + volCount() + cvdCount() + rsiCount() + macdCount() + liqCount() + k;
       if (key === "oi") {
         st.series.oi = chart.addSeries(
           LWC.AreaSeries,
@@ -628,15 +647,21 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
   }
 
   // estado atual dos painéis de cima (para rebuildTop mudar só um deles)
-  const topState = () => ({ volume: !!st.vol, cvd: st.cvd ? st.cvdM : null, rsi: st.rsi ? st.rsiM : null });
+  const topState = () => ({
+    volume: !!st.vol,
+    cvd: st.cvd ? st.cvdM : null,
+    rsi: st.rsi ? st.rsiM : null,
+    macd: st.macd ? st.macdM : null,
+  });
 
-  // liga/desliga o volume (volume: bool), o CVD e o RSI (configurações ou null), que ficam nessa ordem logo
-  // abaixo do preço: o de liquidações e os de futuros saem e voltam depois deles, com os dados que já tinham
-  // (as séries recriadas do CVD e do RSI são redesenhadas na hora: o setCvd/setRsi desta renderização pode já ter passado)
-  function rebuildTop({ volume, cvd, rsi: rsiM }) {
+  // liga/desliga o volume (volume: bool), o CVD, o RSI e o MACD (configurações ou null), que ficam nessa ordem
+  // logo abaixo do preço: o de liquidações e os de futuros saem e voltam depois deles, com os dados que já tinham
+  // (as séries recriadas são redesenhadas na hora: o setCvd/setRsi/setMacd desta renderização pode já ter passado)
+  function rebuildTop({ volume, cvd, rsi: rsiM, macd: macdM }) {
     withFuturesMoved(() => {
       const hadLiq = !!st.liq;
       removeLiquidationSeries();
+      removeMacdSeries();
       removeRsiSeries();
       removeCvdSeries();
       if (!volume) removeVolumeSeries();
@@ -644,11 +669,84 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
       if (volume && !st.vol) createVolume();
       if (cvd) createCvdSeries(cvd);
       if (rsiM) createRsiSeries(rsiM);
+      if (macdM) createMacdSeries(macdM);
       if (hadLiq) createLiquidationSeries();
     });
     drawCvd();
     drawRsi();
+    drawMacd();
     relayout();
+  }
+
+  // ---- MACD: histograma (atrás), linha MACD e linha de sinal no mesmo painel, com uma linha em zero ----
+
+  // valores do MACD têm a grandeza do preço (BTC: centenas; moedas baratas: 0,0000x): casas decimais conforme o valor
+  function macdNum(v) {
+    if (v == null) return "--";
+    const a = Math.abs(v);
+    const digits = a >= 100 ? 1 : a >= 1 ? 2 : Math.min(10, Math.max(2, Math.ceil(-Math.log10(a || 1)) + 2));
+    return `${v < 0 ? "−" : ""}${a.toFixed(digits).replace(".", ",")}`;
+  }
+
+  function createMacdSeries(m) {
+    const pane = 1 + volCount() + cvdCount() + rsiCount();
+    const opts = { ...base, priceFormat: { type: "custom", minMove: 1e-10, formatter: macdNum } };
+    st.macd = {
+      hist: chart.addSeries(LWC.HistogramSeries, { ...opts, lastValueVisible: false, base: 0 }, pane),
+      line: chart.addSeries(LWC.LineSeries, { ...opts, lineWidth: 2 }, pane),
+      signal: chart.addSeries(LWC.LineSeries, { ...opts, lineWidth: 2 }, pane),
+    };
+    st.macd.line.createPriceLine({ price: 0, color: "rgba(155, 176, 214, 0.35)", lineWidth: 1, lineStyle: LWC.LineStyle.Dotted, axisLabelVisible: false });
+    st.macdM = m;
+    st.macdKey = null;
+  }
+
+  function removeMacdSeries() {
+    if (st.macd) for (const series of Object.values(st.macd)) chart.removeSeries(series);
+    st.macd = null;
+    st.macdKey = null;
+  }
+
+  // painel do MACD: configurações (chart/macd.js) ou null (desligado)
+  function setMacd(m) {
+    if (!st.points) m = null;
+    if (!!m !== !!st.macd) rebuildTop({ ...topState(), macd: m });
+    st.macdM = m;
+    if (!m) {
+      st.macdVals = null;
+      return;
+    }
+    drawMacd();
+    renderTitles();
+  }
+
+  // desenha o MACD com as configurações e as velas atuais (só refaz os dados se algo mudou)
+  function drawMacd() {
+    const m = st.macdM;
+    if (!st.macd || !m || !st.points) return;
+    st.macd.line.applyOptions({ color: m.macdColor });
+    st.macd.signal.applyOptions({ color: m.signalColor });
+    const key = [m.fast, m.slow, m.signal, m.oscType, m.signalType, m.showHist, m.histUpColor, m.histDownColor, m.histOpacity].join("|");
+    if (st.macdKey?.points === st.points && st.macdKey.key === key) return;
+    st.macdKey = { points: st.points, key };
+    st.macdVals = macd(st.points, m);
+    const { macd: line, signal, hist } = st.macdVals;
+    const times = st.points.map((p) => toChartTime(p.time, st.interval));
+    const lineData = (values) => times.map((time, i) => (values[i] === null ? { time } : { time, value: values[i] }));
+    st.macd.line.setData(lineData(line));
+    st.macd.signal.setData(lineData(signal));
+    // histograma: tom forte quando se afasta de zero, mais claro quando volta (como no TradingView)
+    const tones = macdHistogramTones(hist);
+    st.macd.hist.setData(
+      m.showHist
+        ? times.map((time, i) => {
+            const t = tones[i];
+            if (!t) return { time };
+            const color = maColor({ color: t.up ? m.histUpColor : m.histDownColor, opacity: m.histOpacity * (t.strong ? 1 : 0.45) });
+            return { time, value: hist[i], color };
+          })
+        : []
+    );
   }
 
   // painel do RSI: configurações ({ period, overbought, oversold, color, opacity }) ou null (desligado);
@@ -752,6 +850,9 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
   function remove() {
     removeFutures();
     removeLiquidations();
+    removeMacdSeries();
+    st.macdM = null;
+    st.macdVals = null;
     removeRsiSeries();
     st.rsiM = null;
     st.rsiVals = null;
@@ -833,6 +934,17 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
         : "";
       texts.rsi.innerHTML =
         `${tip("rsi", `RSI ${m.period}`)} <b style="color:${maColor({ ...m, opacity: 1 })}">${num(v)}</b>${ma}${zone}`;
+    }
+    if (st.macd && st.macdVals && pts?.length) {
+      const i = idx !== null && idx >= 0 && idx < pts.length ? idx : pts.length - 1;
+      const m = st.macdM;
+      const { macd: line, signal, hist } = st.macdVals;
+      const h = hist[i];
+      texts.macd.innerHTML =
+        `${tip("macd", `MACD ${m.fast} ${m.slow} ${m.signal}`)}` +
+        ` <b style="color:${m.macdColor}">${macdNum(line[i])}</b>` +
+        ` <span style="color:${m.signalColor}">Sinal ${macdNum(signal[i])}</span>` +
+        (m.showHist ? ` <span class="muted">Hist.</span> <b class="${h > 0 ? "pnl-pos" : h < 0 ? "pnl-neg" : ""}">${macdNum(h)}</b>` : "");
     }
     renderLiquidationTitle(idx);
     const a = st.aligned;
@@ -947,6 +1059,7 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
     setVolumeAverages,
     setCvd,
     setRsi,
+    setMacd,
     remove,
     active: () => !!st.series,
     /** quantos painéis existem abaixo do preço */

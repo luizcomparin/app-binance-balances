@@ -45,8 +45,9 @@ Qualquer parte do app abre uma moeda aqui com `window.openPriceChart(asset)`.
 | `volatility.js` | Faixa estatística | [faixa-estatistica](faixa-estatistica.md) |
 | `dca.js` | Comparação com compra mensal fixa | [comparacao-dca](comparacao-dca.md) |
 | `chart/liquidationOverlay.js` | Mapa de liquidação desenhado | [mapa-de-liquidacao](mapa-de-liquidacao.md) |
-| `chart/futuresPanes.js`, `chart/cvd.js`, `paneSettings.js` | Painéis de volume, CVD/Delta, RSI, OI, L/S, funding e liquidações (engrenagem de configurações no volume, no CVD e no RSI) | [paineis-de-futuros](paineis-de-futuros.md), [liquidacoes-reais](liquidacoes-reais.md), [rsi](rsi.md) |
+| `chart/futuresPanes.js`, `chart/cvd.js`, `paneSettings.js` | Painéis de volume, CVD/Delta, RSI, MACD, OI, L/S, funding e liquidações (engrenagem de configurações no volume, no CVD, no RSI e no MACD) | [paineis-de-futuros](paineis-de-futuros.md), [liquidacoes-reais](liquidacoes-reais.md), [rsi](rsi.md), [macd](macd.md) |
 | `chart/rsi.js` | Cálculo do RSI e limites das configurações | [rsi](rsi.md) |
+| `chart/macd.js` | Cálculo do MACD, tons do histograma e limites das configurações | [macd](macd.md) |
 | `watchlist.js`, `assetPicker.js` | Lista lateral e seletor do título | [watchlist-e-seletor](watchlist-e-seletor.md) |
 | `openOrdersTable.js`, `orderHistoryTable.js`, `tradeHistoryTable.js`, `periodFilter.js`, `loadError.js` | Abas abaixo do gráfico | [abas-de-ordens](abas-de-ordens.md) |
 | `PriceChartPanel.css`, `chart/chart.css` | Estilos do painel e do que é desenhado por cima do canvas (tooltip, títulos dos painéis, barra de desenho…) | — |
@@ -95,7 +96,7 @@ Fica em `PriceChartPanel.js`, no nível do módulo.
 5. **`loadChart({ keepWindow })`**: carrega as velas que cobrem a janela (ver [velas-e-timeframe](velas-e-timeframe.md)) e depois chama `render({ window })` e `renderInfo()`.
 6. **`render(extra)`**: monta **todas** as opções e chama `chart.update(opts)`. É chamado sempre que algo muda (dados, camada, posição, ordens). O `createChart` decide o que redesenhar: só recria a série ao trocar Linha/Velas, e só refaz os dados quando `points` muda.
 
-`chart.update(opts)` recebe: `asset, points, interval, mode, avg, avgSell, orders, openOrders, projectedAvg, projectedSellAvg, statBand, fixedAvg, dcaAvg, indicators, volume, volumeAverages, cvd, rsi, summary, liquidation, futures, futuresPanes, liquidations` e, opcionalmente, `window` / `prepended`.
+`chart.update(opts)` recebe: `asset, points, interval, mode, avg, avgSell, orders, openOrders, projectedAvg, projectedSellAvg, statBand, fixedAvg, dcaAvg, indicators, volume, volumeAverages, cvd, rsi, macd, summary, liquidation, futures, futuresPanes, liquidations` e, opcionalmente, `window` / `prepended`.
 
 ## Cabeçalho de informações (`renderInfo`)
 
