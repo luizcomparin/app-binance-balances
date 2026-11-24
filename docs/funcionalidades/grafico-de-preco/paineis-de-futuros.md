@@ -29,7 +29,7 @@ Os painéis ficam abaixo do preço, na mesma ordem do gráfico. Zoom, arrasto e 
 
 Todos são **independentes**: só os ligados aparecem, sempre **na mesma ordem dos checkboxes** de "Painéis abaixo do gráfico" (a lista acima). Os três de futuros são os últimos. Os dados vêm de uma única chamada (`/futures-data`), feita quando ao menos um está ligado.
 
-O título de cada painel mostra o valor na vela sob a mira (ou o mais recente), com uma explicação no hover (`FUTURES_HELP`). No volume e no CVD, a engrenagem (`.fp-gear`) abre a caixa de configurações (`.fp-settings`). Só uma fica aberta por vez; clique fora ou Esc fecha. As divisórias entre painéis podem ser arrastadas, e as alturas ficam salvas.
+O título de cada painel mostra o valor na vela sob a mira (ou o mais recente), com uma explicação no hover (`FUTURES_HELP`). No volume e no CVD, a engrenagem (`.fp-gear`, logo à direita do nome do painel) abre a caixa de configurações (`.fp-settings`). Só uma fica aberta por vez; clique fora ou Esc fecha. As divisórias entre painéis podem ser arrastadas, e as alturas ficam salvas.
 
 ## Server
 

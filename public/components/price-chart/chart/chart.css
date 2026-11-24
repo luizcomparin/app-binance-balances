@@ -65,12 +65,19 @@
   z-index: 30;
 }
 
+/* o trecho do nome e dos valores não tem caixa própria: os itens dele entram no flex do título, e a
+   engrenagem fica logo depois do nome (help-tip), antes dos valores */
 .fp-title-text {
   display: contents;
 }
 
+.fp-title-text > :not(.help-tip) {
+  order: 2;
+}
+
 /* engrenagem do título (volume e CVD): abre as configurações do painel */
 .fp-gear {
+  order: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
