@@ -19,7 +19,7 @@ Ferramentas (`TOOLS`):
 | `ray` (raio) | 2 |
 | `hline` (linha horizontal) | 1 |
 | `rect` (retângulo) | 2 |
-| `channel` (canal paralelo) | 3 (2 pontos + deslocamento `dp`) |
+| `channel` (canal paralelo) | 3 (2 pontos + deslocamento `dp`; `log: true` quando `dp` está em log do preço) |
 | `measure` (medição de preço) | 2 |
 
 Uso:
@@ -31,10 +31,11 @@ Uso:
 - Depois do primeiro ponto de um desenho, **botão direito**, **Esc** ou **Del/Backspace** cancelam o desenho em andamento (sem apagar o selecionado) e a ferramenta volta ao cursor (`drafting()` em `drawings.js`).
 - Os pontos são guardados como `{ ms, price }` (instante, não índice). Por isso valem em qualquer tamanho de vela e não se deslocam quando o histórico antigo carrega. Antes ou depois dos dados, o índice é extrapolado pela duração da vela.
 - O desenho é feito num primitive anexado à série principal (`drawings.primitive`).
+- **Escala logarítmica** (`isLog()`, vindo de `createChart`): as linhas são retas na tela entre os pontos, em qualquer escala. O canal criado ou editado na escala log guarda `dp` como distância em log do preço (`log: true`, `channelOffset`/`shifted`), e a base dele (`priceOnLine`) é interpolada no log, para as duas linhas ficarem paralelas na tela. Visto na outra escala, o canal deixa de ser paralelo, como no TradingView. Arrastar um desenho pelo corpo na escala log move os pontos em proporção (%), não em preço.
 - **Medição de preço** (`measure`): é a mesma régua do Shift + clique, só que durável (salva, selecionável, arrastável e apagável como os outros desenhos). Usa `measureLines` e `paintMeasure` de `measureTool.js`. O texto (variação, barras, tempo, volume) é recalculado a cada desenho, então reflete o tamanho de vela atual. Para selecionar, clique dentro da área.
 - A etiqueta de preço no eixo de cada linha horizontal é uma **linha de preço nativa invisível** (`createPriceLine` com `lineVisible: false`), mantida por `syncAxisLabels()`: criada, movida (ao arrastar) e removida junto com o desenho, e recriada na série nova quando o modo Linha/Velas muda (no `attached` do primitive).
   - **Não use `priceAxisViews` no primitive.** O Lightweight Charts 5.0.8 não encaixa essas etiquetas no arranjo que afasta as etiquetas sobrepostas, e com elas presentes as outras (ordens abertas, preços médios, médias) iam parar empilhadas no topo do eixo, longe das suas linhas. O problema aparecia só nas moedas com linhas horizontais desenhadas.
-- `createDrawings(chart, { container, getSeries, getPoints, getInterval, isBusy, onToolChange, onVisibleChange })` devolve `{ primitive, setTool, setVisible, isVisible, move(param), setAsset(asset) }`.
+- `createDrawings(chart, { container, getSeries, getPoints, getInterval, isBusy, isLog, onToolChange, onVisibleChange })` devolve `{ primitive, setTool, setVisible, isVisible, move(param), setAsset(asset) }`.
 
 **Barra** (`chart/drawingToolbar.js`): flutua sobre o gráfico e pode ser arrastada pela alça. A posição fica em `price-chart-draw-toolbar`. `createDrawingToolbar(wrap, onSelect, onToggleVisible)` devolve `{ setActive, setVisible }`.
 
@@ -64,4 +65,5 @@ Uso:
 2. Faça Shift+clique, mova o mouse e clique para medir; o próximo clique apaga a medida.
 3. Escolha "Linha de tendência", clique no primeiro ponto e aperte o botão direito (de novo com Esc e com Del): a linha some, não abre o menu do navegador e a ferramenta volta ao cursor.
 4. Escolha "Medição de preço" na barra, marque dois pontos: a medida fica. Troque de moeda e volte (continua lá), arraste pelas bolinhas e apague com Del.
-5. Clique no olho da barra: todos os desenhos somem (e as etiquetas das horizontais no eixo); recarregue (continuam ocultos); escolha uma ferramenta: voltam a aparecer.
+5. Em **Log**, desenhe um canal paralelo: as duas linhas ficam paralelas; arraste-o pelo corpo e por uma bolinha da paralela (continua paralelo).
+6. Clique no olho da barra: todos os desenhos somem (e as etiquetas das horizontais no eixo); recarregue (continuam ocultos); escolha uma ferramenta: voltam a aparecer.

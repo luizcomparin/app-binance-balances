@@ -29,7 +29,7 @@ const LWC = window.LightweightCharts;
  * Cria o gráfico uma única vez; depois é só chamar update(opts) a cada mudança.
  * els = { container, wrap, legend }   handlers = { onNeedOlder, mountPaneSettings(key, el) }
  *
- * update(opts): opts = { asset, points, interval, mode, avg, orders: { buys, sells },
+ * update(opts): opts = { asset, points, interval, mode, logScale (eixo de preço logarítmico), avg, orders: { buys, sells },
  *                        openOrders: { buys, sells } | null, projectedAvg, fixedAvg, dcaAvg, window, prepended,
  *                        indicators: [{ id, kind: "ma"|"bb", period, type?, mult?, color, opacity, visible }],
  *                        volume: painel de volume ligado, volumeAverages: médias do volume ([{ id, kind: "vma", ... }]),
@@ -51,6 +51,7 @@ export function createPriceChart(els, handlers = {}) {
   const s = {
     series: null,
     mode: null,
+    logScale: null, // eixo de preço logarítmico (aplicado só quando muda)
     markersApi: null,
     priceLines: [],
     points: null,
@@ -108,6 +109,7 @@ export function createPriceChart(els, handlers = {}) {
     getPoints: () => s.points,
     getInterval: () => s.interval,
     isBusy: () => measure.busy(),
+    isLog: () => !!s.logScale,
     onToolChange: (tool) => toolbar.setActive(tool),
     onVisibleChange: (visible) => toolbar.setVisible(visible),
   });
@@ -510,6 +512,12 @@ export function createPriceChart(els, handlers = {}) {
       if (s.interval && opts.interval !== s.interval) measure.clear(); // outra vela: a medida não vale mais
       s.interval = opts.interval;
       drawings.setAsset(opts.asset);
+      // escala do preço: linear ou logarítmica (só o painel de preço; os painéis de baixo seguem lineares)
+      const logScale = !!opts.logScale;
+      if (logScale !== s.logScale) {
+        s.logScale = logScale;
+        chart.priceScale("right").applyOptions({ mode: logScale ? LWC.PriceScaleMode.Logarithmic : LWC.PriceScaleMode.Normal });
+      }
       // só mexe nas opções do eixo de tempo quando mudam (mudar provoca reajuste de layout)
       const timeVisible = INTRADAY.has(opts.interval);
       if (timeVisible !== s.timeVisible) {

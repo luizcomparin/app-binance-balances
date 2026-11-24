@@ -4,7 +4,7 @@ resumo: Aba principal do app, um gráfico estilo TradingView (Lightweight Charts
 arquivos: [public/components/price-chart/PriceChartPanel.js, public/components/price-chart/PriceChartPanel.html, public/components/price-chart/PriceChartPanel.css, public/components/price-chart/chart/createChart.js, public/components/price-chart/chart/chart.css, public/components/price-chart/loadError.js]
 rotas: [GET /price-chart/:asset, GET /orders/:asset, GET /executed-orders, GET /order-history/:asset, GET /trade-history/:asset, GET /liquidation-map/:asset, GET /futures-data/:asset, GET /liquidations/:asset]
 eventos: [BALANCES_UPDATED, POSITIONS_UPDATED, TAB_CHANGED, COINALYZE_KEY_CHANGED]
-storage: [priceChartAsset, priceChartMode, priceChartRange, priceChartInterval]
+storage: [priceChartAsset, priceChartMode, priceChartScale, priceChartRange, priceChartInterval]
 ---
 
 # Gráfico de preço
@@ -19,7 +19,7 @@ Qualquer parte do app abre uma moeda aqui com `window.openPriceChart(asset)`.
 ┌ cabeçalho ───────────────────────────────────────────────────────────────┐
 │ [XRP / USDT ▾] (seletor)   #price-chart-info: preço atual · médio · vs. médio │
 │ #price-chart-mas: indicadores (+ Adicionar)                               │
-│ Linha|Velas · 1h 4h D S M · 7d 30d 90d 6m 1a 2a Tudo Personalizado · ⚙ camadas │
+│ Linha|Velas · Linear|Log · 1h 4h D S M · 7d 30d 90d 6m 1a 2a Tudo Personalizado · ⚙ camadas │
 │                                                  [Ajustar zoom] [☰ lista]   │
 ├ #price-chart-canvas-wrap ─────────────────────────────┬ #price-chart-watchlist ┤
 │ barra superior: ↑ ordens fora · resumo · legenda      │ moedas (arrastáveis)  │
@@ -61,7 +61,7 @@ Fica em `PriceChartPanel.js`, no nível do módulo.
 | Campo | Significado |
 |---|---|
 | `asset` | Moeda aberta (`null` até escolher) |
-| `range`, `interval`, `mode` | Período, tamanho da vela, `"line"`/`"candle"` (persistidos) |
+| `range`, `interval`, `mode`, `logScale` | Período, tamanho da vela, `"line"`/`"candle"`, eixo de preço logarítmico (persistidos) |
 | `requestId` | Incrementado a cada `loadChart`, para descartar respostas antigas |
 | `points` | Velas carregadas (`[{ time, open, high, low, close, volume }]`) |
 | `loadingOlder`, `reachedStart` | Estado do histórico sob demanda |
@@ -98,7 +98,7 @@ Fica em `PriceChartPanel.js`, no nível do módulo.
 5. **`loadChart({ keepWindow })`**: carrega as velas que cobrem a janela (ver [velas-e-timeframe](velas-e-timeframe.md)) e depois chama `render({ window })` e `renderInfo()`.
 6. **`render(extra)`**: monta **todas** as opções e chama `chart.update(opts)`. É chamado sempre que algo muda (dados, camada, posição, ordens). O `createChart` decide o que redesenhar: só recria a série ao trocar Linha/Velas, e só refaz os dados quando `points` muda.
 
-`chart.update(opts)` recebe: `asset, points, interval, mode, avg, avgSell, orders, openOrders, projectedAvg, projectedSellAvg, statBand, fixedAvg, dcaAvg, indicators, volume, volumeAverages, cvd, rsi, macd, summary, liquidation, futures, futuresPanes, liquidations` e, opcionalmente, `window` / `prepended`.
+`chart.update(opts)` recebe: `asset, points, interval, mode, logScale, avg, avgSell, orders, openOrders, projectedAvg, projectedSellAvg, statBand, fixedAvg, dcaAvg, indicators, volume, volumeAverages, cvd, rsi, macd, summary, liquidation, futures, futuresPanes, liquidations` e, opcionalmente, `window` / `prepended`.
 
 ## Cabeçalho de informações (`renderInfo`)
 

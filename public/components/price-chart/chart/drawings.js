@@ -6,7 +6,10 @@
 //   - o olho da barra exibe/oculta todos (salvo no navegador; escolher uma ferramenta volta a exibir);
 //   - Del/Backspace apaga o selecionado; Esc cancela o desenho em andamento ou tira a seleção;
 //   - os pontos são guardados pelo instante (ms) e preço: valem em qualquer tamanho de vela e
-//     continuam no lugar quando o histórico antigo é carregado; salvos no navegador por moeda.
+//     continuam no lugar quando o histórico antigo é carregado; salvos no navegador por moeda;
+//   - escala logarítmica: as linhas continuam retas na tela (entre os dois pontos), o canal feito nela
+//     guarda a distância em log do preço (log: true) para ficar paralelo, e arrastar pelo corpo move
+//     em proporção (%), não em preço.
 import { INTERVAL_MS } from "../timeframe.js";
 import { measureLines, paintMeasure } from "./measureTool.js";
 
@@ -74,9 +77,10 @@ function loadAll() {
  * onToolChange(tool|null): ferramenta ativa mudou (para a barra de ferramentas)
  * onVisibleChange(visible): desenhos exibidos/ocultos mudou (para o olho da barra)
  */
-export function createDrawings(chart, { container, getSeries, getPoints, getInterval, isBusy, onToolChange, onVisibleChange }) {
+export function createDrawings(chart, { container, getSeries, getPoints, getInterval, isBusy, isLog, onToolChange, onVisibleChange }) {
   let asset = null;
-  let items = []; // { id, type, points: [{ ms, price }], dp? (canal: distância de preço da linha paralela) }
+  // { id, type, points: [{ ms, price }], dp? (canal: distância da linha paralela), log? (canal: dp em log do preço) }
+  let items = [];
   let selected = null;
   let hovered = null;
   let tool = null;
@@ -178,12 +182,29 @@ export function createDrawings(chart, { container, getSeries, getPoints, getInte
     return x === null || y === null ? null : { x, y };
   }
 
-  // preço da reta p0→p1 no instante ms (base do canal paralelo)
-  function priceOnLine(p0, p1, ms) {
+  const logScale = () => !!isLog?.();
+
+  // preço da reta p0→p1 no instante ms (base do canal paralelo); na escala log a reta da tela é reta no log do preço
+  function priceOnLine(p0, p1, ms, log) {
     const i0 = msToIdx(p0.ms);
     const i1 = msToIdx(p1.ms);
     if (i1 === i0) return p0.price;
-    return p0.price + ((p1.price - p0.price) * (msToIdx(ms) - i0)) / (i1 - i0);
+    const t = (msToIdx(ms) - i0) / (i1 - i0);
+    if (log) return Math.exp(Math.log(p0.price) + (Math.log(p1.price) - Math.log(p0.price)) * t);
+    return p0.price + (p1.price - p0.price) * t;
+  }
+
+  // canal: preço deslocado até a linha paralela, e a distância de `price` à reta base (na escala atual)
+  const shifted = (price, d) => (d.log ? price * Math.exp(d.dp) : price + d.dp);
+  function channelOffset(p0, p1, at) {
+    const log = logScale();
+    const base = priceOnLine(p0, p1, at.ms, log);
+    return log ? { dp: Math.log(at.price / base), log: true } : { dp: at.price - base };
+  }
+  function setOffset(d, off) {
+    d.dp = off.dp;
+    if (off.log) d.log = true;
+    else delete d.log;
   }
 
   // ---- forma de cada desenho em px: segmentos (linhas), polígono (preenchimento), linha do meio (canal)
@@ -210,8 +231,8 @@ export function createDrawings(chart, { container, getSeries, getPoints, getInte
         return { segs: poly.map((p, i) => [p, poly[(i + 1) % 4]]), poly };
       }
       case "channel": {
-        const a2 = toXY(d.points[0].ms, d.points[0].price + d.dp);
-        const b2 = toXY(d.points[1].ms, d.points[1].price + d.dp);
+        const a2 = toXY(d.points[0].ms, shifted(d.points[0].price, d));
+        const b2 = toXY(d.points[1].ms, shifted(d.points[1].price, d));
         if (!a2 || !b2) return null;
         return {
           segs: [[a, b], [a2, b2]],
@@ -224,7 +245,7 @@ export function createDrawings(chart, { container, getSeries, getPoints, getInte
   }
 
   const handlesOf = (d) =>
-    TOOLS[d.type].handles.map(([t, p, shifted]) => toXY(d.points[t].ms, d.points[p].price + (shifted ? d.dp : 0)));
+    TOOLS[d.type].handles.map(([t, p, isShifted]) => toXY(d.points[t].ms, isShifted ? shifted(d.points[p].price, d) : d.points[p].price));
 
   // desenho em andamento, com o mouse como próximo ponto
   function draftDrawing() {
@@ -232,7 +253,7 @@ export function createDrawings(chart, { container, getSeries, getPoints, getInte
     const pts = [...draft.points, draft.cursor];
     if (draft.type !== "channel") return { type: draft.type, points: pts };
     if (pts.length === 2) return { type: "channel", points: pts, dp: 0 };
-    return { type: "channel", points: pts.slice(0, 2), dp: draft.cursor.price - priceOnLine(pts[0], pts[1], draft.cursor.ms) };
+    return { type: "channel", points: pts.slice(0, 2), ...channelOffset(pts[0], pts[1], draft.cursor) };
   }
 
   // o que está sob o mouse: bolinha de edição (handle >= 0) ou o desenho em si (handle -1)
@@ -393,7 +414,7 @@ export function createDrawings(chart, { container, getSeries, getPoints, getInte
     const d = { id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, type: draft.type };
     if (d.type === "channel") {
       d.points = pts.slice(0, 2);
-      d.dp = pts[2].price - priceOnLine(pts[0], pts[1], pts[2].ms);
+      setOffset(d, channelOffset(pts[0], pts[1], pts[2]));
     } else {
       d.points = pts;
     }
@@ -476,18 +497,18 @@ export function createDrawings(chart, { container, getSeries, getPoints, getInte
     const d = drag.d;
     drag.moved = true;
     if (drag.handle >= 0) {
-      const [t, p, shifted] = TOOLS[d.type].handles[drag.handle];
-      if (shifted) {
-        d.dp = price - priceOnLine(d.points[0], d.points[1], d.points[t].ms);
+      const [t, p, isShifted] = TOOLS[d.type].handles[drag.handle];
+      if (isShifted) {
+        setOffset(d, channelOffset(d.points[0], d.points[1], { ms: d.points[t].ms, price }));
       } else {
         d.points[t].ms = idxToMs(Math.round(logical));
         d.points[p].price = price;
       }
     } else if (drag.startIdx !== null && drag.startPrice !== null) {
-      // corpo: desloca todos os pontos em velas inteiras e no preço
+      // corpo: desloca todos os pontos em velas inteiras e no preço (na escala log, em proporção)
       const di = Math.round(logical - drag.startIdx);
-      const dp = price - drag.startPrice;
-      d.points = drag.orig.map((p) => ({ ms: idxToMs(msToIdx(p.ms) + di), price: p.price + dp }));
+      const move = logScale() ? (v) => v * (price / drag.startPrice) : (v) => v + (price - drag.startPrice);
+      d.points = drag.orig.map((p) => ({ ms: idxToMs(msToIdx(p.ms) + di), price: move(p.price) }));
     }
     redraw();
   });

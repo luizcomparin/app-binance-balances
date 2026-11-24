@@ -109,13 +109,17 @@ export function barBubbles(events) {
 /**
  * Perfil por preço: os eventos das velas [fromIndex, toIndex] espalhados (por igual) na faixa de preço de
  * cada um e somados em `rows` faixas entre lo e hi: [{ from, to, long, short }] (de baixo para cima).
- * Evento sem faixa (lo = hi) vai inteiro para a faixa do preço.
+ * Evento sem faixa (lo = hi) vai inteiro para a faixa do preço. log: true → faixas em progressão
+ * geométrica (escala logarítmica do gráfico: todas com a mesma altura na tela).
  */
-export function priceProfile(events, { fromIndex, toIndex, lo, hi, rows }) {
-  const out = Array.from({ length: rows }, (_, k) => ({ from: lo + ((hi - lo) * k) / rows, to: lo + ((hi - lo) * (k + 1)) / rows, long: 0, short: 0 }));
+export function priceProfile(events, { fromIndex, toIndex, lo, hi, rows, log = false }) {
+  // escala log: faixas em progressão geométrica (mesma altura na tela); exige lo > 0
+  const geo = log && lo > 0;
+  const edge = (k) => (geo ? lo * (hi / lo) ** (k / rows) : lo + ((hi - lo) * k) / rows);
+  const out = Array.from({ length: rows }, (_, k) => ({ from: edge(k), to: edge(k + 1), long: 0, short: 0 }));
   if (!(hi > lo) || rows < 1) return out;
-  const step = (hi - lo) / rows;
-  const rowOf = (p) => Math.min(rows - 1, Math.max(0, Math.floor((p - lo) / step)));
+  const frac = (p) => (geo ? Math.log(p / lo) / Math.log(hi / lo) : (p - lo) / (hi - lo));
+  const rowOf = (p) => Math.min(rows - 1, Math.max(0, Math.floor(frac(p) * rows)));
   for (const e of events) {
     if (e.index < fromIndex || e.index > toIndex) continue;
     const a = Math.max(lo, e.lo);
@@ -325,7 +329,8 @@ export class LiquidationBubbles {
     const bottom = this._series.coordinateToPrice(heightCss);
     if (top === null || bottom === null) return;
     const rows = Math.max(10, Math.floor(heightCss / PROFILE_ROW_PX));
-    const profile = priceProfile(o.events, { fromIndex, toIndex, lo: Math.min(top, bottom), hi: Math.max(top, bottom), rows });
+    const log = this._series.priceScale().options().mode === window.LightweightCharts?.PriceScaleMode.Logarithmic;
+    const profile = priceProfile(o.events, { fromIndex, toIndex, lo: Math.min(top, bottom), hi: Math.max(top, bottom), rows, log });
     const max = Math.max(0, ...profile.map((r) => r.long + r.short));
     if (!max) return;
     const maxW = PROFILE_MAX_WIDTH * hr;

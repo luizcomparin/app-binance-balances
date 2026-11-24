@@ -114,6 +114,22 @@ test("priceProfile: espalha cada evento na sua faixa, só nas velas pedidas", ()
   assert.equal(Math.round(half[0].long), 50);
 });
 
+test("priceProfile: escala log divide em faixas geométricas", () => {
+  const events = [{ index: 0, side: "long", usd: 90, price: 10, lo: 10, hi: 100 }];
+  const p = priceProfile(events, { fromIndex: 0, toIndex: 0, lo: 1, hi: 1000, rows: 3, log: true });
+  assert.deepEqual(
+    p.map((r) => [Math.round(r.from), Math.round(r.to), Math.round(r.long)]),
+    [
+      [1, 10, 0],
+      [10, 100, 90],
+      [100, 1000, 0],
+    ]
+  );
+  // ponto sem faixa: cai na faixa geométrica certa
+  const one = priceProfile([{ index: 0, side: "short", usd: 7, price: 500, lo: 500, hi: 500 }], { fromIndex: 0, toIndex: 0, lo: 1, hi: 1000, rows: 3, log: true });
+  assert.equal(one[2].short, 7);
+});
+
 test("topBubbles: as N maiores no intervalo de velas, a partir do limite", () => {
   const bubbles = [
     { index: 0, usd: 50 },

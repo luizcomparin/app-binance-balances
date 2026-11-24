@@ -4,7 +4,7 @@ resumo: Todas as preferências da página salvas no navegador, com formato, padr
 arquivos: []
 rotas: []
 eventos: []
-storage: [balances-simple-view, ordersOpenPairs, priceChartAsset, priceChartMode, priceChartRange, priceChartInterval, priceChartDynamicAvg, priceChartOpenOrders, priceChartMyOrders, priceChartProjectedAvg, priceChartSimulator, priceChartStats, priceChartStatsDays, priceChartDca, priceChartLiquidation, priceChartLiqMapSettings, priceChartFuturesOi, priceChartFuturesLs, priceChartFuturesFunding, priceChartFutures, priceChartRealLiquidations, priceChartLiqBubbles, priceChartLiqBubblesStyle, priceChartLiqBubblesSource, priceChartLiqBubblesMin, priceChartLiqBubblesTop, priceChartOrdersTab, priceChartIndicators, priceChartMovingAverages, priceChartIndicatorsVisible, priceChartVolumeAverages, priceChartVolumePane, priceChartCvdPane, priceChartCvd, priceChartRsiPane, priceChartRsi, priceChartMacdPane, priceChartMacd, priceChartWatchlistOrder, priceChartWatchlistOpen, priceChartWatchlistColors, priceChartPaneHeights, price-chart-drawings, price-chart-drawings-visible, price-chart-draw-toolbar]
+storage: [balances-simple-view, ordersOpenPairs, priceChartAsset, priceChartMode, priceChartScale, priceChartRange, priceChartInterval, priceChartDynamicAvg, priceChartOpenOrders, priceChartMyOrders, priceChartProjectedAvg, priceChartSimulator, priceChartStats, priceChartStatsDays, priceChartDca, priceChartLiquidation, priceChartLiqMapSettings, priceChartFuturesOi, priceChartFuturesLs, priceChartFuturesFunding, priceChartFutures, priceChartRealLiquidations, priceChartLiqBubbles, priceChartLiqBubblesStyle, priceChartLiqBubblesSource, priceChartLiqBubblesMin, priceChartLiqBubblesTop, priceChartOrdersTab, priceChartIndicators, priceChartMovingAverages, priceChartIndicatorsVisible, priceChartVolumeAverages, priceChartVolumePane, priceChartCvdPane, priceChartCvd, priceChartRsiPane, priceChartRsi, priceChartMacdPane, priceChartMacd, priceChartWatchlistOrder, priceChartWatchlistOpen, priceChartWatchlistColors, priceChartPaneHeights, price-chart-drawings, price-chart-drawings-visible, price-chart-draw-toolbar]
 ---
 
 # `localStorage`
@@ -19,6 +19,7 @@ O padrão de nomes é **inconsistente**: há chaves em `camelCase` (`priceChartX
 | `ordersOpenPairs` | JSON `string[]` | `[]` | `orders/OrdersPanel.js` | Pares expandidos em Ordens Abertas |
 | `priceChartAsset` | `"BTC"` | BTC se em carteira, senão a maior | `PriceChartPanel.js` | Última moeda vista |
 | `priceChartMode` | `"line"`/`"candle"` | `line` | `PriceChartPanel.js` | Linha ou velas |
+| `priceChartScale` | `"linear"`/`"log"` | `linear` | `PriceChartPanel.js` | Escala do eixo de preço (linear ou logarítmica) |
 | `priceChartRange` | `7d·30d·90d·6m·1y·2y·all·<n>[dmy]` | `1y` | `PriceChartPanel.js` | Período |
 | `priceChartInterval` | `1h·4h·1d·1w·1M` | `1d` | `PriceChartPanel.js` | Tamanho da vela |
 | `priceChartDynamicAvg` | `"1"`/`"0"` | on | `PriceChartPanel.js` | Camada "Preço médio dinâmico" (linhas do médio de compra e de venda) |

@@ -4,7 +4,7 @@ resumo: /price-chart devolve velas OHLC+volume em USDT; o front combina período
 arquivos: [server/services/priceChart.js, public/components/price-chart/timeframe.js, public/components/price-chart/chartData.js, public/components/price-chart/chart/axis.js, public/components/price-chart/chart/createChart.js, public/components/price-chart/PriceChartPanel.js]
 rotas: [GET /price-chart/:asset]
 eventos: []
-storage: [priceChartMode, priceChartRange, priceChartInterval]
+storage: [priceChartMode, priceChartScale, priceChartRange, priceChartInterval]
 ---
 
 # Velas, período e tamanho de vela
@@ -12,6 +12,7 @@ storage: [priceChartMode, priceChartRange, priceChartInterval]
 ## O que faz
 
 - **Linha | Velas** (`#price-chart-mode`): troca só o desenho, sem nova requisição.
+- **Escala Linear | Log** (`#price-chart-scale`, `view.logScale`): eixo de preço linear ou logarítmico (`PriceScaleMode.Logarithmic` no eixo `right` do painel de preço; os painéis de baixo continuam lineares). Na log, distâncias iguais na tela são a mesma variação em %. Troca sem nova requisição: `createChart.update` só reaplica o modo do eixo quando `opts.logScale` muda. Tudo que é desenhado sobre o preço passa por `priceToCoordinate`, então segue a escala; os pontos onde a conta depende dela estão em [desenhos-e-regua](desenhos-e-regua.md) (canal e arrasto) e [liquidacoes-reais](liquidacoes-reais.md) (perfil). Médias móveis e Bollinger continuam calculadas sobre o preço, como no TradingView.
 - **Tamanho da vela** (`#price-chart-interval`: 1h · 4h · D · S · M): redesenha **mantendo a janela de tempo** que está na tela.
 - **Período** (`#price-chart-ranges`: 7d · 30d · 90d · 6 meses · 1 ano · 2 anos · Tudo · Personalizado `<n>` dias/meses/anos): mostra essa janela e escolhe a vela recomendada.
 - **Ajustar zoom** (`#price-chart-fit`): enquadra todo o período carregado e volta a escala de preço para automática.
@@ -64,7 +65,7 @@ Chave `asset|interval|before`. A página mais recente vale 60 s; as páginas ant
 
 ## Persistência
 
-`priceChartMode`, `priceChartRange` (validado por `VALID_RANGE`) e `priceChartInterval` (validado por `VALID_INTERVALS`). Sem nada salvo, o padrão é **D + 1 ano**.
+`priceChartMode`, `priceChartScale` (`"linear"`/`"log"`), `priceChartRange` (validado por `VALID_RANGE`) e `priceChartInterval` (validado por `VALID_INTERVALS`). Sem nada salvo, o padrão é **D + 1 ano**.
 
 ## Casos de borda
 
@@ -78,3 +79,4 @@ Chave `asset|interval|before`. A página mais recente vale 60 s; as páginas ant
 2. Escolha 1h com "Tudo": a janela encurta para cerca de 125 dias.
 3. Arraste para a esquerda: uma borda de carregamento aparece e mais velas chegam.
 4. Em 1h, a hora do tooltip deve ser local.
+5. Com "Tudo" numa moeda que subiu muito (ex.: BTC), clique em **Log**: o começo do histórico deixa de ficar achatado embaixo e o eixo mostra níveis espaçados por %. Recarregue (continua em Log) e volte para **Linear**.

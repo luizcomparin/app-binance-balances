@@ -44,6 +44,7 @@ import {
 } from "./timeframe.js";
 
 const MODE_STORAGE_KEY = "priceChartMode";
+const SCALE_STORAGE_KEY = "priceChartScale"; // eixo de preço: "linear" (padrão) | "log"
 // período e tamanho de vela escolhidos ficam salvos; sem nada salvo, começa em D + 1 ano
 const RANGE_STORAGE_KEY = "priceChartRange";
 const INTERVAL_STORAGE_KEY = "priceChartInterval";
@@ -99,6 +100,7 @@ const view = {
   loadingOlder: false,
   reachedStart: false, // já chegou na primeira vela da moeda
   mode: readStoredMode(),
+  logScale: readStored(SCALE_STORAGE_KEY) === "log", // eixo de preço logarítmico (persistido)
   openOrders: null, // { buys, sells } da moeda aberta; null enquanto carrega
   myOrdersLoading: false, // ordens executadas (bolinhas) carregando
   showAvg: readStored(AVG_STORAGE_KEY) !== "0", // liga as duas linhas do médio dinâmico (compra e venda)
@@ -312,6 +314,7 @@ function render(extra = {}) {
     points: view.points,
     interval: view.interval,
     mode: view.mode,
+    logScale: view.logScale,
     avg: view.showAvg ? positionOf(view.asset).avg : null,
     avgSell: view.showAvg ? state.positions?.[view.asset]?.avgSellPriceUSDT ?? null : null,
     orders: view.showMyOrders ? ordersOnChart(view.points, view.asset) : { buys: [], sells: [] },
@@ -924,6 +927,19 @@ function setMode(mode) {
   render(); // mesmos dados nos dois modos: só redesenha
 }
 
+function setScale(scale) {
+  view.logScale = scale === "log";
+  writeStored(SCALE_STORAGE_KEY, view.logScale ? "log" : "linear");
+  highlightScale();
+  render(); // mesmos dados: só troca a escala do eixo
+}
+
+function highlightScale() {
+  document.querySelectorAll("#price-chart-scale button").forEach((btn) => {
+    btn.classList.toggle("active", (btn.dataset.scale === "log") === view.logScale);
+  });
+}
+
 function selectInterval(interval) {
   if (interval === view.interval) return;
   view.interval = interval;
@@ -1213,6 +1229,11 @@ export function initPriceChartPanel() {
     btn.addEventListener("click", () => setMode(btn.dataset.mode));
   });
   highlightMode();
+
+  document.querySelectorAll("#price-chart-scale button").forEach((btn) => {
+    btn.addEventListener("click", () => setScale(btn.dataset.scale));
+  });
+  highlightScale();
 
   document.getElementById("price-chart-custom")?.addEventListener("submit", (e) => {
     e.preventDefault();
