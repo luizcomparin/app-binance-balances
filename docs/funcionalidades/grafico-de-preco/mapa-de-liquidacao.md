@@ -1,6 +1,6 @@
 ---
 titulo: Mapa de liquidação estimado
-resumo: Camada que estima, a partir de 30 dias de open interest e razões long/short dos futuros da Binance, onde ainda haveria liquidações; desenhada como mapa de calor + perfil à direita. Com a chave da Coinalyze, é calibrada pelas liquidações reais da Binance. É estimativa, não dado real.
+resumo: Camada que estima, a partir de 30 dias de open interest e razões long/short dos futuros da Binance, onde ainda haveria liquidações; desenhada como mapa de calor + perfil à direita. Com a chave da Coinalyze, é calibrada pelas liquidações reais da Binance (valores e divisão por alavancagem). É estimativa, não dado real.
 arquivos: [server/services/liquidationMap.js, server/services/liquidationModel.js, server/binance/futures.js, public/components/price-chart/chart/liquidationOverlay.js, public/components/price-chart/PriceChartPanel.js, public/components/price-chart/chart/createChart.js]
 rotas: [GET /liquidation-map/:asset]
 eventos: [COINALYZE_KEY_CHANGED]
@@ -21,13 +21,14 @@ Checkbox `#price-chart-liq`.
   - a soma até ±10% e para que lado há mais liquidez;
   - a % de contas compradas e de top traders comprados;
   - com a chave da Coinalyze, o **ajuste pelas liquidações reais**: quanto o modelo previu e quanto foi liquidado de verdade (longs e shorts), o fator aplicado a cada lado e a correlação hora a hora. Sem a chave, uma linha diz o que falta;
+  - com a chave, a **divisão por alavancagem** usada: a ajustada (com a padrão ao lado e o acerto fora do ajuste, antes → depois) ou a padrão, com o motivo de não ter trocado;
   - um aviso de **estimativa**.
 
 > Ninguém publica onde estão as posições alavancadas. Para liquidações que **de fato** aconteceram, veja [liquidacoes-reais](liquidacoes-reais.md): o painel e as **bolhas sobre o gráfico** (checkbox próprio), que mostram se as faixas do mapa "pegaram" as cascatas.
 
 ## Server: o modelo (`services/liquidationMap.js` + `services/liquidationModel.js`)
 
-`liquidationMap.js` busca os dados e converte os preços. A conta fica em `liquidationModel.js` (`runLiquidationModel`, `calibrate`, `pearson`), que é pura e tem testes em `test/server/liquidationModel.test.js`.
+`liquidationMap.js` busca os dados e converte os preços. A conta fica em `liquidationModel.js` (`runLiquidationModel`, `simulate`, `calibrate`, `fitLeverageTiers`, `tierScore`, `weightGrid`, `pearson`), que é pura e tem testes em `test/server/liquidationModel.test.js`.
 
 1. `getPerpetualFor(asset)` resolve o contrato perpétuo USDT e o `multiplier`. Sem contrato: `{ available: false, reason: "no-perpetual" }`.
 2. Busca em paralelo 721 velas de 1h dos futuros e as séries horárias de 30 dias de `openInterestHist`, `globalLongShortAccountRatio` e `topLongShortPositionRatio`. Sem OI suficiente: `reason: "no-data"`.
@@ -39,9 +40,17 @@ Checkbox `#price-chart-liq`.
 4. **Calibração** (com liquidações reais): para cada hora, o modelo soma o valor dos níveis atingidos no passo 5 (o que ele "acha" que foi liquidado) e compara com o real da Binance. As primeiras 72 h ficam de fora (`CALIBRATION_WARMUP_HOURS`: o modelo ainda não conhece as posições abertas antes da janela), e dentro do período coberto a hora sem linha da Coinalyze vale 0. Com pelo menos 24 h comparáveis:
    - fator por lado = real ÷ modelo, limitado a 0,05–20 (`null` se um dos dois for zero: aquele lado fica sem ajuste);
    - os níveis pendentes e os trechos do mapa de calor daquele lado são multiplicados pelo fator;
-   - correlação de Pearson, hora a hora, entre o total liquidado pelo modelo e o real.
+   - correlação de Pearson, hora a hora, entre o total liquidado pelo modelo **já calibrado** (fator de cada lado aplicado) e o real.
 
    Resultado em `calibration` (ver [api.md](../../referencia/api.md#get-liquidation-mapasset)).
+
+   **Ajuste da divisão por alavancagem** (`fitLeverageTiers`, antes da calibração). Atingir ou encolher um nível depende só do preço, do OI e das liquidações reais, nunca do peso. Por isso o liquidado por hora é linear nos pesos de `LEVERAGE_TIERS`:
+   - roda `simulate` uma vez por alavancagem, com peso 1, e obtém a contribuição de cada uma em cada hora (há teste que confere essa linearidade);
+   - testa as 1001 divisões de 10 em 10% (`weightGrid`). A nota de cada uma (`tierScore`) é a correlação hora a hora com o real, já com o fator real ÷ modelo de cada lado;
+   - escolhe a melhor nos primeiros 2/3 das horas comparáveis e confere no último 1/3. Só troca a divisão padrão se acertar pelo menos 0,02 a mais nesse trecho de fora (`FIT_MIN_GAIN`). Se trocar, a divisão final é escolhida com todas as horas;
+   - precisa de pelo menos 168 h comparáveis (`FIT_MIN_HOURS`), senão `reason: "few-hours"`.
+
+   A simulação final roda com a divisão escolhida. O resultado vai em `leverage` (ver [api.md](../../referencia/api.md#get-liquidation-mapasset)). Na prática (nov/2026, BTC, ETH, SOL, XRP e DOGE), a padrão ficou: nenhuma outra acertou mais fora do ajuste, e no XRP a melhor do ajuste teria piorado de 0,82 para 0,65.
 5. Os trechos do mapa de calor são "quebrados" quando o valor do nível muda mais de 25%. Trechos menores que 0,3% do maior não são enviados (o corte é feito antes da calibração).
 6. Os preços são convertidos de contrato para moeda (`÷ multiplier`).
 
@@ -49,7 +58,7 @@ O formato da resposta está em [api.md](../../referencia/api.md#get-liquidation-
 
 ## Página
 
-- `PriceChartPanel.loadLiquidation(asset)` tem cache de 2 min por moeda (`liqCache`) e `renderLiq()` preenche a caixa (a linha do ajuste vem de `calibrationText()`). `COINALYZE_KEY_CHANGED` → `reloadLiquidations()` limpa o `liqCache` e recarrega o mapa. O `render()` passa `liquidation` só com `available`.
+- `PriceChartPanel.loadLiquidation(asset)` tem cache de 2 min por moeda (`liqCache`) e `renderLiq()` preenche a caixa (as linhas do ajuste vêm de `calibrationText()` e `leverageText()`). `COINALYZE_KEY_CHANGED` → `reloadLiquidations()` limpa o `liqCache` e recarrega o mapa. O `render()` passa `liquidation` só com `available`.
 - `chart/liquidationOverlay.js` → `LiquidationOverlay`, um primitive anexado à série principal com `zOrder: "bottom"`. Recebe `timeToX(ms)` do `createChart`, que interpola dentro da vela porque o mapa é horário e o gráfico pode estar em D. A intensidade é normalizada pelo **percentil 98**, e abaixo de 6% a faixa não é desenhada.
 - Os rótulos de valor usam `formatUsdShort` (≈ "100,6M"), de `core/format.js`.
 
@@ -58,5 +67,6 @@ O formato da resposta está em [api.md](../../referencia/api.md#get-liquidation-
 1. Ligue a camada em BTC: aparece o mapa amarelado e o perfil à direita.
 2. Numa moeda sem perpétuo, aparece a mensagem de indisponível.
 3. Com a chave da Coinalyze, a caixa mostra "Ajustado com as liquidações reais da Binance" com os valores, os fatores e a correlação. Sem a chave, mostra a linha "Sem ajuste por liquidações reais: configure a chave...".
-4. Salve ou remova a chave nas Configurações: o mapa recarrega e a linha do ajuste muda.
-5. Ligue as **Bolhas de liquidações (reais)** junto: as bolhas grandes devem cair perto das faixas amarelas que somem.
+4. Com a chave, a caixa mostra a linha "Alavancagem": a divisão usada e o acerto fora do ajuste.
+5. Salve ou remova a chave nas Configurações: o mapa recarrega e as linhas do ajuste mudam.
+6. Ligue as **Bolhas de liquidações (reais)** junto: as bolhas grandes devem cair perto das faixas amarelas que somem.

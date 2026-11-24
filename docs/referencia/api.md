@@ -108,9 +108,11 @@ Resposta: `{ asset, symbol, interval, points: [{ time, open, high, low, close, v
 Erro quando não existe par: `500 "Não existe par X/USDT na Binance"`. Veja [velas-e-timeframe](../funcionalidades/grafico-de-preco/velas-e-timeframe.md).
 
 ### `GET /liquidation-map/:asset`
-`{ available: true, asset, symbol, multiplier, price, bucket, from, hours, ratios: { globalLongAccount, topLongPosition }, levels: [{ price, long, short }], segments: [{ p, s: "L"|"S", f, t|null, u }], calibration, model, generatedAt }`.
+`{ available: true, asset, symbol, multiplier, price, bucket, from, hours, ratios: { globalLongAccount, topLongPosition }, levels: [{ price, long, short }], segments: [{ p, s: "L"|"S", f, t|null, u }], calibration, leverage, model, generatedAt }`.
 
-`calibration` (ajuste com liquidações reais da Binance via Coinalyze): `{ available: true, exchange: "Binance", hours, model: { long, short }, real: { long, short }, factor: { long, short } (número ou null), correlation (−1 a 1 ou null) }` ou `{ available: false, reason: "no-key" | "invalid-key" | "no-market" | "error" | "few-hours" | "no-data", message? }`. Com a calibração, `levels` e `segments` já vêm multiplicados pelo fator de cada lado.
+`calibration` (ajuste com liquidações reais da Binance via Coinalyze): `{ available: true, exchange: "Binance", hours, model: { long, short }, real: { long, short }, factor: { long, short } (número ou null), correlation (−1 a 1 ou null) }` ou `{ available: false, reason: "no-key" | "invalid-key" | "no-market" | "error" | "few-hours" | "no-data", message? }`. Com a calibração, `levels` e `segments` já vêm multiplicados pelo fator de cada lado. `correlation` é do modelo já calibrado.
+
+`leverage` (divisão por alavancagem usada): `{ fitted, tiers: [{ leverage, weight }], defaultTiers, hours, correlation: { default, fitted }, validation: { hours, default, fitted } }`. `fitted: false` vem com `reason: "no-data"` (sem liquidações reais), `"few-hours"` ou `"no-gain"` (a ajustada não acertou mais fora do ajuste), e então `tiers` é a padrão. `model.leverageTiers` é a divisão usada e `model.defaultLeverageTiers`, a padrão.
 
 Sem dados: `{ available: false, reason: "no-perpetual" | "no-data" }`. Veja [mapa-de-liquidacao](../funcionalidades/grafico-de-preco/mapa-de-liquidacao.md).
 

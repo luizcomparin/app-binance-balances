@@ -5,8 +5,14 @@ import {
 	calibrate,
 	CALIBRATION_MIN_HOURS,
 	CALIBRATION_WARMUP_HOURS,
+	FIT_MIN_HOURS,
+	fitLeverageTiers,
+	LEVERAGE_TIERS,
 	pearson,
 	runLiquidationModel,
+	simulate,
+	tierScore,
+	weightGrid,
 } from "../../server/services/liquidationModel.js";
 
 const HOUR = 60 * 60 * 1000;
@@ -123,4 +129,90 @@ test("modelo com dado real: horas do aquecimento ficam fora; fator multiplica os
 		cal.levels.map((l) => l.short),
 		base.levels.map((l) => l.short)
 	);
+});
+
+// ---- ajuste da divisão por alavancagem ----
+
+// gerador determinístico (os testes não podem variar entre execuções)
+function rng(seed) {
+	let s = seed;
+	return () => (s = (s * 1664525 + 1013904223) % 4294967296) / 4294967296;
+}
+
+// horas comparadas por faixa: liquidações esparsas e independentes em cada alavancagem;
+// realOf(models do instante) diz quanto foi liquidado de verdade
+function perTierData(hours, realOf, seed = 7) {
+	const rand = rng(seed);
+	const models = Array.from({ length: hours }, () =>
+		LEVERAGE_TIERS.map(() => ({ long: rand() < 0.2 ? rand() * 1000 : 0, short: rand() < 0.2 ? rand() * 1000 : 0 }))
+	);
+	return LEVERAGE_TIERS.map((_, k) => models.map((m) => ({ model: m[k], real: realOf(m) })));
+}
+
+test("weightGrid: 1001 divisões de 10 em 10%, todas somando 1, incluindo a padrão", () => {
+	const grid = weightGrid(5);
+	assert.equal(grid.length, 1001);
+	assert.ok(grid.every((w) => Math.abs(w.reduce((a, v) => a + v, 0) - 1) < 1e-9));
+	assert.ok(grid.some((w) => w.every((v, k) => Math.abs(v - LEVERAGE_TIERS[k].weight) < 1e-9)));
+});
+
+test("tierScore: correlação 1 quando o real é exatamente a combinação pedida", () => {
+	const data = perTierData(50, (m) => ({ long: m[2].long * 0.3, short: m[2].short * 0.3 }));
+	assert.ok(Math.abs(tierScore(data, [0, 0, 1, 0, 0]) - 1) < 1e-9);
+	assert.ok(tierScore(data, [1, 0, 0, 0, 0]) < 0.5);
+});
+
+test("fitLeverageTiers: real vem só dos 5x → adota 100% em 5x (passa na validação)", () => {
+	const data = perTierData(FIT_MIN_HOURS + 60, (m) => ({ long: m[0].long * 0.2, short: m[0].short * 0.2 }));
+	const fit = fitLeverageTiers(data);
+	assert.equal(fit.fitted, true);
+	assert.deepEqual(
+		fit.tiers.map((t) => t.weight),
+		[1, 0, 0, 0, 0]
+	);
+	assert.deepEqual(
+		fit.tiers.map((t) => t.leverage),
+		LEVERAGE_TIERS.map((t) => t.leverage)
+	);
+	assert.ok(fit.validation.fitted > fit.validation.default);
+});
+
+test("fitLeverageTiers: real igual à divisão padrão → mantém a padrão (sem ganho)", () => {
+	const data = perTierData(FIT_MIN_HOURS + 60, (m) => ({
+		long: m.reduce((a, v, k) => a + v.long * LEVERAGE_TIERS[k].weight, 0),
+		short: m.reduce((a, v, k) => a + v.short * LEVERAGE_TIERS[k].weight, 0),
+	}));
+	const fit = fitLeverageTiers(data);
+	assert.equal(fit.fitted, false);
+	assert.equal(fit.reason, "no-gain");
+	assert.equal(fit.tiers, LEVERAGE_TIERS);
+});
+
+test("fitLeverageTiers: poucas horas → padrão; runLiquidationModel sem real não ajusta", () => {
+	const data = perTierData(FIT_MIN_HOURS - 1, (m) => m[0]);
+	assert.equal(fitLeverageTiers(data).reason, "few-hours");
+	const { candles, oi } = series(3, { oiAt: (i) => (i === 0 ? 1000 : 1100) });
+	const r = runLiquidationModel({ candles, oi });
+	assert.equal(r.leverage.fitted, false);
+	assert.equal(r.leverage.tiers, LEVERAGE_TIERS);
+});
+
+test("o modelo é linear nos pesos: soma das simulações de uma alavancagem = simulação com a divisão", () => {
+	// OI sobe e desce, preço oscila e há liquidações reais (encolhimento parcial)
+	const rand = rng(3);
+	const hours = 200;
+	const moves = {};
+	for (let i = 1; i <= hours; i++) moves[i] = { high: 100 + rand() * 4, low: 100 - rand() * 4 };
+	const { candles, oi } = series(hours, { moves, oiAt: (i) => 1000 + Math.round(200 * Math.sin(i / 7)) + i });
+	const real = candles.map((c, i) => ({ t: c.time, long: i % 5 ? 0 : 300, short: i % 7 ? 0 : 200 }));
+	const input = { candles, oi, real };
+	const full = simulate(input, LEVERAGE_TIERS).compared;
+	const parts = LEVERAGE_TIERS.map(({ leverage }) => simulate(input, [{ leverage, weight: 1 }]).compared);
+	assert.ok(full.length > 0);
+	for (let h = 0; h < full.length; h++) {
+		for (const side of ["long", "short"]) {
+			const sum = parts.reduce((a, p, k) => a + p[h].model[side] * LEVERAGE_TIERS[k].weight, 0);
+			assert.ok(Math.abs(sum - full[h].model[side]) < 1e-6 * Math.max(1, sum), `hora ${h} ${side}`);
+		}
+	}
 });

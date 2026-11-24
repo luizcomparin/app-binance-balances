@@ -14,7 +14,8 @@
 //
 // Com a chave da Coinalyze, as liquidações reais da Binance (por hora) ajustam o modelo: no passo 4 a parte
 // da queda do OI que foi liquidação não conta, e os níveis de cada lado são calibrados pelo que de fato foi
-// liquidado (services/liquidationModel.js).
+// liquidado (services/liquidationModel.js). A divisão por alavancagem (5x a 100x) também é ajustada
+// pelas liquidações reais, quando isso melhora o acerto num trecho que ficou fora do ajuste.
 import { cached } from "../lib/cache.js";
 import { fapiGet, futuresDataSeries, getPerpetualFor } from "../binance/futures.js";
 import { getCoinalyzeKey } from "../config.js";
@@ -89,8 +90,11 @@ async function computeLiquidationMap(asset) {
 		levels: model.levels.map((l) => ({ ...l, price: spot(l.price) })),
 		segments: model.segments.map((s) => ({ ...s, p: spot(s.p) })),
 		calibration,
+		// divisão por alavancagem usada (ajustada pelas liquidações reais ou a padrão) e o resultado do ajuste
+		leverage: model.leverage,
 		model: {
-			leverageTiers: LEVERAGE_TIERS,
+			leverageTiers: model.leverage.tiers,
+			defaultLeverageTiers: LEVERAGE_TIERS,
 			maintenanceMargin: MAINTENANCE_MARGIN,
 			bucketPct: BUCKET_PCT,
 		},

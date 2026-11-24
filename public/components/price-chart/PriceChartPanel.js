@@ -720,6 +720,8 @@ function renderLiq() {
   );
   const cal = calibrationText(d.calibration);
   if (cal) lines.push(cal);
+  const lev = leverageText(d.leverage);
+  if (lev) lines.push(lev);
   box.innerHTML = lines.map((l) => `<div>${l}</div>`).join("") + disclaimer;
 }
 
@@ -745,7 +747,28 @@ function calibrationText(c) {
     `o modelo previu ≈ ${formatUsdShort(c.model.long)} em longs e ≈ ${formatUsdShort(c.model.short)} em shorts liquidados; ` +
     `aconteceram ≈ ${formatUsdShort(c.real.long)} e ≈ ${formatUsdShort(c.real.short)}. ` +
     `Níveis de longs ${factor(c.factor.long)} · de shorts ${factor(c.factor.short)} · ` +
-    `<span class="help-tip" data-tip="Quanto o liquidado pelo modelo acompanha o liquidado de verdade, hora a hora (−1 a 1). Perto de 1: o mapa costuma acertar onde e quando as cascatas acontecem.">correlação hora a hora</span>: ${corr}${strength}`
+    `<span class="help-tip" data-tip="Quanto o liquidado pelo modelo (já com o ajuste) acompanha o liquidado de verdade, hora a hora (−1 a 1). Perto de 1: o mapa costuma acertar onde e quando as cascatas acontecem.">correlação hora a hora</span>: ${corr}${strength}`
+  );
+}
+
+// Linha da caixa do mapa sobre a divisão por alavancagem (leverage de /liquidation-map); sem liquidações
+// reais (sem chave) não há ajuste e a linha do ajuste já explica o que falta
+function leverageText(l) {
+  if (!l || l.reason === "no-data") return "";
+  const split = (tiers) => tiers.map((t) => `${t.leverage}x ${Math.round(t.weight * 100)}%`).join(" · ");
+  const corr = (v) => (v === null || v === undefined ? "--" : v.toFixed(2).replace(".", ","));
+  const days = l.validation ? Math.round(l.validation.hours / 24) : 0;
+  const help = `<span class="help-tip" data-tip="O modelo testa 1001 divisões entre 5x, 10x, 25x, 50x e 100x (de 10 em 10%) e escolhe a que mais acompanha as liquidações reais. A escolha é feita nos primeiros 2/3 do período e conferida no último 1/3, que não entrou na escolha: só troca a divisão padrão se acertar mais ali.">Alavancagem</span>`;
+  if (l.fitted) {
+    return (
+      `${help} ajustada pelas liquidações reais: <b>${split(l.tiers)}</b> <span class="muted">(padrão: ${split(l.defaultTiers)})</span> · ` +
+      `acerto nos últimos ${days} dias, fora do ajuste: ${corr(l.validation.default)} → <b>${corr(l.validation.fitted)}</b>`
+    );
+  }
+  if (l.reason === "few-hours") return `${help}: divisão padrão (${split(l.tiers)}); poucas horas de liquidações reais para ajustar.`;
+  return (
+    `${help}: divisão padrão (${split(l.tiers)}). Nenhuma outra acertou mais nos últimos ${days} dias, fora do ajuste ` +
+    `<span class="muted">(padrão ${corr(l.validation?.default)} × melhor ajustada ${corr(l.validation?.fitted)})</span>.`
   );
 }
 
