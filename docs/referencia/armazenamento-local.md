@@ -4,7 +4,7 @@ resumo: Todas as preferências da página salvas no navegador, com formato, padr
 arquivos: []
 rotas: []
 eventos: []
-storage: [balances-simple-view, ordersOpenPairs, priceChartAsset, priceChartMode, priceChartRange, priceChartInterval, priceChartDynamicAvg, priceChartOpenOrders, priceChartMyOrders, priceChartProjectedAvg, priceChartSimulator, priceChartStats, priceChartStatsDays, priceChartDca, priceChartLiquidation, priceChartFuturesOi, priceChartFuturesLs, priceChartFuturesFunding, priceChartFutures, priceChartRealLiquidations, priceChartOrdersTab, priceChartIndicators, priceChartMovingAverages, priceChartIndicatorsVisible, priceChartVolumeAverages, priceChartVolumePane, priceChartCvdPane, priceChartCvd, priceChartWatchlistOrder, priceChartWatchlistOpen, priceChartWatchlistColors, priceChartPaneHeights, price-chart-drawings, price-chart-drawings-visible, price-chart-draw-toolbar]
+storage: [balances-simple-view, ordersOpenPairs, priceChartAsset, priceChartMode, priceChartRange, priceChartInterval, priceChartDynamicAvg, priceChartOpenOrders, priceChartMyOrders, priceChartProjectedAvg, priceChartSimulator, priceChartStats, priceChartStatsDays, priceChartDca, priceChartLiquidation, priceChartFuturesOi, priceChartFuturesLs, priceChartFuturesFunding, priceChartFutures, priceChartRealLiquidations, priceChartOrdersTab, priceChartIndicators, priceChartMovingAverages, priceChartIndicatorsVisible, priceChartVolumeAverages, priceChartVolumePane, priceChartCvdPane, priceChartCvd, priceChartRsiPane, priceChartRsi, priceChartWatchlistOrder, priceChartWatchlistOpen, priceChartWatchlistColors, priceChartPaneHeights, price-chart-drawings, price-chart-drawings-visible, price-chart-draw-toolbar]
 ---
 
 # `localStorage`
@@ -41,12 +41,14 @@ O padrão de nomes é **inconsistente**: há chaves em `camelCase` (`priceChartX
 | `priceChartVolumePane` | `"1"`/`"0"` | on | `PriceChartPanel.js` | Painel "Volume" |
 | `priceChartCvdPane` | `"1"`/`"0"` | off (ou o CVD antigo de `priceChartIndicators`) | `PriceChartPanel.js` | Painel "CVD / Delta de volume" |
 | `priceChartCvd` | JSON `{ type: "CVD"\|"DELTA", color, opacity }` | CVD, `#4dd4ff`, 100% | `paneSettings.js` | Configurações do painel de CVD (engrenagem) |
+| `priceChartRsiPane` | `"1"`/`"0"` | off | `PriceChartPanel.js` | Painel "RSI" |
+| `priceChartRsi` | JSON `{ period, overbought, oversold, color, opacity }` | 14, 70, 30, `#a78bfa`, 100% | `paneSettings.js` | Configurações do painel do RSI (engrenagem) |
 | `priceChartIndicatorsVisible` | `"1"`/`"0"` | on | `indicatorControls.js` | Olho geral dos indicadores (`"0"` = todos ocultos, sem alterar o `visible` de cada um) |
 | `priceChartMovingAverages` | (legado) | — | `indicatorControls.js` | Lida se `priceChartIndicators` não existir e apagada no 1º save |
 | `priceChartWatchlistOrder` | JSON `string[]` | `[]` | `watchlist.js` | Ordem das moedas na lista lateral e no seletor |
 | `priceChartWatchlistOpen` | `"1"`/`"0"` | fechada | `watchlist.js` | Lista lateral aberta |
 | `priceChartWatchlistColors` | JSON `{ moeda: "#rrggbb" }` | `{}` | `watchlist.js` | Cor de indicação por moeda |
-| `priceChartPaneHeights` | JSON `{ volume, cvd, oi, ls, funding, liq: px }` | 96 px cada | `chart/futuresPanes.js` | Altura dos painéis abaixo do preço |
+| `priceChartPaneHeights` | JSON `{ volume, cvd, rsi, oi, ls, funding, liq: px }` | 96 px cada | `chart/futuresPanes.js` | Altura dos painéis abaixo do preço |
 | `price-chart-drawings` | JSON `{ moeda: [{ id, type, points: [{ms, price}], dp? }] }` | `{}` | `chart/drawings.js` | Desenhos por moeda |
 | `price-chart-drawings-visible` | `"1"`/`"0"` | on | `chart/drawings.js` | Olho da barra de desenhos (`"0"` = todos os desenhos ocultos) |
 | `price-chart-draw-toolbar` | JSON `{ left, top }` | canto padrão | `chart/drawingToolbar.js` | Posição da barra de desenho |

@@ -1,13 +1,14 @@
 // Painéis abaixo do gráfico de preço (mesmo eixo de tempo: zoom, arrasto e mira sincronizados):
 // (na mesma ordem dos checkboxes de "Painéis abaixo do gráfico", nas Camadas)
-//   1. Volume (USDT)   2. CVD / Delta de volume (os dois com engrenagem de configurações no título)
-//   3. Liquidações reais (longs e shorts liquidados em US$)
-//   4. Open interest (USDT)   5. Long/Short (% comprados: contas e top traders)   6. Taxa de funding
+//   1. Volume (USDT)   2. CVD / Delta de volume   3. RSI (os três com engrenagem de configurações no título)
+//   4. Liquidações reais (longs e shorts liquidados em US$)
+//   5. Open interest (USDT)   6. Long/Short (% comprados: contas e top traders)   7. Taxa de funding
 // Os de futuros vêm em períodos próprios (1h/4h/1d e funding a cada 8h) e são encaixados nas velas do gráfico.
 import { formatUsdShort } from "../../../core/format.js";
 import { toChartTime } from "./axis.js";
 import { movingAverage, maColor, maLabel } from "./movingAverage.js";
 import { volumeDelta } from "./cvd.js";
+import { rsi } from "./rsi.js";
 
 const LWC = window.LightweightCharts;
 const PANE_HEIGHT = 96;
@@ -16,7 +17,7 @@ const GEAR =
   '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
 
 // painéis com engrenagem de configurações no título (o conteúdo vem de handlers.mountSettings)
-const SETTINGS_PANES = ["volume", "cvd"];
+const SETTINGS_PANES = ["volume", "cvd", "rsi"];
 
 // passado no lugar dos dados enquanto carregam: o painel continua no lugar, vazio e com spinner
 export const PANE_LOADING = Object.freeze({ loading: true });
@@ -84,6 +85,18 @@ export const FUTURES_HELP = {
     "• Preço lateral + CVD subindo forte: compradores batendo numa parede de venda (absorção).",
     "",
     "Não é sinal de entrada sozinho: divergências podem durar bastante.",
+  ].join("\n"),
+  rsi: [
+    "Índice de Força Relativa (0 a 100): compara o tamanho das altas com o das baixas nas últimas N velas.",
+    "• Acima da linha de sobrecompra (padrão 70): subiu rápido demais, pode corrigir.",
+    "• Abaixo da linha de sobrevenda (padrão 30): caiu rápido demais, pode repicar.",
+    "• Acima de 50: altas mais fortes que as baixas; abaixo de 50: o contrário.",
+    "",
+    "Leia junto com o preço:",
+    "• Preço faz topo mais alto e o RSI, topo mais baixo: alta perdendo força (divergência de baixa).",
+    "• Preço faz fundo mais baixo e o RSI, fundo mais alto: queda perdendo força (divergência de alta).",
+    "",
+    "Em tendência forte o RSI pode ficar muito tempo sobrecomprado ou sobrevendido: não é sinal de entrada sozinho.",
   ].join("\n"),
   liq: [
     "Liquidações que de fato aconteceram nos futuros perpétuos (Binance + Bybit + OKX, dados da Coinalyze), em US$.",
@@ -185,6 +198,12 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
     cvdM: null, // configurações ({ type, color, opacity })
     cvdVals: null, // { delta, cvd } por vela
     cvdKey: null, // velas + cor + opacidade dos dados desenhados
+    rsi: null, // série do RSI (painel logo depois do CVD)
+    rsiM: null, // configurações ({ period, overbought, oversold, color, opacity })
+    rsiVals: null, // RSI por vela
+    rsiKey: null, // velas + período dos dados desenhados
+    rsiLines: [], // linhas de sobrecompra, 50 e sobrevenda
+    rsiLinesKey: null, // níveis das linhas desenhadas
     points: null,
     interval: null,
   };
@@ -194,7 +213,7 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
   // a caixa de configurações fica fora dele para não ser redesenhada a cada movimento da mira)
   const titles = {};
   const texts = {};
-  for (const key of ["volume", "cvd", "oi", "ls", "funding", "liq"]) {
+  for (const key of ["volume", "cvd", "rsi", "oi", "ls", "funding", "liq"]) {
     const el = document.createElement("div");
     el.className = "fp-title";
     el.hidden = true;
@@ -288,14 +307,16 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
   const subKeys = () => [
     ...(st.vol ? ["volume"] : []),
     ...(st.cvd ? ["cvd"] : []),
+    ...(st.rsi ? ["rsi"] : []),
     ...(st.liq ? ["liq"] : []),
     ...st.shown,
   ];
   // quantos painéis abaixo do preço devem existir
   const subCount = () => subKeys().length;
-  // painéis antes dos de futuros: volume e CVD, quando ligados (nessa ordem, a partir do painel 1)
+  // painéis antes dos de futuros: volume, CVD, RSI e liquidações, quando ligados (nessa ordem, a partir do painel 1)
   const volCount = () => (st.vol ? 1 : 0);
   const cvdCount = () => (st.cvd ? 1 : 0);
+  const rsiCount = () => (st.rsi ? 1 : 0);
   const liqCount = () => (st.liq ? 1 : 0);
 
   // altura (px) de cada painel de baixo: PANE_HEIGHT até o usuário arrastar a divisória; daí fica a
@@ -362,10 +383,10 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
     relayout();
   }
 
-  // painel de liquidações: depois do volume e do CVD, antes dos de futuros (que saem e voltam depois dele
+  // painel de liquidações: depois do volume, do CVD e do RSI, antes dos de futuros (que saem e voltam depois dele
   // quando ele entra ou sai: withFuturesMoved)
   function createLiquidationSeries() {
-    const pane = 1 + volCount() + cvdCount();
+    const pane = 1 + volCount() + cvdCount() + rsiCount();
     // sem etiqueta de último valor no eixo (as duas se sobrepõem; os valores já estão no título)
     const opts = { ...base, lastValueVisible: false, priceFormat: usd, base: 0 };
     st.liq = {
@@ -452,7 +473,7 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
     const fundingFmt = { type: "custom", minMove: 0.000001, formatter: (v) => `${v.toFixed(3).replace(".", ",")}%` };
     st.series = {};
     keys.forEach((key, k) => {
-      const pane = 1 + volCount() + cvdCount() + liqCount() + k;
+      const pane = 1 + volCount() + cvdCount() + rsiCount() + liqCount() + k;
       if (key === "oi") {
         st.series.oi = chart.addSeries(
           LWC.AreaSeries,
@@ -538,6 +559,7 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
         ? chart.addSeries(LWC.HistogramSeries, { ...opts, base: 0 }, pane)
         : chart.addSeries(LWC.LineSeries, { ...opts, lineWidth: 2 }, pane);
     st.cvdType = m.type;
+    st.cvdM = m;
     st.cvdKey = null;
   }
 
@@ -554,35 +576,121 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
     st.vol = null;
   }
 
-  // liga/desliga o volume (volume: bool) e o CVD (cvd: configurações ou null), que ficam nessa ordem logo
+  // RSI de 0 a 100 sempre (escala fixa, como no TradingView), com as linhas de sobrecompra/sobrevenda
+  function createRsiSeries(m) {
+    const pane = 1 + volCount() + cvdCount();
+    st.rsi = chart.addSeries(
+      LWC.LineSeries,
+      {
+        ...base,
+        lineWidth: 2,
+        priceFormat: { type: "custom", minMove: 0.01, formatter: (v) => String(Math.round(v)) },
+        autoscaleInfoProvider: () => ({ priceRange: { minValue: 0, maxValue: 100 } }),
+      },
+      pane
+    );
+    st.rsiM = m;
+    st.rsiKey = null;
+    st.rsiLines = [];
+    st.rsiLinesKey = null;
+  }
+
+  function removeRsiSeries() {
+    if (st.rsi) chart.removeSeries(st.rsi);
+    st.rsi = null;
+    st.rsiKey = null;
+    st.rsiLines = [];
+    st.rsiLinesKey = null;
+  }
+
+  // estado atual dos painéis de cima (para rebuildTop mudar só um deles)
+  const topState = () => ({ volume: !!st.vol, cvd: st.cvd ? st.cvdM : null, rsi: st.rsi ? st.rsiM : null });
+
+  // liga/desliga o volume (volume: bool), o CVD e o RSI (configurações ou null), que ficam nessa ordem logo
   // abaixo do preço: o de liquidações e os de futuros saem e voltam depois deles, com os dados que já tinham
-  function rebuildTop({ volume, cvd }) {
+  // (as séries recriadas do CVD e do RSI são redesenhadas na hora: o setCvd/setRsi desta renderização pode já ter passado)
+  function rebuildTop({ volume, cvd, rsi: rsiM }) {
     withFuturesMoved(() => {
       const hadLiq = !!st.liq;
       removeLiquidationSeries();
+      removeRsiSeries();
       removeCvdSeries();
       if (!volume) removeVolumeSeries();
       removeEmptyPanes();
       if (volume && !st.vol) createVolume();
       if (cvd) createCvdSeries(cvd);
+      if (rsiM) createRsiSeries(rsiM);
       if (hadLiq) createLiquidationSeries();
     });
+    drawCvd();
+    drawRsi();
     relayout();
+  }
+
+  // painel do RSI: configurações ({ period, overbought, oversold, color, opacity }) ou null (desligado);
+  // recalcula só quando mudam as velas ou o período; as linhas, só quando mudam os níveis
+  function setRsi(m) {
+    if (!st.points) m = null;
+    if (!!m !== !!st.rsi) rebuildTop({ ...topState(), rsi: m });
+    st.rsiM = m;
+    if (!m) {
+      st.rsiVals = null;
+      return;
+    }
+    drawRsi();
+    renderTitles();
+  }
+
+  // desenha o RSI com as configurações e as velas atuais (só refaz linhas e dados se mudaram)
+  function drawRsi() {
+    const m = st.rsiM;
+    if (!st.rsi || !m || !st.points) return;
+    st.rsi.applyOptions({ color: maColor(m) });
+    const linesKey = `${m.overbought}|${m.oversold}`;
+    if (st.rsiLinesKey !== linesKey) {
+      for (const line of st.rsiLines) st.rsi.removePriceLine(line);
+      const line = (price, color, lineStyle) =>
+        st.rsi.createPriceLine({ price, color, lineWidth: 1, lineStyle, axisLabelVisible: false });
+      st.rsiLines = [
+        line(m.overbought, "rgba(255, 114, 114, 0.55)", LWC.LineStyle.Dashed),
+        line(50, "rgba(155, 176, 214, 0.3)", LWC.LineStyle.Dotted),
+        line(m.oversold, "rgba(82, 255, 168, 0.55)", LWC.LineStyle.Dashed),
+      ];
+      st.rsiLinesKey = linesKey;
+    }
+    if (st.rsiKey?.points !== st.points || st.rsiKey.period !== m.period) {
+      st.rsiKey = { points: st.points, period: m.period };
+      st.rsiVals = rsi(st.points, m.period);
+      st.rsi.setData(
+        st.points.map((p, i) => {
+          const time = toChartTime(p.time, st.interval);
+          return st.rsiVals[i] === null ? { time } : { time, value: st.rsiVals[i] };
+        })
+      );
+    }
   }
 
   // painel de CVD/Delta: configurações ({ type: "CVD"|"DELTA", color, opacity }) ou null (desligado);
   // recalcula só quando mudam as velas (ou, no Delta, a opacidade, que vai na cor de cada barra)
   function setCvd(m) {
     if (!st.points) m = null;
-    if ((m ? m.type : null) !== st.cvdType) rebuildTop({ volume: !!st.vol, cvd: m });
+    if ((m ? m.type : null) !== st.cvdType) rebuildTop({ ...topState(), cvd: m });
     st.cvdM = m;
     if (!m) {
       st.cvdVals = null;
       return;
     }
+    drawCvd();
+    renderTitles();
+  }
+
+  // desenha o CVD com as configurações e as velas atuais (só refaz os dados se mudaram)
+  function drawCvd() {
+    const m = st.cvdM;
+    if (!st.cvd || !m || !st.points) return;
     if (m.type === "CVD") st.cvd.applyOptions({ color: maColor(m) });
     const key = m.type === "DELTA" ? m.opacity : "";
-    if (st.cvdKey?.points === st.points && st.cvdKey.key === key) return renderTitles();
+    if (st.cvdKey?.points === st.points && st.cvdKey.key === key) return;
     st.cvdKey = { points: st.points, key };
     st.cvdVals = volumeDelta(st.points);
     const values = m.type === "DELTA" ? st.cvdVals.delta : st.cvdVals.cvd;
@@ -594,13 +702,15 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
         return m.type === "DELTA" ? { time, value: v, color: deltaColor(v, m.opacity) } : { time, value: v };
       })
     );
-    renderTitles();
   }
 
   // de baixo para cima (removeEmptyPanes conta os painéis que ainda existem)
   function remove() {
     removeFutures();
     removeLiquidations();
+    removeRsiSeries();
+    st.rsiM = null;
+    st.rsiVals = null;
     removeCvdSeries();
     st.cvdM = null;
     st.cvdVals = null;
@@ -666,6 +776,15 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
         st.cvdM.type === "DELTA"
           ? `${tip("cvd", "Delta")} ${deltaHtml} <span class="muted">CVD</span> ${cvdHtml}`
           : `${tip("cvd", "CVD")} ${cvdHtml} <span class="muted">Delta da vela</span> ${deltaHtml}`;
+    }
+    if (st.rsi && st.rsiVals && pts?.length) {
+      const i = idx !== null && idx >= 0 && idx < pts.length ? idx : pts.length - 1;
+      const v = st.rsiVals[i];
+      const m = st.rsiM;
+      const zone =
+        v === null ? "" : v >= m.overbought ? ' <span class="pnl-neg">sobrecomprado</span>' : v <= m.oversold ? ' <span class="pnl-pos">sobrevendido</span>' : "";
+      texts.rsi.innerHTML =
+        `${tip("rsi", `RSI ${m.period}`)} <b style="color:${maColor({ ...m, opacity: 1 })}">${v === null ? "--" : v.toFixed(1).replace(".", ",")}</b>${zone}`;
     }
     renderLiquidationTitle(idx);
     const a = st.aligned;
@@ -744,7 +863,7 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
       if (st.points && !candlesChanged && volSame && data === st.data && !!data === !!st.series && liqSame && (!data || panesSame)) return;
       st.points = points;
       st.interval = interval;
-      if (!volSame) rebuildTop({ volume, cvd: st.cvd ? st.cvdM : null });
+      if (!volSame) rebuildTop({ ...topState(), volume });
       if (st.vol && (candlesChanged || !st.vol.data().length)) setVolumeData();
       if (data === PANE_LOADING) {
         // carregando: painéis no lugar, vazios (spinner em positionTitles)
@@ -779,6 +898,7 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
     },
     setVolumeAverages,
     setCvd,
+    setRsi,
     remove,
     active: () => !!st.series,
     /** quantos painéis existem abaixo do preço */

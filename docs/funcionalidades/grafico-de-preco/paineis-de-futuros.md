@@ -1,6 +1,6 @@
 ---
-titulo: Painéis abaixo do gráfico (volume, CVD/Delta, open interest, long/short, funding)
-resumo: Painéis sincronizados com o eixo de tempo do preço, cada um com seu checkbox nas Camadas: volume e CVD/Delta (com engrenagem de configurações no título) e open interest, long/short e funding do contrato perpétuo; alturas ajustáveis e salvas.
+titulo: Painéis abaixo do gráfico (volume, CVD/Delta, RSI, open interest, long/short, funding)
+resumo: Painéis sincronizados com o eixo de tempo do preço, cada um com seu checkbox nas Camadas: volume, CVD/Delta e RSI (com engrenagem de configurações no título) e open interest, long/short e funding do contrato perpétuo; alturas ajustáveis e salvas.
 arquivos: [server/services/futuresData.js, server/binance/futures.js, public/components/price-chart/chart/futuresPanes.js, public/components/price-chart/chart/cvd.js, public/components/price-chart/paneSettings.js, public/components/price-chart/PriceChartPanel.js, public/components/price-chart/chart/createChart.js]
 rotas: [GET /futures-data/:asset]
 eventos: []
@@ -22,14 +22,15 @@ Os painéis ficam abaixo do preço, na mesma ordem do gráfico. Zoom, arrasto e 
    - **Delta da vela** = compras agressivas (a mercado) − vendas agressivas = `2 × buyVolume − volume`, em USDT.
    - **CVD** = soma dos deltas desde a **primeira vela carregada**. Ao carregar histórico antigo, a linha inteira se desloca na vertical; só a direção importa.
    - O dado vem das próprias velas da Binance spot (o *taker buy* de `/api/v3/klines`, campo `buyVolume` de `/price-chart`): não usa chamada extra nem a Coinalyze.
-3. **Liquidações reais** (ver [liquidacoes-reais](liquidacoes-reais.md)).
-4. **Open interest** (USDT), com a camada "Open interest (futuros)" (`#price-chart-fut-oi`).
-5. **Long/Short** (camada "Long/short ratio (futuros)", `#price-chart-fut-ls`): % de contas compradas (amarelo) e de top traders comprados (azul), com uma linha em 50%.
-6. **Funding** (camada "Taxa de funding (futuros)", `#price-chart-fut-funding`): histograma; o título mostra a taxa prevista para a próxima cobrança.
+3. **RSI**, com a camada "RSI" (`#price-chart-rsi-pane`) e engrenagem de configurações (ver [rsi](rsi.md)).
+4. **Liquidações reais** (ver [liquidacoes-reais](liquidacoes-reais.md)).
+5. **Open interest** (USDT), com a camada "Open interest (futuros)" (`#price-chart-fut-oi`).
+6. **Long/Short** (camada "Long/short ratio (futuros)", `#price-chart-fut-ls`): % de contas compradas (amarelo) e de top traders comprados (azul), com uma linha em 50%.
+7. **Funding** (camada "Taxa de funding (futuros)", `#price-chart-fut-funding`): histograma; o título mostra a taxa prevista para a próxima cobrança.
 
 Todos são **independentes**: só os ligados aparecem, sempre **na mesma ordem dos checkboxes** de "Painéis abaixo do gráfico" (a lista acima). Os três de futuros são os últimos. Os dados vêm de uma única chamada (`/futures-data`), feita quando ao menos um está ligado.
 
-O título de cada painel mostra o valor na vela sob a mira (ou o mais recente), com uma explicação no hover (`FUTURES_HELP`). No volume e no CVD, a engrenagem (`.fp-gear`, logo à direita do nome do painel) abre a caixa de configurações (`.fp-settings`). Só uma fica aberta por vez; clique fora ou Esc fecha. As divisórias entre painéis podem ser arrastadas, e as alturas ficam salvas.
+O título de cada painel mostra o valor na vela sob a mira (ou o mais recente), com uma explicação no hover (`FUTURES_HELP`). No volume, no CVD e no RSI, a engrenagem (`.fp-gear`, logo à direita do nome do painel) abre a caixa de configurações (`.fp-settings`). Só uma fica aberta por vez; clique fora ou Esc fecha. As divisórias entre painéis podem ser arrastadas, e as alturas ficam salvas.
 
 ## Server
 
@@ -50,14 +51,16 @@ Cache de 2 min. O formato está em [api.md](../../referencia/api.md#get-futures-
 - `paneSettings.js` → `mountPaneSettings(key, el, onChange)` preenche a caixa da engrenagem:
   - `volume`: lista das médias do volume (`initVolumeAverageControls`);
   - `cvd`: Mostrar, opacidade e cor (`priceChartCvd`). Sem escolha salva, herda o CVD que era item de `priceChartIndicators`, inclusive se estava ligado.
+  - `rsi`: ver [rsi](rsi.md).
 
   O `createPriceChart` recebe isso como `handlers.mountPaneSettings` e o repassa a `createFuturesPanes(chart, wrap, { mountSettings })`.
 - `chart/cvd.js` → `volumeDelta(points)` → `{ delta, cvd }` alinhados às velas. Vela sem `buyVolume` fica com delta `null`, e o CVD repete o anterior.
 - `chart/futuresPanes.js` → `createFuturesPanes(chart, wrap, handlers)` devolve `{ update(points, interval, data, liq, panes, volume), crosshair(idx), setVolumeAverages, setCvd, remove, active, count }`.
-  - Ordem dos painéis (`subKeys`): volume (1, se ligado), CVD, liquidações e futuros. Os índices partem de `volCount()`, `cvdCount()` e `liqCount()`.
+  - Ordem dos painéis (`subKeys`): volume (1, se ligado), CVD, RSI, liquidações e futuros. Os índices partem de `volCount()`, `cvdCount()`, `rsiCount()` e `liqCount()`.
   - Os de futuros são os últimos: quando entram ou saem, só eles são recriados (`createSeries(keys)`). `panes` é o subconjunto de `FUTURES_PANES` (`["oi", "ls", "funding"]`) ligado.
   - Quando muda um painel antes deles, `withFuturesMoved(fn)` tira os de futuros e os recoloca depois, com os dados que já tinham. Isso vale ao ligar ou desligar as liquidações.
-  - Ligar ou desligar o volume ou o CVD, ou trocar CVD ↔ Delta, passa por `rebuildTop({ volume, cvd })`: dentro de `withFuturesMoved`, tira liquidações e CVD, ajusta volume e CVD e recoloca as liquidações.
+  - Ligar ou desligar volume, CVD ou RSI, ou trocar CVD ↔ Delta, passa por `rebuildTop({ volume, cvd, rsi })`. O estado atual vem de `topState()`, e só o que muda é passado. Dentro de `withFuturesMoved`, a função tira liquidações, RSI e CVD, ajusta volume, CVD e RSI e recoloca as liquidações.
+  - No fim, `rebuildTop` redesenha na hora o CVD e o RSI recriados (`drawCvd`, `drawRsi`): o `setCvd` desta renderização pode já ter passado quando o RSI muda.
   - `remove()` tira de baixo para cima.
   - O CVD só é recalculado quando mudam as velas; no Delta, também quando muda a opacidade.
   - `alignToBars(points, rows, get, mode)` encaixa as séries nas velas (`barIndex`, busca binária). Os modos são `last` (OI, L/S), `avg` (funding em D ou maior), `ffill` (funding em 1h/4h, repetindo a taxa vigente) e `sum` (liquidações).
@@ -76,5 +79,6 @@ Cache de 2 min. O formato está em [api.md](../../referencia/api.md#get-futures-
 2. Mova a mira: os títulos acompanham.
 3. Arraste uma divisória e recarregue: a altura foi mantida.
 4. Ligue "CVD / Delta de volume": o painel aparece logo abaixo do volume, antes dos de futuros. Na engrenagem dele, troque para "Delta por vela", mude a opacidade e a cor e passe a mira: o título acompanha.
-5. Desligue "Volume" com CVD, OI e liquidações ligados: a ordem continua CVD, liquidações, OI. Com OI ligado, ligue e desligue "Liquidações": ela entra logo antes do OI, e o OI mantém os dados. Religue: o volume volta em primeiro, com as médias do volume.
-6. Na engrenagem do volume, adicione uma média ("+ Média móvel"), edite e remova: o painel acompanha.
+5. Ligue o "RSI": ele entra entre o CVD e Liquidações (ver [rsi](rsi.md)).
+6. Desligue "Volume" com CVD, OI e liquidações ligados: a ordem continua CVD, liquidações, OI. Com OI ligado, ligue e desligue "Liquidações": ela entra logo antes do OI, e o OI mantém os dados. Religue: o volume volta em primeiro, com as médias do volume.
+7. Na engrenagem do volume, adicione uma média ("+ Média móvel"), edite e remova: o painel acompanha.

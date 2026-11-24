@@ -32,6 +32,7 @@ const LWC = window.LightweightCharts;
  *                        indicators: [{ id, kind: "ma"|"bb", period, type?, mult?, color, opacity, visible }],
  *                        volume: painel de volume ligado, volumeAverages: médias do volume ([{ id, kind: "vma", ... }]),
  *                        cvd: configurações do painel de CVD/Delta ({ type, color, opacity }) | null (desligado),
+ *                        rsi: configurações do painel do RSI ({ period, overbought, oversold, color, opacity }) | null,
  *                        liquidation: resposta de /liquidation-map | null,
  *                        futures: resposta de /futures-data | null (painéis de OI, long/short e funding),
  *                        futuresPanes: painéis de futuros ligados (["oi", "ls", "funding"] ou parte),
@@ -516,17 +517,19 @@ export function createPriceChart(els, handlers = {}) {
       summary.hidden = !opts.summary;
       liquidation.setData(opts.liquidation || null);
       // primeiro a altura final do gráfico, depois os painéis (as alturas deles partem dela)
-      // (volume e CVD, quando ligados + os de futuros ligados, quando há dados + 1 de liquidações reais)
+      // (volume, CVD e RSI, quando ligados + os de futuros ligados, quando há dados + 1 de liquidações reais)
       const futPanes = opts.futures ? opts.futuresPanes || [] : [];
       const volume = opts.volume !== false;
       const cvd = opts.cvd || null;
+      const rsi = opts.rsi || null;
       wrap.style.setProperty(
         "--sub-panes",
-        s.points?.length ? (volume ? 1 : 0) + (cvd ? 1 : 0) + futPanes.length + (opts.liquidations ? 1 : 0) : 0
+        s.points?.length ? (volume ? 1 : 0) + (cvd ? 1 : 0) + (rsi ? 1 : 0) + futPanes.length + (opts.liquidations ? 1 : 0) : 0
       );
       futures.update(s.points, s.interval, opts.futures || null, opts.liquidations || null, futPanes, volume);
       futures.setVolumeAverages(volume ? (opts.volumeAverages || []).filter((m) => m.visible) : []);
       futures.setCvd(cvd);
+      futures.setRsi(rsi);
       scheduleOffscreen();
     },
 

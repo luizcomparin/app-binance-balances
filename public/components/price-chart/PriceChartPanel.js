@@ -15,7 +15,7 @@ import { initWatchlist } from "./watchlist.js";
 import { buysOf, dcaComparison } from "./dca.js";
 import { initOpenOrdersTable, renderOpenOrdersTable } from "./openOrdersTable.js";
 import { getIndicators, getVolumeAverages, initIndicatorControls } from "./indicatorControls.js";
-import { getCvdSettings, legacyCvdOn, mountPaneSettings } from "./paneSettings.js";
+import { getCvdSettings, getRsiSettings, legacyCvdOn, mountPaneSettings } from "./paneSettings.js";
 import { fetchFuturesData, fetchLiquidationMap, fetchLiquidations } from "../../api/binance.js";
 import { openSettings } from "../settings/SettingsModal.js";
 import { formatUsdShort } from "../../core/format.js";
@@ -67,6 +67,7 @@ const LIQREAL_STORAGE_KEY = "priceChartRealLiquidations"; // painel de liquidaç
 const LIQREAL_CACHE_MS = 5 * 60 * 1000;
 const VOLUME_PANE_STORAGE_KEY = "priceChartVolumePane"; // painel de volume (ligado por padrão)
 const CVD_PANE_STORAGE_KEY = "priceChartCvdPane"; // painel de CVD/Delta
+const RSI_PANE_STORAGE_KEY = "priceChartRsiPane"; // painel do RSI
 const ORDERS_TAB_STORAGE_KEY = "priceChartOrdersTab"; // aba abaixo do gráfico: open | history | trades
 
 let chart = null; // controlador do Lightweight Charts (criado uma vez no init)
@@ -108,6 +109,7 @@ const view = {
   // painéis de volume e de CVD/Delta (sem escolha salva, o CVD herda o indicador da versão anterior)
   showVolume: readStored(VOLUME_PANE_STORAGE_KEY) !== "0",
   showCvd: (readStored(CVD_PANE_STORAGE_KEY) ?? (legacyCvdOn() ? "1" : "0")) === "1",
+  showRsi: readStored(RSI_PANE_STORAGE_KEY) === "1",
   liqReal: null, // { key, data } | { key, data: null (erro) } | { key, loading: true }
 };
 
@@ -295,6 +297,7 @@ function render(extra = {}) {
     volume: view.showVolume,
     volumeAverages: getVolumeAverages(),
     cvd: view.showCvd ? getCvdSettings() : null,
+    rsi: view.showRsi ? getRsiSettings() : null,
     summary: chartSummary(),
     liquidation: view.showLiq && view.liq?.available ? view.liq : null,
     futures: futuresForChart(),
@@ -710,10 +713,12 @@ async function loadOlder() {
 // médias móveis: velas de "aquecimento" antes da janela visível
 // ---------------------------------------------------------------------------
 
-// maior período entre as médias visíveis, do preço e do volume (0 = nenhuma)
+// maior período entre as médias visíveis, do preço e do volume (0 = nenhuma). O RSI pede 4× o período:
+// a suavização de Wilder demora para esquecer o começo, e assim o valor fica igual ao do TradingView
 function maxMaPeriod() {
   const volumeAvgs = view.showVolume ? getVolumeAverages() : [];
-  return Math.max(0, ...[...getIndicators(), ...volumeAvgs].filter((m) => m.visible).map((m) => m.period));
+  const rsiWarmup = view.showRsi ? getRsiSettings().period * 4 : 0;
+  return Math.max(rsiWarmup, ...[...getIndicators(), ...volumeAvgs].filter((m) => m.visible).map((m) => m.period));
 }
 
 // Média nova/maior: se não há velas suficientes antes do que está na tela, busca a página anterior
@@ -821,7 +826,7 @@ export function initPriceChartPanel() {
       { container, wrap, legend: document.getElementById("price-chart-legend") },
       {
         onNeedOlder: loadOlder,
-        // engrenagem nos títulos dos painéis de volume e de CVD
+        // engrenagem nos títulos dos painéis de volume, CVD e RSI
         mountPaneSettings: (key, el) =>
           mountPaneSettings(key, el, () => {
             render();
@@ -831,10 +836,11 @@ export function initPriceChartPanel() {
     );
   }
 
-  // painéis de volume e de CVD/Delta (configurações pela engrenagem no título de cada um)
+  // painéis de volume, CVD/Delta e RSI (configurações pela engrenagem no título de cada um)
   for (const [id, flag, storage] of [
     ["price-chart-volume-pane", "showVolume", VOLUME_PANE_STORAGE_KEY],
     ["price-chart-cvd-pane", "showCvd", CVD_PANE_STORAGE_KEY],
+    ["price-chart-rsi-pane", "showRsi", RSI_PANE_STORAGE_KEY],
   ]) {
     const input = document.getElementById(id);
     if (!input) continue;
