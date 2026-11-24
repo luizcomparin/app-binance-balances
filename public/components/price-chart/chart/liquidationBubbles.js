@@ -62,6 +62,33 @@ export function bubbleScale(bubbles) {
   return Math.max(1, sorted[Math.floor(sorted.length * 0.98)] || sorted.at(-1));
 }
 
+/**
+ * Bolhas a desenhar com o limite mínimo (US$) escolhido: { list, scale }. A escala vem de TODAS as bolhas,
+ * para o tamanho de cada uma não mudar quando o limite esconde as menores.
+ */
+export function bubblesAbove(bubbles, minUsd = 0) {
+  if (!bubbles?.length) return { list: [], scale: 1 };
+  return { list: minUsd > 0 ? bubbles.filter((b) => b.usd >= minUsd) : bubbles, scale: bubbleScale(bubbles) };
+}
+
+const UNITS = { "": 1, k: 1e3, mil: 1e3, m: 1e6, mi: 1e6, b: 1e9, bi: 1e9 };
+
+/**
+ * Valor em US$ digitado no limite das bolhas: "5M", "1,5 mi", "500k", "2B", "300000" (vazio = 0).
+ * Texto inválido → null.
+ */
+export function parseUsdAmount(text) {
+  const t = String(text ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/^us\$|^\$/, "")
+    .replace(/\s+/g, "");
+  if (!t) return 0;
+  const m = t.match(/^(\d+(?:[.,]\d+)?)(k|mil|m|mi|b|bi)?$/);
+  if (!m) return null;
+  return Number(m[1].replace(",", ".")) * UNITS[m[2] || ""];
+}
+
 /** Raio (px CSS) de uma bolha, proporcional à raiz do valor (área ∝ valor); null = pequena demais */
 export function bubbleRadius(usd, scale) {
   const share = Math.min(1, usd / scale);
@@ -90,11 +117,12 @@ export class LiquidationBubbles {
     this._chart = this._series = this._requestUpdate = null;
   }
 
-  /** bubbles = resultado de liquidationBubbles() ou null para esconder */
-  setData(bubbles) {
+  /** bubbles = resultado de liquidationBubbles() ou null para esconder; minUsd = só as bolhas a partir desse valor */
+  setData(bubbles, minUsd = 0) {
     if (!bubbles?.length && !this._bubbles?.length) return;
-    this._bubbles = bubbles?.length ? bubbles : null;
-    this._scale = this._bubbles ? bubbleScale(this._bubbles) : 1;
+    const { list, scale } = bubblesAbove(bubbles, minUsd);
+    this._bubbles = list.length ? list : null;
+    this._scale = scale;
     this._requestUpdate?.();
   }
 

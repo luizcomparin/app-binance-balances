@@ -36,7 +36,7 @@ const LWC = window.LightweightCharts;
  *                        rsi: configurações do painel do RSI (chart/rsi.js) | null,
  *                        macd: configurações do painel do MACD (chart/macd.js) | null,
  *                        liquidation: resposta de /liquidation-map | null,
- *                        liquidationBubbles: bolhas das liquidações reais (chart/liquidationBubbles.js) | null,
+ *                        liquidationBubbles: { list: bolhas das liquidações reais (chart/liquidationBubbles.js), minUsd } | null,
  *                        futures: resposta de /futures-data | null (painéis de OI, long/short e funding),
  *                        futuresPanes: painéis de futuros ligados (["oi", "ls", "funding"] ou parte),
  *                        liquidations: resposta de /liquidations | null (painel de liquidações reais) }
@@ -523,7 +523,7 @@ export function createPriceChart(els, handlers = {}) {
       summary.textContent = opts.summary || "";
       summary.hidden = !opts.summary;
       liquidation.setData(opts.liquidation || null);
-      bubbles.setData(opts.liquidationBubbles || null);
+      bubbles.setData(opts.liquidationBubbles?.list || null, opts.liquidationBubbles?.minUsd || 0);
       // primeiro a altura final do gráfico, depois os painéis (as alturas deles partem dela)
       // (volume, CVD, RSI e MACD, quando ligados + os de futuros ligados, quando há dados + 1 de liquidações reais;
       // RSI e MACD contam 1,5 e 1,3: a altura padrão deles é maior, PANE_DEFAULT_HEIGHTS)

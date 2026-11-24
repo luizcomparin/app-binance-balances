@@ -1,7 +1,7 @@
 // Bolhas das liquidações reais no gráfico (public/components/price-chart/chart/liquidationBubbles.js).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { bubbleRadius, bubbleScale, liquidationBubbles } from "../../public/components/price-chart/chart/liquidationBubbles.js";
+import { bubbleRadius, bubbleScale, bubblesAbove, liquidationBubbles, parseUsdAmount } from "../../public/components/price-chart/chart/liquidationBubbles.js";
 
 const DAY = 24 * 60 * 60 * 1000;
 const T0 = Date.UTC(2026, 0, 1);
@@ -46,4 +46,26 @@ test("escala pelo percentil 98 e raio proporcional à raiz do valor", () => {
   assert.ok(big > quarter);
   assert.equal(bubbleRadius(1000, 100), big); // acima da escala fica no máximo
   assert.equal(bubbleRadius(1, 100), null); // pequena demais
+});
+
+test("parseUsdAmount: sufixos K/M/B (e mil/mi/bi), vírgula decimal, vazio = 0, inválido = null", () => {
+  assert.equal(parseUsdAmount("5M"), 5e6);
+  assert.equal(parseUsdAmount("1,5 mi"), 1.5e6);
+  assert.equal(parseUsdAmount("500k"), 5e5);
+  assert.equal(parseUsdAmount("2B"), 2e9);
+  assert.equal(parseUsdAmount("US$ 300000"), 300000);
+  assert.equal(parseUsdAmount(" "), 0);
+  assert.equal(parseUsdAmount("abc"), null);
+  assert.equal(parseUsdAmount("-5M"), null);
+});
+
+test("bubblesAbove: esconde as menores que o limite, mas a escala continua a de todas", () => {
+  const bubbles = Array.from({ length: 100 }, (_, i) => ({ usd: i + 1 }));
+  const all = bubblesAbove(bubbles);
+  const big = bubblesAbove(bubbles, 90);
+  assert.equal(all.list.length, 100);
+  assert.equal(big.list.length, 11);
+  assert.ok(big.list.every((b) => b.usd >= 90));
+  assert.equal(big.scale, all.scale);
+  assert.deepEqual(bubblesAbove(null, 5), { list: [], scale: 1 });
 });

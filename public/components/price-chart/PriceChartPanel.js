@@ -20,7 +20,7 @@ import { fetchFuturesData, fetchLiquidationMap, fetchLiquidations } from "../../
 import { openSettings } from "../settings/SettingsModal.js";
 import { formatUsdShort } from "../../core/format.js";
 import { FUTURES_HELP, FUTURES_PANES, PANE_LOADING } from "./chart/futuresPanes.js";
-import { BUBBLE_SOURCES, liquidationBubbles } from "./chart/liquidationBubbles.js";
+import { BUBBLE_SOURCES, liquidationBubbles, parseUsdAmount } from "./chart/liquidationBubbles.js";
 import { initOrderHistory, setHistoryAsset, showHistory, reloadHistory } from "./orderHistoryTable.js";
 import { initTradeHistory, setTradesAsset, showTrades, reloadTrades } from "./tradeHistoryTable.js";
 import { annualizedPct, dailyVolatility, priceBand, touchProbability } from "./volatility.js";
@@ -68,6 +68,7 @@ const LIQREAL_STORAGE_KEY = "priceChartRealLiquidations"; // painel de liquidaç
 const LIQREAL_CACHE_MS = 5 * 60 * 1000;
 const LIQBUBBLES_STORAGE_KEY = "priceChartLiqBubbles"; // bolhas das liquidações reais sobre o gráfico
 const LIQBUBBLES_SOURCE_STORAGE_KEY = "priceChartLiqBubblesSource"; // "all" (3 corretoras) | "binance"
+const LIQBUBBLES_MIN_STORAGE_KEY = "priceChartLiqBubblesMin"; // limite mínimo das bolhas (US$; 0 = todas)
 const VOLUME_PANE_STORAGE_KEY = "priceChartVolumePane"; // painel de volume (ligado por padrão)
 const CVD_PANE_STORAGE_KEY = "priceChartCvdPane"; // painel de CVD/Delta
 const RSI_PANE_STORAGE_KEY = "priceChartRsiPane"; // painel do RSI
@@ -115,6 +116,7 @@ const view = {
   liqBubblesSource: BUBBLE_SOURCES.includes(readStored(LIQBUBBLES_SOURCE_STORAGE_KEY))
     ? readStored(LIQBUBBLES_SOURCE_STORAGE_KEY)
     : "all",
+  liqBubblesMin: Math.max(0, Number(readStored(LIQBUBBLES_MIN_STORAGE_KEY)) || 0),
   // painéis de volume e de CVD/Delta (sem escolha salva, o CVD herda o indicador da versão anterior)
   showVolume: readStored(VOLUME_PANE_STORAGE_KEY) !== "0",
   showCvd: (readStored(CVD_PANE_STORAGE_KEY) ?? (legacyCvdOn() ? "1" : "0")) === "1",
@@ -563,7 +565,7 @@ function liquidationBubblesForChart() {
   if (!view.showLiqBubbles || !view.points) return null;
   const data = liqRealData();
   if (!data || data === PANE_LOADING) return null;
-  return liquidationBubbles(view.points, data.rows, view.liqBubblesSource);
+  return { list: liquidationBubbles(view.points, data.rows, view.liqBubblesSource), minUsd: view.liqBubblesMin };
 }
 
 async function loadLiquidations() {
@@ -1020,6 +1022,21 @@ export function initPriceChartPanel() {
     view.liqBubblesSource = BUBBLE_SOURCES.includes(bubblesSource.value) ? bubblesSource.value : "all";
     writeStored(LIQBUBBLES_SOURCE_STORAGE_KEY, view.liqBubblesSource);
     render();
+  });
+  // limite mínimo: aceita "5M", "500K", "1,5M"...; inválido volta ao valor anterior
+  const bubblesMin = document.getElementById("price-chart-liqbubbles-min");
+  const showBubblesMin = () => {
+    if (bubblesMin) bubblesMin.value = view.liqBubblesMin > 0 ? formatUsdShort(view.liqBubblesMin) : "";
+  };
+  showBubblesMin();
+  bubblesMin?.addEventListener("change", () => {
+    const value = parseUsdAmount(bubblesMin.value);
+    if (value !== null) {
+      view.liqBubblesMin = value;
+      writeStored(LIQBUBBLES_MIN_STORAGE_KEY, String(value));
+      render();
+    }
+    showBubblesMin();
   });
 
   const liqInput = document.getElementById("price-chart-liq");

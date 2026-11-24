@@ -4,7 +4,7 @@ resumo: Painel e bolhas sobre o gráfico com as liquidações que de fato aconte
 arquivos: [server/services/liquidations.js, server/coinalyze/client.js, server/config.js, public/components/price-chart/chart/futuresPanes.js, public/components/price-chart/chart/liquidationBubbles.js, public/components/price-chart/chart/createChart.js, public/components/price-chart/PriceChartPanel.js, public/components/price-chart/PriceChartPanel.html, public/components/price-chart/PriceChartPanel.css]
 rotas: [GET /liquidations/:asset]
 eventos: [COINALYZE_KEY_CHANGED]
-storage: [priceChartRealLiquidations, priceChartLiqBubbles, priceChartLiqBubblesSource]
+storage: [priceChartRealLiquidations, priceChartLiqBubbles, priceChartLiqBubblesSource, priceChartLiqBubblesMin]
 ---
 
 # Liquidações reais
@@ -26,6 +26,8 @@ O checkbox `#price-chart-liqbubbles` ("Bolhas de liquidações (reais)", no grup
 - as 3 maiores bolhas visíveis ganham o valor (`formatUsdShort`).
 
 A Coinalyze não diz o preço de cada liquidação, só quanto foi liquidado no período: a altura da bolha é aproximada (o extremo da vela). Com o checkbox ligado aparece o seletor `#price-chart-liqbubbles-source`: **Binance + Bybit + OKX** (padrão, soma de `long`/`short`) ou **só Binance** (`by.Binance`, a mesma corretora do mapa estimado).
+
+Ao lado fica o limite **acima de** (`#price-chart-liqbubbles-min`): só aparecem as bolhas a partir desse valor liquidado na vela, por lado. Aceita `5M`, `500K`, `1,5M`, `2B` ou um número (`parseUsdAmount`). Vazio ou 0 mostra todas, e texto inválido volta ao valor anterior. O valor é um só para todas as moedas. Esconder as menores não muda o tamanho das que ficam, porque a escala é calculada com todas as bolhas (`bubblesAbove`).
 
 As liquidações reais também calibram o [mapa de liquidação estimado](mapa-de-liquidacao.md) (só com a parte da Binance).
 
@@ -51,7 +53,7 @@ Cache de 5 min por `asset:interval`.
 ## Página
 
 - O painel e as bolhas usam os mesmos dados: `liqRealData()` carrega quando um dos dois está ligado (`liqRealWanted()`), `liquidationsForChart()` entrega ao painel e `liquidationBubblesForChart()` monta as bolhas com `liquidationBubbles(points, rows, source)` (`chart/liquidationBubbles.js`, testado em `test/public/liquidationBubbles.test.js`). `updateLiquidationsAvailability()` atualiza os dois checkboxes (`updateLiqRealChip`).
-- `chart/liquidationBubbles.js` → `LiquidationBubbles`, primitive anexado à série principal (como o mapa). Escala pelo percentil 98; bolhas menores que 3% da escala não são desenhadas.
+- `chart/liquidationBubbles.js` → `LiquidationBubbles`, primitive anexado à série principal (como o mapa). Escala pelo percentil 98; bolhas menores que 3% da escala não são desenhadas. `setData(list, minUsd)` recebe o limite, e o `render()` passa `liquidationBubbles: { list, minUsd }`.
 - `loadLiquidations()` funciona como os painéis de futuros, com chave `asset|vela` e `liqRealCache` de 5 min. Só ficam em cache as respostas com sucesso ou `no-market`; sem chave ou com erro, tenta de novo na próxima vez.
 - `COINALYZE_KEY_CHANGED` → `reloadLiquidations()` limpa o cache e recarrega (também o mapa de liquidação).
 - `futuresPanes`:
@@ -70,3 +72,4 @@ Cache de 5 min por `asset:interval`.
 2. Salve a chave: o painel aparece.
 3. Troque a vela entre 4h e D.
 4. Ligue as bolhas: bolhas vermelhas nas mínimas e verdes nas máximas das velas com liquidação. Troque para "só Binance": as bolhas encolhem e a escolha continua depois de recarregar a página.
+5. Digite `20M` em "acima de": ficam só as bolhas grandes, com o mesmo tamanho de antes. Apague o campo: voltam todas.
