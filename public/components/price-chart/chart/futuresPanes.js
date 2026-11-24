@@ -581,17 +581,30 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
     st.vol = null;
   }
 
-  // RSI de 0 a 100 sempre (escala fixa, como no TradingView), com as linhas de sobrecompra/sobrevenda
+  // escala do RSI ajustada aos valores visíveis (zoom vertical), mas sempre com as linhas de sobrecompra e
+  // sobrevenda dentro dela; margens pequenas para a linha usar a altura do painel
   const rsiPane = () => 1 + volCount() + cvdCount();
   const rsiLineOptions = {
     ...base,
     lineWidth: 2,
     priceFormat: { type: "custom", minMove: 0.01, formatter: (v) => String(Math.round(v)) },
-    autoscaleInfoProvider: () => ({ priceRange: { minValue: 0, maxValue: 100 } }),
+    autoscaleInfoProvider: (original) => {
+      const r = original();
+      if (!r?.priceRange) return r;
+      const { overbought = 70, oversold = 30 } = st.rsiM || {};
+      return {
+        ...r,
+        priceRange: {
+          minValue: Math.max(0, Math.min(r.priceRange.minValue, oversold)),
+          maxValue: Math.min(100, Math.max(r.priceRange.maxValue, overbought)),
+        },
+      };
+    },
   };
 
   function createRsiSeries(m) {
     st.rsi = chart.addSeries(LWC.LineSeries, rsiLineOptions, rsiPane());
+    st.rsi.priceScale().applyOptions({ scaleMargins: { top: 0.06, bottom: 0.06 } });
     st.rsiM = m;
     st.rsiKey = null;
     st.rsiLines = [];

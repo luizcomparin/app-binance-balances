@@ -1,6 +1,6 @@
 ---
 titulo: Camada RSI (Índice de Força Relativa)
-resumo: Painel abaixo do gráfico com o RSI do fechamento (suavização de Wilder, como no TradingView), escala fixa de 0 a 100, média móvel opcional e linhas de sobrecompra/sobrevenda configuráveis pela engrenagem.
+resumo: Painel abaixo do gráfico com o RSI do fechamento (suavização de Wilder, como no TradingView), escala ajustada aos valores visíveis (sempre com as linhas de nível), média móvel opcional e linhas de sobrecompra/sobrevenda configuráveis pela engrenagem.
 arquivos: [public/components/price-chart/chart/rsi.js]
 rotas: []
 eventos: []
@@ -13,7 +13,7 @@ storage: [priceChartRsiPane, priceChartRsi]
 
 O checkbox "RSI" (`#price-chart-rsi-pane`), em "Painéis abaixo do gráfico" nas Camadas, liga um painel com o **RSI** das velas do gráfico. Ele vem depois do Volume e do CVD e antes de Liquidações e dos painéis de futuros, na ordem dos checkboxes.
 
-- **Linha do RSI** na cor escolhida, com escala fixa de 0 a 100. O painel começa com **150 px** de altura (os outros, 96), porque o oscilador precisa de espaço vertical. Dá para arrastar a divisória, e a altura fica salva.
+- **Linha do RSI** na cor escolhida. A escala acompanha os valores visíveis (zoom vertical), sempre incluindo as linhas de sobrecompra e sobrevenda e dentro de 0–100, com margens pequenas. Assim a linha usa a altura do painel, em vez de ficar espremida no meio. O painel começa com **150 px** de altura (os outros, 96), porque o oscilador precisa de espaço vertical. Dá para arrastar a divisória, e a altura fica salva.
 - **Média móvel do RSI** (opcional): SMA ou EMA dos valores do RSI, no mesmo painel e na mesma escala.
 - **Linhas de nível:** sobrecompra (padrão 70, vermelha) e sobrevenda (padrão 30, verde), tracejadas por padrão, e uma pontilhada em 50.
 - **Título:** "RSI 14", o valor da vela sob a mira (ou da última) e, com a média ligada, "SMA 14 …" na cor dela. Quando o valor passa dos níveis, aparece "sobrecomprado" ou "sobrevendido". A dica do título explica a leitura (`FUTURES_HELP.rsi`).
@@ -46,7 +46,7 @@ O checkbox "RSI" (`#price-chart-rsi-pane`), em "Painéis abaixo do gráfico" nas
 - `PriceChartPanel.js`: flag `view.showRsi` (`priceChartRsiPane`). `render()` envia `rsi: getRsiSettings()` ou `null`.
 - `chart/createChart.js`: conta o painel como 1,5 em `--sub-panes` (pela altura maior) e chama `futures.setRsi(rsi)`.
 - `chart/futuresPanes.js`:
-  - `createRsiSeries` cria uma `LineSeries` com `autoscaleInfoProvider` fixo em 0–100.
+  - `createRsiSeries` cria uma `LineSeries` com `autoscaleInfoProvider`: a faixa automática dos valores visíveis, estendida até os níveis de `st.rsiM` e limitada a 0–100. As margens da escala do painel são de 6% (`scaleMargins`). A média do RSI usa as mesmas opções.
   - `setRsi(m)` liga e desliga o painel por `rebuildTop` (ver [paineis-de-futuros](paineis-de-futuros.md)).
   - `drawRsi` desenha a linha e as linhas de nível (`createPriceLine`), refeitas só quando muda um nível ou a aparência.
   - `drawRsiMa` cria ou remove a série da média no mesmo painel e só a recalcula quando muda o RSI, o tipo ou o período.
