@@ -405,9 +405,18 @@ export function createPriceChart(els, handlers = {}) {
   // linhas de preço, marcadores e legenda (tudo que depende de opts/hidden)
   function drawOverlays() {
     s.priceLines = drawPriceLines(s.series, s.priceLines, s.opts, s.hidden);
+    drawMarkers();
+    renderLegend(s.opts, s.hidden);
+  }
+
+  // Bolinhas das ordens executadas. A biblioteca guarda a posição (índice no eixo de tempo) de cada
+  // marcador ao recebê-lo e só refaz a conta quando mudam os dados da série principal. Como o eixo de
+  // tempo junta os instantes de TODAS as séries, os marcadores têm de ser entregues depois que as outras
+  // séries (indicadores e painéis) receberam os dados: ao trocar o tamanho de vela, elas ainda têm os
+  // instantes da vela anterior, e as bolinhas ficariam deslocadas.
+  function drawMarkers() {
     s.sizeOf = markerSizeScale(s.opts.orders);
     s.markersApi.setMarkers(buildMarkers(visibleMyOrders(s.opts.orders, s.hidden), s.points, s.interval, s.sizeOf));
-    renderLegend(s.opts, s.hidden);
   }
 
   // ---------------------------------------------------------------------------
@@ -572,6 +581,7 @@ export function createPriceChart(els, handlers = {}) {
       futures.setCvd(cvd);
       futures.setRsi(rsi);
       futures.setMacd(macd);
+      drawMarkers(); // de novo, agora com o eixo de tempo final (ver drawMarkers)
       syncPriceScales();
       scheduleOffscreen();
     },

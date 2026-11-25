@@ -28,6 +28,7 @@ storage: [priceChartDynamicAvg, priceChartOpenOrders, priceChartMyOrders]
 - `drawPriceLines(series, previousLines, opts, hidden)` remove e recria todas as linhas a cada `update`.
 - `ordersOnChart(points, asset)` encaixa cada ordem executada na vela que a contém (busca binária). `y = totalUSDT / qty`, ou seja, o preço em USDT na data.
 - `markerSizeScale`: com 4 ou mais ordens, os limites são os quartis dos totais em USDT e os tamanhos vão de 0,6 a 2,4. Com menos, o tamanho é 1.
+- `drawMarkers()` (em `createChart.js`) entrega as bolinhas à biblioteca duas vezes em cada `update`: em `drawOverlays()` e de novo no fim, depois que indicadores e painéis receberam os dados. A biblioteca guarda a posição de cada marcador no eixo de tempo ao recebê-lo, e o eixo junta os instantes de todas as séries; ao trocar o tamanho de vela, as outras séries ainda têm os instantes da vela anterior, e sem a segunda entrega as bolinhas ficam deslocadas.
 
 ## Legenda (`legend.js`)
 
@@ -63,6 +64,7 @@ A prioridade em `subscribeCrosshairMove` é esta:
 1. Abra uma moeda com trades: aparecem as bolinhas.
 2. Passe o mouse sobre uma bolinha (detalhes) e sobre a etiqueta "Preço médio dinâmico de compra" (explicação).
 3. Clique em "Compras realizadas" na legenda: as bolinhas de compra somem.
+   - Troque o tamanho de vela (ex.: 4h → D → S) com volume e indicadores ligados: as bolinhas continuam sobre as velas das datas das ordens, sem precisar clicar na legenda.
 4. Com ordens abertas fora da faixa visível, aparece o resumo ↑/↓.
 5. Em ⚙ Camadas, desmarque "Preço médio dinâmico": as linhas de compra e de venda (e seus itens na legenda) somem; ao recarregar a página, continua desmarcado.
 6. Desmarque "Ordens abertas" e "Ordens realizadas": somem as linhas pontilhadas e as bolinhas (e os itens "Compras/Vendas abertas" e "Compras/Vendas realizadas" da legenda).
