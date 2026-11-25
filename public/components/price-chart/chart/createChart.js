@@ -24,6 +24,8 @@ import { candleTooltipHtml, createTooltip, lineHelpTooltipHtml, ordersTooltipHtm
 import { quoteOf } from "../chartQuote.js";
 
 const LWC = window.LightweightCharts;
+// margens padrão do eixo de preço no Lightweight Charts (scaleMargins), usadas nos painéis de baixo
+const DEFAULT_MARGINS = { top: 0.2, bottom: 0.1 };
 
 /**
  * Cria o gráfico uma única vez; depois é só chamar update(opts) a cada mudança.
@@ -51,7 +53,7 @@ export function createPriceChart(els, handlers = {}) {
   const s = {
     series: null,
     mode: null,
-    logScale: false, // eixo de preço logarítmico (só o painel 0; ver syncScaleModes)
+    logScale: false, // eixo de preço logarítmico (só o painel 0; ver syncPriceScales)
     markersApi: null,
     priceLines: [],
     points: null,
@@ -212,11 +214,13 @@ export function createPriceChart(els, handlers = {}) {
     return true;
   }
 
-  // Escala do preço: linear ou logarítmica só no painel 0; os painéis de baixo ficam sempre lineares.
+  // Eixos de preço de todos os painéis: log/linear só no painel 0 (os de baixo sempre lineares) e margens
+  // dos painéis de baixo (as do RSI no painel dele, o padrão da biblioteca nos outros).
   // No Lightweight Charts 5.0.8, priceScale("right", i).applyOptions também grava as opções como padrão
-  // do gráfico, e todo painel criado depois nasce com elas. Por isso, a cada update, confere o modo de
-  // cada painel e, se o padrão ficou em log, volta ele para linear aplicando Normal num painel de baixo.
-  function syncScaleModes() {
+  // do gráfico, e todo painel criado depois nasce com elas. Por isso, a cada update, confere o modo e as
+  // margens de cada painel e corrige o que vazou; ao aplicar Normal num painel de baixo, o padrão também
+  // volta para linear.
+  function syncPriceScales() {
     const { Logarithmic, Normal } = LWC.PriceScaleMode;
     const main = chart.priceScale("right", 0);
     const want = s.logScale ? Logarithmic : Normal;
@@ -228,6 +232,9 @@ export function createPriceChart(els, handlers = {}) {
       if (chart.priceScale("right", i).options().mode !== Normal || (changed && s.logScale && i === 1)) {
         chart.priceScale("right", i).applyOptions({ mode: Normal });
       }
+      const margins = futures.scaleMarginsOf(i) || DEFAULT_MARGINS;
+      const cur = chart.priceScale("right", i).options().scaleMargins;
+      if (cur.top !== margins.top || cur.bottom !== margins.bottom) chart.priceScale("right", i).applyOptions({ scaleMargins: margins });
     }
   }
 
@@ -531,7 +538,7 @@ export function createPriceChart(els, handlers = {}) {
       if (s.interval && opts.interval !== s.interval) measure.clear(); // outra vela: a medida não vale mais
       s.interval = opts.interval;
       drawings.setAsset(opts.asset);
-      s.logScale = !!opts.logScale; // aplicado no fim (syncScaleModes), depois de criados os painéis
+      s.logScale = !!opts.logScale; // aplicado no fim (syncPriceScales), depois de criados os painéis
       // só mexe nas opções do eixo de tempo quando mudam (mudar provoca reajuste de layout)
       const timeVisible = INTRADAY.has(opts.interval);
       if (timeVisible !== s.timeVisible) {
@@ -565,7 +572,7 @@ export function createPriceChart(els, handlers = {}) {
       futures.setCvd(cvd);
       futures.setRsi(rsi);
       futures.setMacd(macd);
-      syncScaleModes();
+      syncPriceScales();
       scheduleOffscreen();
     },
 

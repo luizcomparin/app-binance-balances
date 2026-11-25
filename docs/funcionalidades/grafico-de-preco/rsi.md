@@ -46,7 +46,7 @@ O checkbox "RSI" (`#price-chart-rsi-pane`), em "Painéis abaixo do gráfico" nas
 - `PriceChartPanel.js`: flag `view.showRsi` (`priceChartRsiPane`). `render()` envia `rsi: getRsiSettings()` ou `null`.
 - `chart/createChart.js`: conta o painel como 1,5 em `--sub-panes` (pela altura maior) e chama `futures.setRsi(rsi)`.
 - `chart/futuresPanes.js`:
-  - `createRsiSeries` cria uma `LineSeries` com `autoscaleInfoProvider`: a faixa automática dos valores visíveis, estendida até os níveis de `st.rsiM` e limitada a 0–100. As margens da escala do painel são de 6% (`scaleMargins`). A média do RSI usa as mesmas opções.
+  - `createRsiSeries` cria uma `LineSeries` com `autoscaleInfoProvider`: a faixa automática dos valores visíveis, estendida até os níveis de `st.rsiM` e limitada a 0–100. As margens da escala do painel são de 6% (`RSI_MARGINS`). Quem as aplica é `syncPriceScales()` em `createChart.js`, a cada `update`, achando o painel do RSI por `futures.scaleMarginsOf(i)`. Não aplique `scaleMargins` direto no `priceScale()` do RSI: no Lightweight Charts 5.0.8 isso vira o padrão do gráfico e os painéis criados depois (MACD, futuros…) herdariam as margens; `syncPriceScales` põe os outros painéis de baixo nas margens padrão da biblioteca (20% em cima, 10% embaixo). A média do RSI usa as mesmas opções.
   - `setRsi(m)` liga e desliga o painel por `rebuildTop` (ver [paineis-de-futuros](paineis-de-futuros.md)).
   - `drawRsi` desenha a linha e as linhas de nível (`createPriceLine`), refeitas só quando muda um nível ou a aparência.
   - `drawRsiMa` cria ou remove a série da média no mesmo painel e só a recalcula quando muda o RSI, o tipo ou o período.

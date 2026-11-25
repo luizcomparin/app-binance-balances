@@ -601,8 +601,10 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
   }
 
   // escala do RSI ajustada aos valores visíveis (zoom vertical), mas sempre com as linhas de sobrecompra e
-  // sobrevenda dentro dela; margens pequenas para a linha usar a altura do painel
+  // sobrevenda dentro dela; margens pequenas (RSI_MARGINS) para a linha usar a altura do painel. As margens
+  // são aplicadas por createChart (syncPriceScales), que confere as de todos os painéis a cada update
   const rsiPane = () => 1 + volCount() + cvdCount();
+  const RSI_MARGINS = { top: 0.06, bottom: 0.06 };
   const rsiLineOptions = {
     ...base,
     lineWidth: 2,
@@ -623,7 +625,6 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
 
   function createRsiSeries(m) {
     st.rsi = chart.addSeries(LWC.LineSeries, rsiLineOptions, rsiPane());
-    st.rsi.priceScale().applyOptions({ scaleMargins: { top: 0.06, bottom: 0.06 } });
     st.rsiM = m;
     st.rsiKey = null;
     st.rsiLines = [];
@@ -1008,6 +1009,10 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
   }
 
   return {
+    /** margens do eixo do painel de índice paneIndex: as do RSI no painel dele; null = padrão da biblioteca */
+    scaleMarginsOf(paneIndex) {
+      return st.rsi && st.rsi.getPane().paneIndex() === paneIndex ? RSI_MARGINS : null;
+    },
     /** points = velas (sem velas, remove tudo); data = resposta de /futures-data (available) ou null para
      *  remover só os painéis de futuros (o de volume fica); liq = resposta de /liquidations (available) ou
      *  null para remover o painel de liquidações; panes = painéis de futuros ligados (de FUTURES_PANES);
