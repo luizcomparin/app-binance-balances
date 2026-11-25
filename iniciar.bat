@@ -1,5 +1,5 @@
 @echo off
-rem Sobe o server e abre a página no navegador. Fechar esta janela desliga o server.
+rem Sobe o server; a URL do site aparece no terminal quando ele termina de carregar. Fechar esta janela desliga o server.
 cd /d "%~dp0"
 title Binance Balances
 
@@ -8,12 +8,6 @@ if not exist .env (
   pause
   exit /b 1
 )
-
-rem pega só a PORT do .env
-for /f "tokens=1,* delims==" %%a in ('findstr /b "PORT=" .env') do set PORT=%%b
-
-rem abre o navegador depois de 2s, enquanto o server sobe
-start "" cmd /c "timeout /t 2 >nul & start http://localhost:%PORT%/site"
 
 npm start
 pause
