@@ -182,7 +182,7 @@ export function parseUsdAmount(text) {
 
 /**
  * Limite digitado em "Acima de": valor em US$ (parseUsdAmount) ou porcentagem ("20%", "12,5%" = só as
- * 20% maiores visíveis). Devolve { usd, pct } (um dos dois é 0; os dois 0 = todas). Inválido → null.
+ * 20% maiores do histórico carregado). Devolve { usd, pct } (um dos dois é 0; os dois 0 = todas). Inválido → null.
  */
 export function parseBubblesLimit(text) {
   const t = String(text ?? "").trim().replace(/\s+/g, "");
@@ -197,15 +197,13 @@ export function parseBubblesLimit(text) {
 }
 
 /**
- * Valor de corte (US$) das pct% maiores bolhas entre as velas [fromIndex, toIndex]: quem tem usd >= corte
- * aparece. Sempre sobra pelo menos uma (arredonda para cima); empates no corte entram. Sem bolhas no
- * intervalo, ou pct fora de (0, 100) → 0 (todas).
+ * Valor de corte (US$) das pct% maiores bolhas (de todas as recebidas): quem tem usd >= corte aparece.
+ * Sempre sobra pelo menos uma (arredonda para cima); empates no corte entram. Sem bolhas, ou pct fora de
+ * (0, 100) → 0 (todas).
  */
-export function topShareCutoff(bubbles, pct, fromIndex, toIndex) {
-  if (!(pct > 0) || pct >= 100) return 0;
-  const values = [];
-  for (const b of bubbles) if (b.index >= fromIndex && b.index <= toIndex) values.push(b.usd);
-  if (!values.length) return 0;
+export function topShareCutoff(bubbles, pct) {
+  if (!(pct > 0) || pct >= 100 || !bubbles?.length) return 0;
+  const values = bubbles.map((b) => b.usd);
   values.sort((a, b) => b - a);
   return values[Math.ceil((values.length * pct) / 100) - 1];
 }
@@ -241,8 +239,8 @@ export class LiquidationBubbles {
 
   /**
    * opts = { events (liquidationEvents), style: "profile" | "bubbles" | "top", minUsd, pct, top } ou null
-   * para esconder. minUsd (US$) ou pct (só as pct% maiores entre as velas visíveis, recalculado a cada
-   * desenho) valem para as bolhas e os maiores eventos; o perfil usa tudo.
+   * para esconder. minUsd (US$) ou pct (só as pct% maiores de todo o histórico carregado; o corte é
+   * calculado aqui, uma vez por dado) valem para as bolhas e os maiores eventos; o perfil usa tudo.
    */
   setData(opts) {
     if (!opts?.events?.length && !this._opts) return;
@@ -250,8 +248,9 @@ export class LiquidationBubbles {
       this._opts = null;
     } else {
       const bubbles = barBubbles(opts.events);
-      const { list, scale } = bubblesAbove(bubbles, opts.pct > 0 ? 0 : opts.minUsd || 0);
-      this._opts = { ...opts, bubbles, shown: list, scale };
+      const minUsd = opts.pct > 0 ? topShareCutoff(bubbles, opts.pct) : opts.minUsd || 0;
+      const { list, scale } = bubblesAbove(bubbles, minUsd);
+      this._opts = { ...opts, minUsd, bubbles, shown: list, scale };
     }
     this._requestUpdate?.();
   }
@@ -270,16 +269,13 @@ export class LiquidationBubbles {
     if (!range) return;
     const fromIndex = Math.floor(range.from) - 1;
     const toIndex = Math.ceil(range.to) + 1;
-    // limite em %: o corte vem das velas visíveis agora (muda ao arrastar ou dar zoom)
-    const minUsd =
-      o.style === "profile" ? 0 : o.pct > 0 ? topShareCutoff(o.bubbles, o.pct, fromIndex, toIndex) : o.minUsd || 0;
 
     target.useBitmapCoordinateSpace((scope) => {
       const ctx = scope.context;
       ctx.font = `${Math.round(11 * scope.verticalPixelRatio)}px Manrope, sans-serif`;
       ctx.textBaseline = "middle";
-      if (o.style === "bubbles") this._drawBubbles(scope, ts, fromIndex, toIndex, minUsd);
-      else if (o.style === "top") this._drawTop(scope, ts, fromIndex, toIndex, minUsd);
+      if (o.style === "bubbles") this._drawBubbles(scope, ts, fromIndex, toIndex);
+      else if (o.style === "top") this._drawTop(scope, ts, fromIndex, toIndex);
       else this._drawProfile(scope, fromIndex, toIndex);
     });
   }
@@ -295,11 +291,11 @@ export class LiquidationBubbles {
     ctx.fillText(text, left, y);
   }
 
-  _drawBubbles({ context: ctx, bitmapSize, horizontalPixelRatio: hr, verticalPixelRatio: vr }, ts, fromIndex, toIndex, minUsd) {
+  _drawBubbles({ context: ctx, bitmapSize, horizontalPixelRatio: hr, verticalPixelRatio: vr }, ts, fromIndex, toIndex) {
     const o = this._opts;
     const visible = [];
     for (const b of o.shown) {
-      if (b.index < fromIndex || b.index > toIndex || b.usd < minUsd) continue;
+      if (b.index < fromIndex || b.index > toIndex) continue;
       const r = bubbleRadius(b.usd, o.scale);
       if (r === null) continue;
       const x = ts.logicalToCoordinate(b.index);
@@ -326,11 +322,11 @@ export class LiquidationBubbles {
     }
   }
 
-  _drawTop({ context: ctx, bitmapSize, horizontalPixelRatio: hr, verticalPixelRatio: vr }, ts, fromIndex, toIndex, minUsd) {
+  _drawTop({ context: ctx, bitmapSize, horizontalPixelRatio: hr, verticalPixelRatio: vr }, ts, fromIndex, toIndex) {
     const o = this._opts;
     const width = bitmapSize.width;
     const used = []; // y dos rótulos já desenhados (não sobrepor)
-    for (const b of topBubbles(o.bubbles, o.top || 5, fromIndex, toIndex, minUsd)) {
+    for (const b of topBubbles(o.bubbles, o.top || 5, fromIndex, toIndex, o.minUsd || 0)) {
       const x = ts.logicalToCoordinate(b.index);
       const yc = this._series.priceToCoordinate(b.price);
       if (x === null || yc === null) continue;

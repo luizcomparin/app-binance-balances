@@ -131,7 +131,7 @@ const view = {
     ? readStored(LIQBUBBLES_SOURCE_STORAGE_KEY)
     : "all",
   liqBubblesMin: readBubblesMin(), // limite mínimo das bolhas (US$; 0 = todas), o mesmo para todas as moedas
-  liqBubblesPct: readBubblesPct(), // ou em %: só as N% maiores entre as velas visíveis (0 = desligado)
+  liqBubblesPct: readBubblesPct(), // ou em %: só as N% maiores do histórico carregado (0 = desligado)
   liqBubblesStyle: LIQ_STYLES.includes(readStored(LIQBUBBLES_STYLE_STORAGE_KEY)) ? readStored(LIQBUBBLES_STYLE_STORAGE_KEY) : "profile",
   liqBubblesTop: TOP_COUNTS.includes(Number(readStored(LIQBUBBLES_TOP_STORAGE_KEY))) ? Number(readStored(LIQBUBBLES_TOP_STORAGE_KEY)) : 5,
   // liquidações de 1h + velas de 1h da moeda, para posicionar cada hora no preço: { asset, loading } | { asset, data }
@@ -598,7 +598,7 @@ function readBubblesMin() {
   }
 }
 
-// Limite salvo em porcentagem ("20%" = só as 20% maiores visíveis); 0 = limite em US$ (ou nenhum)
+// Limite salvo em porcentagem ("20%" = só as 20% maiores do histórico carregado); 0 = limite em US$ (ou nenhum)
 function readBubblesPct() {
   const raw = readStored(LIQBUBBLES_MIN_STORAGE_KEY);
   if (!raw?.endsWith("%")) return 0;
@@ -1167,7 +1167,7 @@ export function initPriceChartPanel() {
     writeStored(LIQBUBBLES_TOP_STORAGE_KEY, String(view.liqBubblesTop));
     render();
   });
-  // limite mínimo (todas as moedas): aceita "5M", "500K", "1,5M"... ou "20%" (as 20% maiores visíveis);
+  // limite mínimo (todas as moedas): aceita "5M", "500K", "1,5M"... ou "20%" (as 20% maiores do histórico);
   // inválido volta ao valor anterior
   const bubblesMin = document.getElementById("price-chart-liqbubbles-min");
   showBubblesMin();

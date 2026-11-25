@@ -189,17 +189,18 @@ test("parseBubblesLimit: US$ ou porcentagem; inválido = null", () => {
   assert.equal(parseBubblesLimit("abc"), null);
 });
 
-test("topShareCutoff: corte das pct% maiores só entre as velas visíveis", () => {
+test("topShareCutoff: corte das pct% maiores de todas as bolhas", () => {
   const bubbles = Array.from({ length: 100 }, (_, i) => ({ index: i, usd: i + 1 }));
-  // todas visíveis: 20% de 100 = as 20 maiores (81..100)
-  assert.equal(topShareCutoff(bubbles, 20, 0, 99), 81);
-  // só as velas 0..9 (valores 1..10): 20% de 10 = as 2 maiores (9 e 10)
-  assert.equal(topShareCutoff(bubbles, 20, 0, 9), 9);
+  // 20% de 100 = as 20 maiores (81..100)
+  assert.equal(topShareCutoff(bubbles, 20), 81);
+  const ten = bubbles.slice(0, 10); // valores 1..10
+  assert.equal(topShareCutoff(ten, 20), 9);
   // arredonda para cima e sempre sobra pelo menos uma
-  assert.equal(topShareCutoff(bubbles, 1, 0, 9), 10);
-  assert.equal(topShareCutoff(bubbles, 25, 0, 9), 8);
-  // sem porcentagem, 100% ou sem bolhas visíveis: todas
-  assert.equal(topShareCutoff(bubbles, 0, 0, 99), 0);
-  assert.equal(topShareCutoff(bubbles, 100, 0, 99), 0);
-  assert.equal(topShareCutoff(bubbles, 20, 200, 300), 0);
+  assert.equal(topShareCutoff(ten, 1), 10);
+  assert.equal(topShareCutoff(ten, 25), 8);
+  // sem porcentagem, 100% ou sem bolhas: todas
+  assert.equal(topShareCutoff(bubbles, 0), 0);
+  assert.equal(topShareCutoff(bubbles, 100), 0);
+  assert.equal(topShareCutoff([], 20), 0);
+  assert.equal(topShareCutoff(null, 20), 0);
 });
