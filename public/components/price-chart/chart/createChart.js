@@ -51,7 +51,7 @@ export function createPriceChart(els, handlers = {}) {
   const s = {
     series: null,
     mode: null,
-    logScale: null, // eixo de preço logarítmico (aplicado só quando muda)
+    logScale: false, // eixo de preço logarítmico (só o painel 0; ver syncScaleModes)
     markersApi: null,
     priceLines: [],
     points: null,
@@ -210,6 +210,25 @@ export function createPriceChart(els, handlers = {}) {
     s.priceLines = [];
     s.mode = mode;
     return true;
+  }
+
+  // Escala do preço: linear ou logarítmica só no painel 0; os painéis de baixo ficam sempre lineares.
+  // No Lightweight Charts 5.0.8, priceScale("right", i).applyOptions também grava as opções como padrão
+  // do gráfico, e todo painel criado depois nasce com elas. Por isso, a cada update, confere o modo de
+  // cada painel e, se o padrão ficou em log, volta ele para linear aplicando Normal num painel de baixo.
+  function syncScaleModes() {
+    const { Logarithmic, Normal } = LWC.PriceScaleMode;
+    const main = chart.priceScale("right", 0);
+    const want = s.logScale ? Logarithmic : Normal;
+    const changed = main.options().mode !== want;
+    if (changed) main.applyOptions({ mode: want }); // aqui o padrão do gráfico também vira `want`
+    const panes = chart.panes().length;
+    for (let i = 1; i < panes; i++) {
+      // painel nascido em log (padrão contaminado) ou padrão acabou de virar log: Normal no painel e no padrão
+      if (chart.priceScale("right", i).options().mode !== Normal || (changed && s.logScale && i === 1)) {
+        chart.priceScale("right", i).applyOptions({ mode: Normal });
+      }
+    }
   }
 
   // Instante (ms) → x no eixo de tempo, interpolando dentro da vela (o mapa de liquidação é por hora,
@@ -512,12 +531,7 @@ export function createPriceChart(els, handlers = {}) {
       if (s.interval && opts.interval !== s.interval) measure.clear(); // outra vela: a medida não vale mais
       s.interval = opts.interval;
       drawings.setAsset(opts.asset);
-      // escala do preço: linear ou logarítmica (só o painel de preço; os painéis de baixo seguem lineares)
-      const logScale = !!opts.logScale;
-      if (logScale !== s.logScale) {
-        s.logScale = logScale;
-        chart.priceScale("right").applyOptions({ mode: logScale ? LWC.PriceScaleMode.Logarithmic : LWC.PriceScaleMode.Normal });
-      }
+      s.logScale = !!opts.logScale; // aplicado no fim (syncScaleModes), depois de criados os painéis
       // só mexe nas opções do eixo de tempo quando mudam (mudar provoca reajuste de layout)
       const timeVisible = INTRADAY.has(opts.interval);
       if (timeVisible !== s.timeVisible) {
@@ -551,6 +565,7 @@ export function createPriceChart(els, handlers = {}) {
       futures.setCvd(cvd);
       futures.setRsi(rsi);
       futures.setMacd(macd);
+      syncScaleModes();
       scheduleOffscreen();
     },
 
