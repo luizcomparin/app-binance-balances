@@ -7,9 +7,11 @@ import {
   bubbleScale,
   bubblesAbove,
   liquidationEvents,
+  parseBubblesLimit,
   parseUsdAmount,
   priceProfile,
   topBubbles,
+  topShareCutoff,
 } from "../../public/components/price-chart/chart/liquidationBubbles.js";
 
 const HOUR = 3600e3;
@@ -172,4 +174,32 @@ test("bubblesAbove: esconde as menores que o limite, mas a escala continua a de 
   assert.ok(big.list.every((b) => b.usd >= 90));
   assert.equal(big.scale, all.scale);
   assert.deepEqual(bubblesAbove(null, 5), { list: [], scale: 1 });
+});
+
+test("parseBubblesLimit: US$ ou porcentagem; inválido = null", () => {
+  assert.deepEqual(parseBubblesLimit("5M"), { usd: 5e6, pct: 0 });
+  assert.deepEqual(parseBubblesLimit("20%"), { usd: 0, pct: 20 });
+  assert.deepEqual(parseBubblesLimit(" 12,5 % "), { usd: 0, pct: 12.5 });
+  assert.deepEqual(parseBubblesLimit(""), { usd: 0, pct: 0 });
+  assert.deepEqual(parseBubblesLimit("0%"), { usd: 0, pct: 0 });
+  assert.deepEqual(parseBubblesLimit("100%"), { usd: 0, pct: 100 });
+  assert.equal(parseBubblesLimit("150%"), null);
+  assert.equal(parseBubblesLimit("5M%"), null);
+  assert.equal(parseBubblesLimit("%"), null);
+  assert.equal(parseBubblesLimit("abc"), null);
+});
+
+test("topShareCutoff: corte das pct% maiores só entre as velas visíveis", () => {
+  const bubbles = Array.from({ length: 100 }, (_, i) => ({ index: i, usd: i + 1 }));
+  // todas visíveis: 20% de 100 = as 20 maiores (81..100)
+  assert.equal(topShareCutoff(bubbles, 20, 0, 99), 81);
+  // só as velas 0..9 (valores 1..10): 20% de 10 = as 2 maiores (9 e 10)
+  assert.equal(topShareCutoff(bubbles, 20, 0, 9), 9);
+  // arredonda para cima e sempre sobra pelo menos uma
+  assert.equal(topShareCutoff(bubbles, 1, 0, 9), 10);
+  assert.equal(topShareCutoff(bubbles, 25, 0, 9), 8);
+  // sem porcentagem, 100% ou sem bolhas visíveis: todas
+  assert.equal(topShareCutoff(bubbles, 0, 0, 99), 0);
+  assert.equal(topShareCutoff(bubbles, 100, 0, 99), 0);
+  assert.equal(topShareCutoff(bubbles, 20, 200, 300), 0);
 });

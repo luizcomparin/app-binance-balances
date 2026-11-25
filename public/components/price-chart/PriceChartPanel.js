@@ -29,7 +29,7 @@ import { fetchFuturesData, fetchLiquidationMap, fetchLiquidations } from "../../
 import { openSettings } from "../settings/SettingsModal.js";
 import { formatUsdShort } from "../../core/format.js";
 import { FUTURES_HELP, FUTURES_PANES, PANE_LOADING } from "./chart/futuresPanes.js";
-import { BUBBLE_SOURCES, LIQ_STYLES, liquidationEvents, parseUsdAmount, TOP_COUNTS } from "./chart/liquidationBubbles.js";
+import { BUBBLE_SOURCES, LIQ_STYLES, liquidationEvents, parseBubblesLimit, TOP_COUNTS } from "./chart/liquidationBubbles.js";
 import { initOrderHistory, setHistoryAsset, showHistory, reloadHistory } from "./orderHistoryTable.js";
 import { initTradeHistory, setTradesAsset, showTrades, reloadTrades } from "./tradeHistoryTable.js";
 import { annualizedPct, dailyVolatility, priceBand, touchProbability } from "./volatility.js";
@@ -131,6 +131,7 @@ const view = {
     ? readStored(LIQBUBBLES_SOURCE_STORAGE_KEY)
     : "all",
   liqBubblesMin: readBubblesMin(), // limite mínimo das bolhas (US$; 0 = todas), o mesmo para todas as moedas
+  liqBubblesPct: readBubblesPct(), // ou em %: só as N% maiores entre as velas visíveis (0 = desligado)
   liqBubblesStyle: LIQ_STYLES.includes(readStored(LIQBUBBLES_STYLE_STORAGE_KEY)) ? readStored(LIQBUBBLES_STYLE_STORAGE_KEY) : "profile",
   liqBubblesTop: TOP_COUNTS.includes(Number(readStored(LIQBUBBLES_TOP_STORAGE_KEY))) ? Number(readStored(LIQBUBBLES_TOP_STORAGE_KEY)) : 5,
   // liquidações de 1h + velas de 1h da moeda, para posicionar cada hora no preço: { asset, loading } | { asset, data }
@@ -587,7 +588,7 @@ function liquidationsForChart() {
 // { MOEDA: US$ }: nesse caso vale o limite da última moeda vista.
 function readBubblesMin() {
   const raw = readStored(LIQBUBBLES_MIN_STORAGE_KEY);
-  if (!raw) return 0;
+  if (!raw || raw.endsWith("%")) return 0;
   try {
     let value = JSON.parse(raw);
     if (value && typeof value === "object") value = value[readStored(ASSET_STORAGE_KEY)];
@@ -597,10 +598,20 @@ function readBubblesMin() {
   }
 }
 
-// campo "acima de" com o limite salvo
+// Limite salvo em porcentagem ("20%" = só as 20% maiores visíveis); 0 = limite em US$ (ou nenhum)
+function readBubblesPct() {
+  const raw = readStored(LIQBUBBLES_MIN_STORAGE_KEY);
+  if (!raw?.endsWith("%")) return 0;
+  const pct = Number(raw.slice(0, -1));
+  return pct > 0 && pct <= 100 ? pct : 0;
+}
+
+// campo "acima de" com o limite salvo (US$ ou %)
 function showBubblesMin() {
   const input = document.getElementById("price-chart-liqbubbles-min");
-  if (input) input.value = view.liqBubblesMin > 0 ? formatUsdShort(view.liqBubblesMin) : "";
+  if (!input) return;
+  if (view.liqBubblesPct > 0) input.value = `${String(view.liqBubblesPct).replace(".", ",")}%`;
+  else input.value = view.liqBubblesMin > 0 ? formatUsdShort(view.liqBubblesMin) : "";
 }
 
 // liquidações reais sobre o gráfico (velas atuais) ou null: enquanto o dado de 1h carrega (ou se falhar),
@@ -614,6 +625,7 @@ function liquidationBubblesForChart() {
     events: liquidationEvents(view.points, data.rows, view.liqHourly?.data || null, view.liqBubblesSource),
     style: view.liqBubblesStyle,
     minUsd: view.liqBubblesMin,
+    pct: view.liqBubblesPct,
     top: view.liqBubblesTop,
   };
 }
@@ -1155,14 +1167,16 @@ export function initPriceChartPanel() {
     writeStored(LIQBUBBLES_TOP_STORAGE_KEY, String(view.liqBubblesTop));
     render();
   });
-  // limite mínimo (todas as moedas): aceita "5M", "500K", "1,5M"...; inválido volta ao valor anterior
+  // limite mínimo (todas as moedas): aceita "5M", "500K", "1,5M"... ou "20%" (as 20% maiores visíveis);
+  // inválido volta ao valor anterior
   const bubblesMin = document.getElementById("price-chart-liqbubbles-min");
   showBubblesMin();
   bubblesMin?.addEventListener("change", () => {
-    const value = parseUsdAmount(bubblesMin.value);
-    if (value !== null) {
-      view.liqBubblesMin = value;
-      writeStored(LIQBUBBLES_MIN_STORAGE_KEY, String(value));
+    const limit = parseBubblesLimit(bubblesMin.value);
+    if (limit !== null) {
+      view.liqBubblesMin = limit.usd;
+      view.liqBubblesPct = limit.pct;
+      writeStored(LIQBUBBLES_MIN_STORAGE_KEY, limit.pct > 0 ? `${limit.pct}%` : String(limit.usd));
       render();
     }
     showBubblesMin();

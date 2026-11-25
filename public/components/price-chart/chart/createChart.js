@@ -40,7 +40,7 @@ const DEFAULT_MARGINS = { top: 0.2, bottom: 0.1 };
  *                        macd: configurações do painel do MACD (chart/macd.js) | null,
  *                        liquidation: resposta de /liquidation-map | null,
  *                        liquidationSettings: opções do mapa (chart/liquidationOverlay.js → LIQ_MAP_DEFAULT),
- *                        liquidationBubbles: { events, style, minUsd, top } das liquidações reais (chart/liquidationBubbles.js) | null,
+ *                        liquidationBubbles: { events, style, minUsd, pct, top } das liquidações reais (chart/liquidationBubbles.js) | null,
  *                        futures: resposta de /futures-data | null (painéis de OI, long/short e funding),
  *                        futuresPanes: painéis de futuros ligados (["oi", "ls", "funding"] ou parte),
  *                        liquidations: resposta de /liquidations | null (painel de liquidações reais) }
