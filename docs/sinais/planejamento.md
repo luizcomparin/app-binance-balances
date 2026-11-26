@@ -11,7 +11,7 @@ storage: []
 
 Como usar este doc: ao concluir uma etapa, marque os itens (`[x]`), anote a data e o que mudou em relação ao plano, e atualize o [README](README.md) e o [catálogo](catalogo-de-sinais.md) no mesmo commit do código.
 
-**Situação em 26/11/2026:** etapas 0 a 4 concluídas. O campo "Sinais" está no cabeçalho do gráfico com tendência, MACD, RSI, esticagem, Fear & Greed, funding e liquidações; faltam a divergência de RSI (etapa 5) e o fechamento (etapa 6).
+**Situação em 26/11/2026:** etapas 0 a 5 concluídas. Todos os sinais da v1 estão no campo "Sinais" do gráfico. Falta a etapa 6: revisar os limiares e a regra do placar (com 9 sinais de fundo/topo, o corte de 3 ficou fácil de atingir) e fechar a v1.
 
 ## V1: sinais no gráfico de preço
 
@@ -73,10 +73,12 @@ Mudanças em relação ao plano:
 
 Verificado com o server local e o Edge sem interface: BTC (funding neutro, cascata de longs ativa), SUI (funding negativo ativo) e USDT (funding sem contrato perpétuo). **Não verificado:** os estados sem chave e de chave recusada da Coinalyze e a reação a `COINALYZE_KEY_CHANGED` na tela (a chave não foi removida para testar; os textos estão cobertos nos testes do núcleo), e o limite da Coinalyze estourado.
 
-### Etapa 5 — Divergência de RSI
+### Etapa 5 — Divergência de RSI ✅ (26/11/2026)
 
-- [ ] Definir pivôs e janela; sinais `rsi-div-d` e `rsi-div-w`.
-- [ ] Testes com séries montadas à mão.
+- [x] Pivôs e janela definidos (ver o [catálogo](catalogo-de-sinais.md)); sinais `rsi-div-d` e `rsi-div-w` (`rsiDivergenceSignal`).
+- [x] Testes com séries montadas à mão.
+
+Verificado com velas reais: no momento não há divergência em BTC, ETH, XRP, SUI, SOL, LINK, AAVE e NEAR (os preços vêm fazendo mínimas novas), e a janela mostra "nenhuma recente" nas duas linhas. Para ver o sinal ativar, o passado foi varrido dia a dia: no BTC diário foram 14 divergências em 1100 velas (ativo em cerca de 12% delas) e 8 no semanal em 300 velas; ETH e SOL ficaram em 13 e 11 no diário. Isso só confirma que a detecção funciona e não dispara o tempo todo; **não é backtest** nem diz se o sinal acerta. **Não verificado:** o sinal ativo na tela (não há nenhum ativo agora) e a comparação visual dos pivôs com o gráfico.
 
 ### Etapa 6 — Fechamento da v1
 
@@ -145,6 +147,7 @@ Intenção registrada em 25/11/2026: avaliar os sinais no histórico para saber 
 | Data | O que foi feito |
 |---|---|
 | 25/11/2026 | Levantamento dos indicadores e camadas, decisões iniciais e criação da documentação (etapa 0) |
+| 26/11/2026 | Etapa 5: sinal de divergência entre o preço e o RSI (D e S). Com ele, todos os sinais da v1 estão implementados |
 | 26/11/2026 | Etapa 4: sinais de funding e de liquidações reais (fontes opcionais), com cache próprio e reação à troca da chave da Coinalyze |
 | 25/11/2026 | Etapa 3: sinais de MACD (D e S) e Fear & Greed |
 | 25/11/2026 | Etapa 2: carga das velas D e S, campo "Sinais" no cabeçalho do gráfico e janela flutuante com os detalhes |

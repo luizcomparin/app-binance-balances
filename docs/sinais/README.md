@@ -9,7 +9,7 @@ storage: []
 
 # Sinais de compra e venda
 
-> **Estado: em desenvolvimento.** Etapas 1 a 4 prontas: o campo "Sinais" aparece no cabeçalho do gráfico de preço, com tendência por médias, MACD, RSI, esticagem da média, Fear & Greed, funding e liquidações. Falta a divergência de RSI (etapa 5) e a revisão dos limiares (etapa 6). O andamento fica em [planejamento.md](planejamento.md), e este doc é atualizado a cada etapa concluída.
+> **Estado: em desenvolvimento.** Etapas 1 a 5 prontas: o campo "Sinais" aparece no cabeçalho do gráfico de preço com todos os sinais da v1: tendência por médias, MACD, RSI, divergência de RSI, esticagem da média, Fear & Greed, funding e liquidações. Falta a etapa 6: revisar os limiares e a regra do placar. O andamento fica em [planejamento.md](planejamento.md), e este doc é atualizado a cada etapa concluída.
 
 Documentação exclusiva dos sinais:
 
@@ -72,7 +72,7 @@ Pontos estruturais:
 
 - **Núcleo puro (implementado):** `public/components/price-chart/signals/signals.js`, sem DOM, sem `fetch` e sem ler o relógio. Recebe as velas D e S e o instante `now` e devolve o resultado. Testado em `test/public/signals.test.js`. Reaproveita `movingAverage`, `rsi`, `macd` e `macdHistogramTones`. Usa `formatUsdShort` de `core/format.js` nos textos. Recebe também as linhas do Fear & Greed e as fontes opcionais dos futuros (funding e liquidações).
   - `analyzeSignals({ asset, daily, weekly, fearGreed, funding, liquidations, now }, cfg?)`: a análise completa.
-  - `trendSignal`, `macdSignal`, `rsiSignal`, `stretchSignal` `(points, "d" | "w", now, cfg?)`: um sinal cada.
+  - `trendSignal`, `macdSignal`, `rsiSignal`, `rsiDivergenceSignal`, `stretchSignal` `(points, "d" | "w", now, cfg?)`: um sinal cada.
   - `fearGreedSignal(rows, now, cfg?)`: o sinal do Fear & Greed.
   - `fundingSignal(source, now, cfg?)` e `liquidationSignal(source, now, cfg?)`: as fontes opcionais. `source` é `{ rows }` ou `{ reason }` (por que não há dados: `no-perpetual`, `no-market`, `no-key`, `invalid-key`, `error`); o texto do sinal indisponível explica o motivo.
   - `regionOf(signals, cfg?)`: o placar de confluência.
@@ -139,6 +139,7 @@ Formato do resultado de `analyzeSignals`:
 - **Funding com pouco histórico:** a rota devolve as últimas 500 cobranças. Com menos de 60 dias, o sinal fica indisponível. Como a comparação é com poucos meses, "entre os mais baixos" quer dizer "dos últimos ~166 dias", e o texto diz o período.
 - **USDT (gráfico USDT/BRL):** não tem perpétuo na Binance (funding indisponível), mas a Coinalyze acha um mercado "USDT" em outras corretoras, e o sinal de liquidações aparece com valores pequenos. É do par USDT/USD, não do dólar em reais.
 - **Fear & Greed parado:** se o último valor tiver mais de 2 dias, o sinal fica indisponível (`reason: "stale"`) em vez de usar um valor velho.
+- **Divergência de RSI aparece com atraso:** o 2º fundo (ou topo) só é reconhecido depois de 5 velas diárias ou 3 semanais fechadas à frente dele. Enquanto o preço está fazendo mínimas novas, o sinal fica em "nenhuma recente".
 - **Página aberta por muito tempo:** os sinais só são recalculados ao trocar de moeda ou no Atualizar do topo. A hora do cálculo aparece no rodapé da janela.
 - **Clique no título da moeda** (seletor) não fecha a janela dos sinais: o botão do seletor interrompe a propagação do clique (`assetPicker.js`). O mesmo já acontece com os menus de Personalizado e Camadas.
 - A janela usa a classe `.pc-pop` (de `PriceChartPanel.css`) e sobrescreve a posição e a largura em `signals.css`.

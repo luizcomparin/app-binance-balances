@@ -9,18 +9,22 @@
 import { movingAverage } from "../chart/movingAverage.js";
 import { rsi } from "../chart/rsi.js";
 import { macd, MACD_DEFAULT, macdHistogramTones } from "../chart/macd.js";
-import { formatUsdShort } from "../../../core/format.js";
+import { formatPrice, formatUsdShort } from "../../../core/format.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 // Limiares fixos da v1 (ver docs/sinais/catalogo-de-sinais.md)
 export const SIGNAL_DEFAULTS = {
-  d: { ms: DAY_MS, maShort: 50, maLong: 200, stretchMa: 200, minSamples: 365 },
-  w: { ms: 7 * DAY_MS, maShort: 20, maLong: 50, stretchMa: 50, minSamples: 52 },
+  // divPivot: velas de cada lado para um fundo/topo contar como pivô; divMaxGap: distância máxima entre os
+  // dois pivôs comparados; divRecent: idade máxima do 2º pivô para a divergência ainda valer (em velas)
+  d: { ms: DAY_MS, maShort: 50, maLong: 200, stretchMa: 200, minSamples: 365, divPivot: 5, divMaxGap: 60, divRecent: 20 },
+  w: { ms: 7 * DAY_MS, maShort: 20, maLong: 50, stretchMa: 50, minSamples: 52, divPivot: 3, divMaxGap: 26, divRecent: 8 },
   slopeBars: 10, // inclinação da média longa: valor atual × o de N velas atrás
   rsiPeriod: 14,
   rsiOversold: 30,
   rsiOverbought: 70,
+  divRsiLow: 40, // divergência de alta: o RSI do 1º fundo precisa estar até aqui (região fraca)
+  divRsiHigh: 60, // divergência de baixa: o RSI do 1º topo precisa estar a partir daqui (região forte)
   stretchLow: 10, // percentil da esticagem que conta como fundo
   stretchHigh: 90, // ... e como topo
   macd: { fast: MACD_DEFAULT.fast, slow: MACD_DEFAULT.slow, signal: MACD_DEFAULT.signal, oscType: "EMA", signalType: "EMA" },
@@ -152,6 +156,74 @@ export function rsiSignal(points, tf, now, cfg = SIGNAL_DEFAULTS) {
     id, group: "extreme", timeframe: tf, available: true,
     active: !!side, side, value, bars, forming: !!side && bars === 0,
     text: side ? `${label}: ${side === "bottom" ? "sobrevendido" : "sobrecomprado"} ${sinceText(bars, tf)}` : `${label}: neutro`,
+  };
+}
+
+/**
+ * Divergência entre o preço e o RSI, nos dois últimos fundos (ou topos) confirmados:
+ * - de alta (fundo): o preço faz um fundo mais baixo que o anterior, mas o RSI faz um fundo mais alto;
+ * - de baixa (topo): o preço faz um topo mais alto, mas o RSI faz um topo mais baixo.
+ * Fundo/topo confirmado (pivô) = mínima/máxima da vela é o extremo entre `divPivot` velas de cada lado,
+ * todas fechadas: a divergência só aparece `divPivot` velas depois do 2º pivô. Deixa de valer quando o
+ * 2º pivô fica velho (`divRecent`) ou quando o preço passa dele (nova mínima ou nova máxima).
+ */
+export function rsiDivergenceSignal(points, tf, now, cfg = SIGNAL_DEFAULTS) {
+  const { ms, divPivot: k, divMaxGap, divRecent } = cfg[tf];
+  const id = `rsi-div-${tf}`;
+  const name = `Divergência no RSI ${TF_LABEL[tf]}`;
+  const n = points?.length || 0;
+  const closed = lastClosedIndex(points, ms, now);
+  if (closed < cfg.rsiPeriod + 2 * k) return unavailable(id, "extreme", tf, "history", `${name}: histórico insuficiente`);
+
+  const values = rsi(points, cfg.rsiPeriod);
+  // kind "low": fundos pela mínima; "high": topos pela máxima (sem mínima/máxima na vela, usa o fechamento)
+  const find = (kind) => {
+    const price = (i) => points[i][kind] ?? points[i].close;
+    const beats = (a, b) => (kind === "low" ? a < b : a > b);
+    const isPivot = (i) => {
+      if (values[i] === null) return false;
+      // extremo entre as k velas de cada lado (empate: vale a primeira vela)
+      for (let j = i - k; j <= i + k; j++) {
+        if (j === i) continue;
+        if (j < i ? !beats(price(i), price(j)) : beats(price(j), price(i))) return false;
+      }
+      return true;
+    };
+    // só os dois pivôs mais recentes, procurando de trás para frente
+    const pivots = [];
+    for (let i = closed - k; i >= k && pivots.length < 2; i--) if (isPivot(i)) pivots.push(i);
+    if (pivots.length < 2) return null;
+    const [b, a] = pivots; // a = 1º (mais antigo), b = 2º
+    if (closed - b > divRecent || b - a > divMaxGap) return null;
+    // preço mais extremo no 2º pivô e RSI menos extremo; o 1º precisa ter acontecido com o RSI já fraco/forte
+    if (!beats(price(b), price(a)) || !beats(values[a], values[b])) return null;
+    if (kind === "low" ? values[a] > cfg.divRsiLow : values[a] < cfg.divRsiHigh) return null;
+    // depois do 2º pivô (inclusive na vela em formação) o preço não pode ter passado dele
+    for (let j = b + 1; j < n; j++) if (beats(price(j), price(b))) return null;
+    const at = (i) => ({ time: points[i].time, price: price(i), rsi: values[i] });
+    return { side: kind === "low" ? "bottom" : "top", index: b, first: at(a), second: at(b) };
+  };
+
+  // as duas ao mesmo tempo é raro: vale a do 2º pivô mais recente
+  const found = [find("low"), find("high")].filter(Boolean).sort((x, y) => y.index - x.index)[0];
+  if (!found) {
+    return {
+      id, group: "extreme", timeframe: tf, available: true,
+      active: false, side: null, value: null, bars: 0, forming: false,
+      text: `${name}: nenhuma recente`,
+    };
+  }
+
+  const { side, first, second } = found;
+  const bars = closed - found.index;
+  const what = side === "bottom" ? "fundo" : "topo";
+  const move = `preço fez ${what} mais ${side === "bottom" ? "baixo" : "alto"} (${formatPrice(first.price)} → ${formatPrice(second.price)})`;
+  const osc = `o RSI, ${what} mais ${side === "bottom" ? "alto" : "baixo"} (${num(first.rsi)} → ${num(second.rsi)})`;
+  return {
+    id, group: "extreme", timeframe: tf, available: true,
+    active: true, side, value: second.rsi, bars, forming: false,
+    details: { first, second },
+    text: `${name}: de ${side === "bottom" ? "alta" : "baixa"}; ${move} e ${osc}; 2º ${what} há ${barsText(bars, tf)}`,
   };
 }
 
@@ -432,6 +504,7 @@ export function analyzeSignals({ asset, daily, weekly, fearGreed, funding, liqui
   for (const tf of ["d", "w"]) signals.push(trendSignal(series[tf], tf, now, cfg));
   for (const tf of ["d", "w"]) signals.push(macdSignal(series[tf], tf, now, cfg));
   for (const tf of ["d", "w"]) signals.push(rsiSignal(series[tf], tf, now, cfg));
+  for (const tf of ["d", "w"]) signals.push(rsiDivergenceSignal(series[tf], tf, now, cfg));
   for (const tf of ["d", "w"]) signals.push(stretchSignal(series[tf], tf, now, cfg));
   signals.push(fearGreedSignal(fearGreed, now, cfg));
   signals.push(fundingSignal(funding, now, cfg));

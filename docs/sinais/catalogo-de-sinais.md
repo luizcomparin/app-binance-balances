@@ -40,8 +40,8 @@ A tendência exibida no campo resumido (`trend.d`, `trend.w`) vem dos sinais por
 | `fng` | Fear & Greed extremo | ≤ 25 (medo extremo) ou ≥ 76 (ganância extrema). Mostra há quantos dias seguidos, contando o de hoje | ≤25 fundo, ≥76 topo | `/fear-greed` | 3 | implementado |
 | `funding` | Funding extremo | Média das taxas cobradas nos últimos 7 dias, comparada com a mesma média ao longo do histórico devolvido pela rota (cerca de 166 dias). Fundo: média **negativa** e percentil ≤ 10. Topo: média **positiva** e percentil ≥ 90. Mostra há quantos dias a média de 7 dias está na zona | negativo e baixo fundo, alto topo | `/futures-data?period=1d` | 4 | implementado |
 | `liq` | Cascata de liquidações | Soma liquidada nos últimos 7 dias (contando hoje), por lado, comparada com as janelas de 7 dias dos **últimos 2 anos** da moeda. Percentil ≥ 90 em longs liquidados ou em shorts liquidados; com os dois lados acima, vale o de maior percentil. 3 corretoras (Binance + Bybit + OKX). Dia sem linha vale zero. Mostra há quantos dias a janela está na zona | longs liquidados fundo, shorts liquidados topo | `/liquidations` (D) | 4 | implementado |
-| `rsi-div-d` | Divergência RSI × preço (D) | Fundo: o preço faz mínima mais baixa que a do pivô anterior e o RSI faz mínima mais alta. Topo: o inverso. Pivôs e janela a definir na etapa 5 | altista fundo, baixista topo | velas D, `rsi` | 5 | planejado |
-| `rsi-div-w` | Divergência RSI × preço (S) | Igual, nas velas semanais | idem | velas S, `rsi` | 5 | planejado |
+| `rsi-div-d` | Divergência RSI × preço (D) | Fundo (de alta): o preço faz um fundo mais baixo que o anterior e o RSI 14, um fundo mais alto; o RSI do 1º fundo precisa estar até 40. Topo (de baixa): topo mais alto no preço e mais baixo no RSI; RSI do 1º topo a partir de 60. Pivôs de 5 velas de cada lado, no máximo 60 velas entre eles, e o 2º pivô com até 20 velas | de alta fundo, de baixa topo | velas D (mínima e máxima), `rsi` | 5 | implementado |
+| `rsi-div-w` | Divergência RSI × preço (S) | Igual, com pivôs de 3 velas de cada lado, no máximo 26 velas entre eles e 2º pivô com até 8 velas | idem | velas S, `rsi` | 5 | implementado |
 
 Observações sobre os padrões:
 
@@ -51,6 +51,10 @@ Observações sobre os padrões:
 - **Fear & Greed não tem vela em formação:** o valor do dia já sai fechado, às 00:00 UTC. Com o último valor mais velho que 2 dias, o sinal fica indisponível.
 - **Fear & Greed** é do mercado (calculado sobre o BTC): o mesmo valor vale para qualquer moeda. Ainda assim entra no placar de cada uma, porque altcoins costumam fazer fundo e topo junto com o mercado.
 - **Liquidações em percentil**, e não em USDT fixo: o mesmo valor é irrelevante no BTC e enorme numa altcoin. A conta se parece com a de `topShareCutoff` em `chart/liquidationBubbles.js`.
+- **Divergência: como os pivôs são achados.** Um fundo é a vela cuja **mínima** é a menor entre as N velas de cada lado, todas fechadas (topo: a **máxima**). O sinal olha só os dois pivôs mais recentes de cada tipo e lê o RSI (de fechamento) nessas duas velas.
+- **Divergência: quando deixa de valer.** Quando o 2º pivô fica mais velho que o limite, ou quando o preço passa dele (nova mínima depois de uma divergência de alta, nova máxima depois de uma de baixa), inclusive na vela em formação.
+- **Divergência: filtro do 1º pivô** (RSI até 40 nos fundos, a partir de 60 nos topos). Sem ele, qualquer oscilação no meio da faixa do RSI viraria divergência.
+- **Divergência chega atrasada por definição:** o 2º fundo só é confirmado 5 dias (ou 3 semanas) depois. "2º fundo há N dias" conta as velas fechadas desde ele.
 - **Funding exige o lado certo do zero**, como a esticagem. O plano dizia "percentil ≤ 10 ou negativo", mas funding baixo e ainda positivo só quer dizer pouca alavancagem comprada; o sinal contrário de fundo é o funding negativo (vendidos pagando), e ele precisa ser baixo para a própria moeda, porque em algumas altcoins o funding negativo é comum.
 - **Liquidações só contra os últimos 2 anos** (`liqLookbackDays`), com mínimo de 180 dias de histórico: o mercado de futuros cresceu, e comparar com anos antigos faria qualquer semana recente parecer extrema.
 - **Funding e liquidações são opcionais:** sem contrato perpétuo ou sem chave da Coinalyze, ficam "indisponíveis" e saem do placar.

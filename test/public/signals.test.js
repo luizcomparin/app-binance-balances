@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   analyzeSignals, fearGreedSignal, fundingSignal, lastClosedIndex, liquidationSignal, macdSignal, midRank, percentileRank, regionOf,
-  rsiSignal, SIGNAL_DEFAULTS, streak, stretchSignal, trendSignal,
+  rsiDivergenceSignal, rsiSignal, SIGNAL_DEFAULTS, streak, stretchSignal, trendSignal,
 } from "../../public/components/price-chart/signals/signals.js";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -15,8 +15,8 @@ const near = (a, b, eps = 1e-9) => assert.ok(Math.abs(a - b) < eps, `esperado ${
 // configuração pequena, para montar as séries à mão
 const cfg = {
   ...SIGNAL_DEFAULTS,
-  d: { ms: DAY, maShort: 2, maLong: 4, stretchMa: 4, minSamples: 5 },
-  w: { ms: 7 * DAY, maShort: 2, maLong: 4, stretchMa: 4, minSamples: 5 },
+  d: { ms: DAY, maShort: 2, maLong: 4, stretchMa: 4, minSamples: 5, divPivot: 2, divMaxGap: 10, divRecent: 4 },
+  w: { ms: 7 * DAY, maShort: 2, maLong: 4, stretchMa: 4, minSamples: 5, divPivot: 2, divMaxGap: 10, divRecent: 4 },
   slopeBars: 2,
   rsiPeriod: 3,
   macd: { fast: 2, slow: 3, signal: 2, oscType: "EMA", signalType: "EMA" },
@@ -141,6 +141,89 @@ test("rsiSignal: só a vela em formação na zona, e poucas velas", () => {
 
   const few = pts([1, 2]);
   assert.equal(rsiSignal(few, "d", endOf(few), cfg).available, false);
+});
+
+// divergência: RSI de 3 e pivôs com 2 velas de cada lado (cfg). Queda forte até 10 (RSI 0), repique, e uma
+// queda mais lenta até 9,5: fundo mais baixo no preço com o RSI mais alto (15,8)
+const BULL_DIV = [20, 19, 18, 10, 14, 16, 15, 13, 11, 9.5, 11, 12];
+const BEAR_DIV = [10, 11, 12, 20, 16, 14, 15, 17, 19, 20.5, 19, 18];
+
+test("rsiDivergenceSignal: divergência de alta e de baixa", () => {
+  const bull = pts(BULL_DIV);
+  const s = rsiDivergenceSignal(bull, "d", endOf(bull), cfg);
+  assert.equal(s.id, "rsi-div-d");
+  assert.equal(s.group, "extreme");
+  assert.equal(s.side, "bottom");
+  assert.equal(s.active, true);
+  // 2º fundo na vela 9; fechadas até a 11
+  assert.equal(s.bars, 2);
+  assert.deepEqual([s.details.first.price, s.details.second.price], [10, 9.5]);
+  assert.deepEqual([s.details.first.time, s.details.second.time], [3 * DAY, 9 * DAY]);
+  assert.equal(s.details.first.rsi, 0);
+  assert.ok(s.details.second.rsi > 15 && s.details.second.rsi < 16);
+  assert.equal(s.value, s.details.second.rsi);
+  assert.equal(
+    s.text,
+    "Divergência no RSI diário: de alta; preço fez fundo mais baixo (10,00 → 9,50) e o RSI, fundo mais alto (0,0 → 15,8); 2º fundo há 2 dias"
+  );
+
+  const bear = pts(BEAR_DIV, 7 * DAY);
+  const t = rsiDivergenceSignal(bear, "w", endOf(bear, 7 * DAY), cfg);
+  assert.equal(t.id, "rsi-div-w");
+  assert.equal(t.side, "top");
+  assert.equal(
+    t.text,
+    "Divergência no RSI semanal: de baixa; preço fez topo mais alto (20,00 → 20,50) e o RSI, topo mais baixo (100,0 → 84,2); 2º topo há 2 semanas"
+  );
+});
+
+test("rsiDivergenceSignal: usa a mínima e a máxima das velas", () => {
+  // os fechamentos sozinhos dariam fundo mais ALTO (10 → 10,5); pelas mínimas o 2º fundo é mais baixo (9,8 → 9,2)
+  const closes = [20, 19, 18, 10, 14, 16, 15, 13, 11, 10.5, 11, 12];
+  const candles = closes.map((close, i) => ({ time: i * DAY, close, low: close - (i === 9 ? 1.3 : 0.2), high: close + 0.2 }));
+  const s = rsiDivergenceSignal(candles, "d", endOf(candles), cfg);
+  assert.equal(s.side, "bottom");
+  near(s.details.first.price, 9.8);
+  near(s.details.second.price, 9.2);
+  assert.equal(rsiDivergenceSignal(pts(closes), "d", endOf(candles), cfg).active, false);
+});
+
+test("rsiDivergenceSignal: sem divergência quando o RSI acompanha o preço", () => {
+  // fundo mais baixo no preço (10,5 → 5) e também no RSI
+  const p = pts([10, 12, 11, 12, 11, 10.5, 12, 13, 12, 8, 5, 7, 8]);
+  const s = rsiDivergenceSignal(p, "d", endOf(p), cfg);
+  assert.equal(s.available, true);
+  assert.equal(s.active, false);
+  assert.equal(s.side, null);
+  assert.equal(s.text, "Divergência no RSI diário: nenhuma recente");
+});
+
+test("rsiDivergenceSignal: deixa de valer com novo extremo, com o tempo ou com o 1º pivô em RSI neutro", () => {
+  // a vela em formação faz nova mínima abaixo do 2º fundo
+  const broken = pts([...BULL_DIV, 9]);
+  assert.equal(rsiDivergenceSignal(broken, "d", endOf(broken) - 1, cfg).active, false);
+  // 2º fundo há mais velas que o limite (4)
+  const old = pts([...BULL_DIV, 12, 12, 12]);
+  assert.equal(rsiDivergenceSignal(old, "d", endOf(old), cfg).active, false);
+  assert.equal(rsiDivergenceSignal(old, "d", endOf(old), { ...cfg, d: { ...cfg.d, divRecent: 5 } }).bars, 5);
+  // pivôs longe demais um do outro (6 velas)
+  const bull = pts(BULL_DIV);
+  assert.equal(rsiDivergenceSignal(bull, "d", endOf(bull), { ...cfg, d: { ...cfg.d, divMaxGap: 5 } }).active, false);
+  // o 1º fundo precisa ter acontecido com o RSI fraco
+  assert.equal(rsiDivergenceSignal(bull, "d", endOf(bull), { ...cfg, divRsiLow: -1 }).active, false);
+});
+
+test("rsiDivergenceSignal: o 2º pivô só vale depois de confirmado por velas fechadas", () => {
+  // com a última vela ainda em formação, o fundo da vela 9 só tem 1 vela fechada depois dele
+  const bull = pts(BULL_DIV);
+  assert.equal(rsiDivergenceSignal(bull, "d", endOf(bull) - 1, cfg).active, false);
+  // histórico curto demais para o RSI e dois pivôs
+  const few = pts([10, 9, 8, 7, 8, 9]);
+  const s = rsiDivergenceSignal(few, "d", endOf(few), cfg);
+  assert.equal(s.available, false);
+  assert.equal(s.reason, "history");
+  assert.equal(rsiDivergenceSignal([], "w", 0, cfg).available, false);
+  assert.equal(rsiDivergenceSignal(null, "w", 0, cfg).available, false);
 });
 
 test("stretchSignal: fundo e topo pelo percentil do histórico da moeda", () => {
@@ -449,11 +532,11 @@ test("analyzeSignals: junta tudo num resultado serializável", () => {
 
   assert.equal(r.asset, "BTC");
   assert.equal(r.generatedAt, now);
-  assert.deepEqual(r.signals.map((s) => s.id), ["trend-ma-d", "trend-ma-w", "macd-d", "macd-w", "rsi-d", "rsi-w", "stretch-d", "stretch-w", "fng", "funding", "liq"]);
+  assert.deepEqual(r.signals.map((s) => s.id), ["trend-ma-d", "trend-ma-w", "macd-d", "macd-w", "rsi-d", "rsi-w", "rsi-div-d", "rsi-div-w", "stretch-d", "stretch-w", "fng", "funding", "liq"]);
   assert.deepEqual(r.trend, { d: "down", w: "up" });
   // diário: RSI sobrevendido e preço esticado para baixo; semanal: RSI sobrecomprado e esticagem sem histórico;
   // mercado: medo extremo. Três de fundo e um de topo: fundo provável
-  assert.deepEqual(r.region, { side: "bottom", bottom: 3, top: 1, of: 4 });
+  assert.deepEqual(r.region, { side: "bottom", bottom: 3, top: 1, of: 5 }); // o 5º disponível é a divergência diária (nenhuma)
   // a tendência exibida vem das médias; o MACD é só confirmação
   assert.equal(r.signals.find((s) => s.id === "macd-w").side, "up");
   assert.deepEqual(JSON.parse(JSON.stringify(r)), r);
@@ -474,6 +557,9 @@ test("SIGNAL_DEFAULTS: limiares da v1", () => {
   assert.deepEqual([SIGNAL_DEFAULTS.rsiPeriod, SIGNAL_DEFAULTS.rsiOversold, SIGNAL_DEFAULTS.rsiOverbought], [14, 30, 70]);
   assert.deepEqual([SIGNAL_DEFAULTS.macd.fast, SIGNAL_DEFAULTS.macd.slow, SIGNAL_DEFAULTS.macd.signal], [12, 26, 9]);
   assert.deepEqual([SIGNAL_DEFAULTS.fngFear, SIGNAL_DEFAULTS.fngGreed], [25, 76]);
+  assert.deepEqual([SIGNAL_DEFAULTS.d.divPivot, SIGNAL_DEFAULTS.d.divMaxGap, SIGNAL_DEFAULTS.d.divRecent], [5, 60, 20]);
+  assert.deepEqual([SIGNAL_DEFAULTS.w.divPivot, SIGNAL_DEFAULTS.w.divMaxGap, SIGNAL_DEFAULTS.w.divRecent], [3, 26, 8]);
+  assert.deepEqual([SIGNAL_DEFAULTS.divRsiLow, SIGNAL_DEFAULTS.divRsiHigh], [40, 60]);
   assert.deepEqual([SIGNAL_DEFAULTS.fundingDays, SIGNAL_DEFAULTS.fundingLow, SIGNAL_DEFAULTS.fundingHigh], [7, 10, 90]);
   assert.deepEqual([SIGNAL_DEFAULTS.liqDays, SIGNAL_DEFAULTS.liqHigh, SIGNAL_DEFAULTS.liqLookbackDays], [7, 90, 730]);
 });
