@@ -1,6 +1,6 @@
 // Sinais de compra e venda: núcleo puro (sem DOM, sem rede e sem ler o "agora" por conta própria).
 // Lê as velas diárias e semanais de uma moeda (mais o Fear & Greed Index do mercado e, se houver, o funding
-// e as liquidações reais dos futuros) e devolve a tendência, a região (fundo/topo provável) e a lista de sinais. Não é previsão. Documentação: docs/sinais/.
+// e as liquidações reais dos futuros) e devolve a tendência, a região (fundo provável, sobrecomprado ou neutra) e a lista de sinais. Não é previsão. Documentação: docs/sinais/.
 //
 // Vela em andamento: o valor e o estado "ativo" de cada sinal usam a última vela (mesmo em formação);
 // "há N velas" (`bars`) conta só velas FECHADAS seguidas. Ativo com bars = 0 fica `forming: true`.
@@ -41,7 +41,7 @@ export const SIGNAL_DEFAULTS = {
   liqLookbackDays: 730, // ... comparada com as janelas dos últimos 2 anos (o mercado cresce: histórico antigo distorce)
   liqMinDays: 180, // histórico mínimo para comparar
   liqHigh: 90, // percentil que conta como cascata
-  regionMin: 3, // famílias de sinais do lado dominante para "fundo/topo provável"
+  regionMin: 3, // famílias de sinais do lado dominante para "fundo provável" / "sobrecomprado"
   regionMaxOpposite: 1, // ... com no máximo estas do lado oposto
 };
 

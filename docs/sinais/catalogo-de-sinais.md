@@ -65,7 +65,7 @@ Observações sobre os padrões:
 ## Região (placar)
 
 - Implementado em `regionOf`. Uma família conta para "fundo" (ou "topo") quando ao menos um dos seus sinais disponíveis está ativo nesse lado. O denominador é o número de famílias com algum sinal **disponível**.
-- "Fundo provável" ou "topo provável": 3 ou mais famílias de um lado (`regionMin`) e no máximo 1 do outro (`regionMaxOpposite`); senão, "neutra".
+- "Fundo provável" ou "Sobrecomprado" (o lado de topo; ver [calibracao.md](calibracao.md)): 3 ou mais famílias de um lado (`regionMin`) e no máximo 1 do outro (`regionMaxOpposite`); senão, "neutra".
 - Uma família pode contar para os dois lados ao mesmo tempo (RSI diário sobrevendido com o semanal sobrecomprado).
 - A regra foi revista na etapa 6: até então contava sinais soltos (3 de 9), o que não distinguia nada. Os números estão em [calibracao.md](calibracao.md).
 - A janela mostra o placar dos dois lados e os sinais por família; o campo resumido mostra só o lado dominante.

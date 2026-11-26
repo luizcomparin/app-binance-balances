@@ -1,6 +1,6 @@
 ---
 titulo: Sinais — calibração da v1 (varredura histórica)
-resumo: O que uma varredura do passado de 5 moedas mostrou sobre a frequência de cada sinal e o que o preço fez depois; base da regra do placar por famílias e o achado de que os sinais de topo não antecederam quedas.
+resumo: O que uma varredura do passado de 5 moedas mostrou sobre a frequência de cada sinal e o que o preço fez depois; base da regra do placar por famílias, do nome "Sobrecomprado" e da análise de pesos para os sinais fortes.
 arquivos: []
 rotas: []
 eventos: []
@@ -93,12 +93,49 @@ Não houve ganho claro, então os limiares ficaram como estavam.
 
 ## O que foi decidido
 
-1. **O placar passou a contar famílias** (`SIGNAL_FAMILIES` em `signals/signals.js`): RSI, divergência de RSI, esticagem da média, sentimento do mercado e futuros. "Fundo provável" ou "topo provável" exige 3 ou mais famílias de um lado e no máximo 1 do outro.
+1. **O placar passou a contar famílias** (`SIGNAL_FAMILIES` em `signals/signals.js`): RSI, divergência de RSI, esticagem da média, sentimento do mercado e futuros. "Fundo provável" ou a região de topo exige 3 ou mais famílias de um lado e no máximo 1 do outro.
 2. **Os limiares de cada sinal não mudaram.**
+
+## Por dia × por vez
+
+As tabelas acima contam **dias**: um período de 20 dias em "fundo provável" entra 20 vezes. Contando só o **dia em que a região acendeu** (uma vez por período, depois de mais de 14 dias apagada), o retrato é pior:
+
+| "Fundo provável" (3 ou mais famílias) | 30 dias: em alta | 90 dias: em alta |
+|---|---|---|
+| Todos os dias da região, até 2023 | 71% | 62% |
+| Só o dia em que acendeu, até 2023 (24 vezes) | 50% | 50% |
+| Todos os dias da região, 2024 em diante | 58% | 70% |
+| Só o dia em que acendeu, 2024 em diante (34 vezes) | 43% | 57% |
+
+A região acende cedo: o primeiro dia costuma estar longe do fim da queda, e os dias seguintes (mais perto do fundo) é que puxam o resultado para cima. Leitura prática: "fundo provável" descreve uma **região** em que o preço costuma estar melhor meses depois, não um dia de compra. É também o que a janela mostra em "Nas N vezes anteriores", que conta por vez.
+
+## Pesos para os sinais fortes (análise)
+
+Pergunta (26/11/2026): como dar mais peso aos sinais que se mostraram fortes? Foram testadas pontuações no lugar da contagem de famílias, só para o lado de fundo. Para não escolher o que deu certo por acaso, cada forma foi ajustada com os dados **até 2023** e medida **de 2024 em diante**. Em cada família vale o sinal de maior peso, e o corte foi o que acende na mesma proporção de dias da regra atual.
+
+| Forma de pontuar | Ajuste (até 2023), por vez: 30 / 90 dias em alta | Teste (2024 em diante), por vez: 30 / 90 dias em alta |
+|---|---|---|
+| Regra atual: 3 ou mais famílias | 50% / 50% (24 vezes) | 43% / 57% (34 vezes) |
+| Peso pela raridade do sinal (quanto mais raro, mais vale) | 50% / 54% (26) | 41% / 55% (33) |
+| Peso pelo resultado passado de cada sinal | 54% / 74% (39) | 35% / 50% (42) |
+| Peso pelo prazo (semanal vale 2, diário vale 1) | 45% / 52% (29) | 43% / 53% (34) |
+| 3 ou mais famílias **e** algum sinal semanal | 50% / 50% (16) | 80% / 90% (10) |
+| Só RSI semanal sobrevendido ou divergência de alta semanal | 40% / 70% (10) | 100% / 100% (10) |
+
+Linha de base por dia: 52% / 59% até 2023 e 48% / 47% depois.
+
+O que os números dizem:
+
+- **Pesos numéricos não ganharam da regra atual fora da amostra.** O peso pelo resultado passado é o caso típico de ajuste excessivo: foi o melhor no período de ajuste (74% em 90 dias) e o pior no teste (50%).
+- **O que se manteve nos dois períodos foi a força dos sinais semanais de RSI** (sobrevenda e divergência de alta). Por dia, eles vieram antes de alta em 76% / 82% dos dias até 2023 e em 79% / 87% depois. Mas são só 10 vezes em cada período, e por vez o período de ajuste foi fraco em 30 dias (40%).
+
+Recomendação: em vez de uma soma de pesos, um **segundo nível** na região. "Fundo provável" continua como está, e passa a "Fundo forte" quando entre os sinais ativos há RSI semanal sobrevendido ou divergência de alta semanal. É simples de explicar, não depende de números ajustados ao passado e usa a única diferença que apareceu nos dois períodos. Fica a ressalva das 10 vezes: é uma aposta razoável, não uma regra provada. Nada disso foi implementado; a decisão está em [planejamento](planejamento.md#pendências-de-decisão).
+
+O lado de topo não entrou na análise: nenhum sinal de topo veio antes de quedas, então não há "forte" para destacar.
 
 ## O que ficou em aberto
 
-- **O nome "Topo provável".** A varredura não sustenta a leitura de que essa região antecede queda; ela antecedeu mais alta. Opções: manter o nome com um aviso na janela; trocar por algo descritivo ("Sobrecomprado", "Esticado para cima"); ou deixar o lado de topo só como lista de sinais, sem rótulo de região. Decisão pendente (ver [planejamento](planejamento.md#pendências-de-decisão)).
-- **Peso por sinal.** Os sinais raros foram os mais informativos e os frequentes, os menos. Dar o mesmo peso a todos é simples, mas não é o que os números sugerem. Fica para o backtest.
+- ~~O nome "Topo provável"~~: decidido em 26/11/2026. A região de topo passou a se chamar **"Sobrecomprado"**, que descreve o que os sinais medem sem prometer reversão.
+- **Peso por sinal.** Analisado na seção acima; a recomendação (nível "Fundo forte") aguarda decisão.
 - **Fundo depende de a queda parar.** Medo extremo, cascata de longs e esticagem acendem durante toda a baixa. Um filtro do tipo "o preço parou de fazer mínimas" (ou a divergência, que já exige isso) pode separar o fim da queda do meio dela. Ideia para testar no backtest.
 - **Funding** não foi avaliado.

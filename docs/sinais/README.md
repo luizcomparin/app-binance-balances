@@ -1,7 +1,7 @@
 ---
 titulo: Sinais de compra e venda — visão geral
 resumo: Mecanismo que lê os indicadores e camadas já existentes nos tempos Diário e Semanal e informa, por paridade, a tendência atual e se o preço está em região provável de fundo ou de topo, listando os sinais presentes.
-arquivos: [public/components/price-chart/signals/signals.js, public/components/price-chart/signals/signalsPanel.js, public/components/price-chart/signals/signals.css, public/components/price-chart/PriceChartPanel.html, public/components/price-chart/PriceChartPanel.js]
+arquivos: [public/components/price-chart/signals/signals.js, public/components/price-chart/signals/signalHistory.js, public/components/price-chart/signals/signalsPanel.js, public/components/price-chart/signals/signals.css, public/components/price-chart/PriceChartPanel.html, public/components/price-chart/PriceChartPanel.js]
 rotas: [GET /price-chart/:asset, GET /fear-greed, GET /futures-data/:asset, GET /liquidations/:asset]
 eventos: [COINALYZE_KEY_CHANGED]
 storage: []
@@ -25,8 +25,9 @@ Documentação exclusiva dos sinais:
 Um campo informativo **por paridade** no gráfico de preço. Ele não prevê nem recomenda: mostra quais sinais estão presentes agora e que padrão eles formam. Responde a três perguntas:
 
 1. **Tendência atual:** alta, baixa ou lateral, no Diário e no Semanal.
-2. **Região:** fundo provável, neutra ou topo provável, com um placar de confluência por grupos de sinais ("3 de 5 grupos apontam fundo").
+2. **Região:** fundo provável, neutra ou sobrecomprado, com um placar de confluência por grupos de sinais ("3 de 5 grupos apontam fundo").
 3. **Quais sinais estão ativos:** cada um com o valor, há quantas velas está ativo e, quando há histórico, em que percentil o valor atual fica.
+4. **O que aconteceu depois, no passado desta moeda:** para cada sinal ativo e para a região, quantas vezes isso já aconteceu e o que o preço fez 30 e 90 dias depois.
 
 **Tempos gráficos:** Diário (D) e Semanal (S), **sempre**, qualquer que seja a vela na tela (como a [faixa estatística](../funcionalidades/grafico-de-preco/faixa-estatistica.md), que usa sempre velas diárias). 4h e Mensal ficam como refinamento futuro, numa visão alternativa, para não virar excesso.
 
@@ -34,10 +35,12 @@ Um campo informativo **por paridade** no gráfico de preço. Ele não prevê nem
 
 - **Campo resumido "Sinais"** (`#price-chart-signals`) no cabeçalho do gráfico, na ponta direita da linha das informações de preço (`#price-chart-info`). Três pílulas:
   - **D** e **S**: tendência diária e semanal. ▲ verde = alta, ▼ vermelha = baixa, ▬ cinza = lateral, "–" = histórico insuficiente.
-  - **Região:** "Fundo provável 3/5" (verde), "Topo provável 3/5" (vermelha) ou "Região neutra" (cinza). Os números são grupos de sinais apontando aquele lado ÷ grupos disponíveis. O `title` de cada pílula traz o detalhe.
+  - **Região:** "Fundo provável 3/5" (verde), "Sobrecomprado 3/5" (vermelha) ou "Região neutra" (cinza). Os números são grupos de sinais apontando aquele lado ÷ grupos disponíveis. O `title` de cada pílula traz o detalhe.
 - **Clicar no campo abre a janelinha flutuante** (`#price-chart-signals-pop`) logo abaixo dele, alinhada à direita, por cima do gráfico e da watchlist:
   - **Tendência:** uma linha por sinal de tendência.
   - **Fundo ou topo:** o placar ("grupos: fundo 3 · topo 0 · de 5 disponíveis") e os sinais separados por grupo (RSI, Divergência de RSI, Esticagem da média, Sentimento do mercado, Futuros). O grupo que conta para um lado ganha a marca "fundo" ou "topo" ao lado do nome.
+  - **O que aconteceu depois:** embaixo de cada sinal de fundo/topo **ativo**, uma linha menor: "Nas 20 vezes anteriores nesta moeda: 30 dias depois, alta em 8 (40%), mediana -1%; 90 dias depois, alta em 12 (60%), mediana +7%." Com menos de 5 vezes, avisa "(pouco para concluir)"; sem nenhuma, "Primeira vez no histórico carregado". A mesma frase aparece para a região, logo abaixo do placar, quando ela é "Fundo provável" ou "Sobrecomprado". Enquanto a conta roda, aparece "Calculando o que aconteceu nas vezes anteriores...".
+  - **Linha de base** no rodapé: o que o preço fez a partir de um dia qualquer da mesma moeda. É a comparação que dá sentido aos números de cada sinal.
   - A janela rola quando os sinais não cabem.
   - Bolinha de cada linha: verde = fundo ou alta; vermelha = topo ou baixa; apagada = sinal não ativo; vazada = indisponível.
   - Rodapé: a hora do cálculo e o aviso de que não é previsão.
@@ -81,6 +84,11 @@ Pontos estruturais:
   - `SIGNAL_FAMILIES`: as famílias dos sinais de fundo/topo (`key`, `label`, `ids`). `analyzeSignals` grava a família em cada sinal (`family`).
   - `lastClosedIndex`, `streak`, `percentileRank`, `midRank`: auxiliares.
   - `SIGNAL_DEFAULTS`: os limiares fixos da v1. As funções aceitam outra configuração no último parâmetro (os testes usam médias curtas).
+- **Histórico (implementado):** `public/components/price-chart/signals/signalHistory.js`, puro, testado em `test/public/signalHistory.test.js`.
+  - `signalHistory(input, { now, shouldStop, pause })`: percorre as velas diárias (a partir da 60ª) e, para cada dia já fechado, calcula os sinais de fundo/topo e o placar **só com o que existia até aquele dia** (`extremeStatesAt`; a vela semanal em andamento é refeita por `weeklyAsOf`). Devolve `[{ t, close, on: { id: lado } }]`; a chave `region` (`REGION_KEY`) guarda o placar do dia. Leva cerca de 2 s para 8 anos, então trabalha em fatias de 12 ms e devolve o controle à página entre elas; `shouldStop` interrompe (troca de moeda).
+  - `outcomeStats(days)`: por sinal e por lado, as "vezes" (dias de ativação depois de mais de 14 dias apagado; ativações coladas contam como uma) e, 30 e 90 dias depois de cada uma, quantas terminaram em alta, a mediana, a pior e a melhor. Também a linha de base de todos os dias.
+  - `outcomeText(stat)` e `baseText(base)`: as frases da janela.
+  - `HISTORY_DEFAULTS`: horizontes (30 e 90 dias), intervalo entre ativações (14 dias), mínimo de vezes para não avisar (5).
 - **Painel (implementado):** `public/components/price-chart/signals/signalsPanel.js`, com o estado próprio (`view`: moeda, resultado, erro, carregando) e o desenho. Estilos em `signals/signals.css` (importado em `public/index.css`); o HTML do campo fica em `PriceChartPanel.html`.
   - `initSignalsPanel()`: liga o clique do campo, o clique fora, o Esc e o "Tentar de novo". Chamada em `initPriceChartPanel()`.
   - `loadSignals(asset)`: carrega as velas e chama `analyzeSignals`. Chamada em `openPriceChart()` (troca de moeda) e em `refreshPriceChart()` (Atualizar do topo, depois de `invalidateAssetCache`). Um `requestId` descarta a resposta de uma moeda que já foi trocada.
@@ -93,7 +101,8 @@ Pontos estruturais:
   - Funding: `fetchFuturesData(asset, "1d")` (`GET /futures-data`, campo `funding`), cache de 10 min por moeda.
   - Liquidações: `fetchLiquidations(asset, "1d")` (`GET /liquidations`, soma das 3 corretoras), cache de **30 min** por moeda. Os dados são diários e cada moeda custa uma chamada à Coinalyze por corretora (limite de ~40/min): com o cache longo, trocar de moeda várias vezes não esgota o limite.
   - Essas duas passam por `loadOptional`, que nunca derruba os outros sinais: devolve `{ rows }` ou `{ reason }`. Só ficam em cache as respostas com dados e os "não existe" (`no-perpetual`, `no-market`); sem chave ou com erro, tenta de novo na próxima carga.
-  - O Atualizar do topo (`fresh`) ignora os caches deste módulo. `COINALYZE_KEY_CHANGED` (chave salva ou removida) limpa o cache de liquidações e recalcula.
+  - Histórico: `loadHistory` roda depois que os sinais já estão na tela, com as mesmas séries. Fica 6 h em cache por moeda (`historyCache`), e o Atualizar do topo não o refaz, porque o passado não muda.
+  - O Atualizar do topo (`fresh`) ignora os outros caches deste módulo. `COINALYZE_KEY_CHANGED` (chave salva ou removida) limpa o cache de liquidações e recalcula.
 
 Formato do resultado de `analyzeSignals`:
 
@@ -131,8 +140,8 @@ Formato do resultado de `analyzeSignals`:
 - **Percentil em vez de valor absoluto** sempre que houver histórico: "o preço está mais esticado que em 96% do histórico desta moeda" vale para BTC e para altcoin; "50M liquidados" não.
 - **Fonte ausente não conta contra.** Sem chave da Coinalyze, sem contrato perpétuo ou com histórico insuficiente, o sinal aparece como "indisponível" (com o motivo) e sai do denominador do placar.
 - **Confluência, não alerta único.** Um sinal isolado erra muito; a leitura é o conjunto.
-- **O placar conta famílias, não sinais soltos.** Sinais que medem a mesma coisa (RSI diário e semanal, esticagem diária e semanal) acendem juntos; contados um a um, "fundo provável" aparecia com 3 sinais de 9 e não dizia nada. As famílias são RSI, divergência de RSI, esticagem da média, sentimento do mercado (Fear & Greed) e futuros (funding e liquidações). A região vira "fundo provável" ou "topo provável" com 3 ou mais famílias de um lado e no máximo 1 do outro. Ver [calibracao.md](calibracao.md).
-- **"Topo provável" não foi confirmado pelo histórico.** Na varredura da etapa 6, os sinais de topo vieram antes de mais alta, não de queda. O rótulo continua na tela enquanto a decisão sobre ele está pendente (ver [calibracao.md](calibracao.md#o-que-ficou-em-aberto)).
+- **O placar conta famílias, não sinais soltos.** Sinais que medem a mesma coisa (RSI diário e semanal, esticagem diária e semanal) acendem juntos; contados um a um, "fundo provável" aparecia com 3 sinais de 9 e não dizia nada. As famílias são RSI, divergência de RSI, esticagem da média, sentimento do mercado (Fear & Greed) e futuros (funding e liquidações). A região vira "fundo provável" ou "sobrecomprado" com 3 ou mais famílias de um lado e no máximo 1 do outro. Ver [calibracao.md](calibracao.md).
+- **O lado de topo se chama "Sobrecomprado", não "topo provável".** Na varredura da etapa 6, os sinais de topo vieram antes de mais alta, não de queda; o nome descreve o que os sinais medem sem prometer reversão (decisão de 26/11/2026). No código o lado continua `"top"`, e as listas da janela ainda dizem "topo" (ver [calibracao.md](calibracao.md)).
 - **Não é previsão.** A janela traz esse aviso, como a faixa estatística e o mapa de liquidação.
 - **Só leitura e limites de API:** nenhuma chamada nova fora de `publicGet`/`fapiGet`/`coinalyzeGet`/`alternativeGet`; tudo passa pelas rotas existentes e seus caches.
 
@@ -146,6 +155,9 @@ Formato do resultado de `analyzeSignals`:
 - **Funding com pouco histórico:** a rota devolve as últimas 500 cobranças. Com menos de 60 dias, o sinal fica indisponível. Como a comparação é com poucos meses, "entre os mais baixos" quer dizer "dos últimos ~166 dias", e o texto diz o período.
 - **USDT (gráfico USDT/BRL):** não tem perpétuo na Binance (funding indisponível), mas a Coinalyze acha um mercado "USDT" em outras corretoras, e o sinal de liquidações aparece com valores pequenos. É do par USDT/USD, não do dólar em reais.
 - **Fear & Greed parado:** se o último valor tiver mais de 2 dias, o sinal fica indisponível (`reason: "stale"`) em vez de usar um valor velho.
+- **O histórico é da própria moeda e é curto:** vai até 3000 velas diárias, e os sinais raros têm poucas vezes (o RSI semanal sobrevendido do BTC, 3). A janela mostra sempre o número de vezes. Funding quase não tem histórico (166 dias).
+- **"Vezes anteriores" conta o dia em que o sinal ativou**, que costuma ser o começo de um período ruim, e não o melhor dia dele. Por isso os números por vez são piores que os números por dia de [calibracao.md](calibracao.md).
+- **O histórico usa os limiares atuais** em todo o passado e a mesma fonte de hoje; se um limiar mudar, a estatística muda junto (o cache de 6 h só some ao recarregar a página).
 - **Divergência de RSI aparece com atraso:** o 2º fundo (ou topo) só é reconhecido depois de 5 velas diárias ou 3 semanais fechadas à frente dele. Enquanto o preço está fazendo mínimas novas, o sinal fica em "nenhuma recente".
 - **Página aberta por muito tempo:** os sinais só são recalculados ao trocar de moeda ou no Atualizar do topo. A hora do cálculo aparece no rodapé da janela.
 - **Clique no título da moeda** (seletor) não fecha a janela dos sinais: o botão do seletor interrompe a propagação do clique (`assetPicker.js`). O mesmo já acontece com os menus de Personalizado e Camadas.
@@ -161,7 +173,8 @@ Formato do resultado de `analyzeSignals`:
 6. Abra uma moeda listada há pouco tempo: a esticagem aparece como "histórico insuficiente", com a bolinha vazada.
 7. Abra USDT: o funding aparece como "a moeda não tem contrato perpétuo", com a bolinha vazada, e o grupo Futuros conta só com as liquidações.
 8. Remova a chave da Coinalyze nas Configurações: o sinal de liquidações vira "configure a chave...". Salve de novo: ele volta.
-9. Clique em Atualizar no topo: as pílulas continuam na tela, com um spinner, e a hora do rodapé muda.
+9. Em BTC, espere uns segundos com a janela aberta: os sinais ativos ganham a linha "Nas N vezes anteriores...", e o rodapé, a linha de base. Troque de moeda e volte: a linha aparece na hora (cache).
+10. Clique em Atualizar no topo: as pílulas continuam na tela, com um spinner, e a hora do rodapé muda.
 
 ## Decisões tomadas
 
@@ -172,5 +185,8 @@ Formato do resultado de `analyzeSignals`:
 | 25/11/2026 | Limiares fixos com bons padrões na v1 |
 | 25/11/2026 | Conjunto da v1: RSI D/S, Fear & Greed, esticagem da média com percentil, liquidações, tendência por médias, MACD semanal, divergência de RSI e funding |
 | 25/11/2026 | Registrar para a v2: tela de varredura, reaproveitamento da análise feita no gráfico e backtest dos sinais |
+| 26/11/2026 | Placar por famílias de sinais (etapa 6) |
+| 26/11/2026 | Região de topo passa a se chamar "Sobrecomprado" |
+| 26/11/2026 | Estatística "o que aconteceu depois" entra na janela, por sinal e por moeda |
 
 Pendências de decisão estão em [planejamento.md](planejamento.md#pendências-de-decisão).

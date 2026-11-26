@@ -11,7 +11,7 @@ storage: []
 
 Como usar este doc: ao concluir uma etapa, marque os itens (`[x]`), anote a data e o que mudou em relação ao plano, e atualize o [README](README.md) e o [catálogo](catalogo-de-sinais.md) no mesmo commit do código.
 
-**Situação em 26/11/2026:** v1 concluída (etapas 0 a 6). Ficam as pendências de decisão abaixo e a v2.
+**Situação em 26/11/2026:** v1 concluída (etapas 0 a 6), mais o rótulo "Sobrecomprado" e a estatística "o que aconteceu depois". Fica a decisão sobre o peso dos sinais fortes (pendências abaixo) e a v2.
 
 ## V1: sinais no gráfico de preço
 
@@ -100,10 +100,22 @@ Verificado: `npm test`, cobertura dos docs e a janela em BTC no Edge sem interfa
 2. Backtest (v2), começando pela estatística "o que aconteceu depois" por sinal e por moeda: a varredura mostrou que os sinais valem muito diferente entre si, e isso merece aparecer na janela.
 3. Só depois, novos sinais do catálogo e a tela de varredura.
 
+### Depois da v1
+
+#### Rótulo "Sobrecomprado" e estatística "o que aconteceu depois" ✅ (26/11/2026)
+
+- [x] Região de topo renomeada para "Sobrecomprado" (decisão de 26/11/2026).
+- [x] Estatística "o que aconteceu depois" por sinal e por moeda, e para a região, na janela (`signals/signalHistory.js`), com a linha de base.
+- [x] Testes em `test/public/signalHistory.test.js`.
+- [x] Análise de formas de dar mais peso aos sinais fortes: ver [calibracao.md](calibracao.md#pesos-para-os-sinais-fortes-análise). Nada foi implementado; a escolha está nas pendências.
+
+Verificado: `npm test`; a conta com velas reais de BTC (2939 dias em cerca de 2 s) e SUI; a janela em BTC no Edge sem interface, com as linhas de histórico dos três sinais ativos, a da região e a linha de base. **Não verificado:** a janela enquanto a conta roda (o estado "Calculando..."), a troca de moeda no meio da conta na tela, e uma moeda em "Sobrecomprado".
+
 ## Pendências de decisão
 
-- **Rótulo "Topo provável".** Na varredura da etapa 6, os sinais de topo e a região de topo vieram antes de mais alta, não de queda (ver [calibracao.md](calibracao.md#sinais-de-topo-um-a-um)). Opções: (a) manter o nome e pôr um aviso na janela; (b) trocar por um nome descritivo, como "Sobrecomprado" ou "Esticado para cima"; (c) tirar o rótulo de região do lado de topo e deixar só a lista de sinais. Em aberto desde 26/11/2026.
-- **Estatística "o que aconteceu depois"** (explicada abaixo): entra na v1, depois da etapa 6, ou junto com o backtest da v2? Em aberto desde 25/11/2026.
+- **Peso para os sinais fortes.** A análise ([calibracao.md](calibracao.md#pesos-para-os-sinais-fortes-análise)) não sustenta pesos numéricos; o que se sustentou foi a força dos sinais semanais de RSI. Recomendação: um segundo nível, "Fundo forte", quando a região de fundo provável inclui RSI semanal sobrevendido ou divergência de alta semanal. Aguardando decisão desde 26/11/2026.
+- ~~Rótulo "Topo provável"~~: decidido em 26/11/2026, virou "Sobrecomprado".
+- ~~Estatística "o que aconteceu depois"~~: implementada em 26/11/2026 (a explicação original segue abaixo).
 
 ### O que é a estatística "o que aconteceu depois"
 
@@ -162,6 +174,7 @@ Intenção registrada em 25/11/2026: avaliar os sinais no histórico para saber 
 | Data | O que foi feito |
 |---|---|
 | 25/11/2026 | Levantamento dos indicadores e camadas, decisões iniciais e criação da documentação (etapa 0) |
+| 26/11/2026 | Rótulo "Sobrecomprado" no lugar de "Topo provável"; estatística "o que aconteceu depois" na janela; análise de pesos para os sinais fortes |
 | 26/11/2026 | Etapa 6: varredura histórica de 5 moedas, placar por famílias de sinais, sinais agrupados por família na janela e fechamento da v1 |
 | 26/11/2026 | Etapa 5: sinal de divergência entre o preço e o RSI (D e S). Com ele, todos os sinais da v1 estão implementados |
 | 26/11/2026 | Etapa 4: sinais de funding e de liquidações reais (fontes opcionais), com cache próprio e reação à troca da chave da Coinalyze |

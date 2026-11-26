@@ -58,7 +58,7 @@
   font-weight: 500;
 }
 
-/* pílulas: verde = alta / fundo provável, vermelho = baixa / topo provável, cinza = lateral / neutra */
+/* pílulas: verde = alta / fundo provável, vermelho = baixa / sobrecomprado, cinza = lateral / neutra */
 .pcs-chip {
   padding: 2px 10px;
   border: 1px solid;
@@ -163,6 +163,18 @@
   align-items: flex-start;
   gap: 8px;
   line-height: 1.4;
+}
+
+/* o que aconteceu nas vezes anteriores em que o sinal ativou (linha menor, abaixo do texto do sinal) */
+.pcs-outcome {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.pcs-region-past {
+  margin: 0;
 }
 
 .pcs-row.unavailable {
