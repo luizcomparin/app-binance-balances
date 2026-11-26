@@ -2,8 +2,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  analyzeSignals, fearGreedSignal, lastClosedIndex, macdSignal, percentileRank, regionOf, rsiSignal, SIGNAL_DEFAULTS, streak,
-  stretchSignal, trendSignal,
+  analyzeSignals, fearGreedSignal, fundingSignal, lastClosedIndex, liquidationSignal, macdSignal, midRank, percentileRank, regionOf,
+  rsiSignal, SIGNAL_DEFAULTS, streak, stretchSignal, trendSignal,
 } from "../../public/components/price-chart/signals/signals.js";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -47,6 +47,20 @@ test("percentileRank: parte da amostra abaixo do valor", () => {
   assert.equal(percentileRank(s, 3.5), 75);
   assert.equal(percentileRank(s, 9), 100);
   assert.equal(percentileRank([], 1), null);
+  // inclusivo: conta também os iguais (valores repetidos na amostra)
+  assert.equal(percentileRank([1, 2, 2, 2], 2), 25);
+  assert.equal(percentileRank([1, 2, 2, 2], 2, true), 100);
+  assert.equal(percentileRank(s, 0, true), 0);
+});
+
+test("midRank: empates divididos ao meio", () => {
+  // série parada: 50, não é extremo
+  assert.equal(midRank([2, 2, 2, 2], 2), 50);
+  // empatado com o máximo: continua no alto
+  assert.equal(midRank([1, 1, 1, 1, 1, 1, 1, 1, 2, 2], 2), 90);
+  assert.equal(midRank([1, 2, 3, 4], 9), 100);
+  assert.equal(midRank([1, 2, 3, 4], 0), 0);
+  assert.equal(midRank([], 1), null);
 });
 
 test("trendSignal: alta, baixa e lateral", () => {
@@ -275,6 +289,140 @@ test("fearGreedSignal: sem dados, fonte parada e valores depois de `now`", () =>
   assert.equal(past.bars, 2);
 });
 
+// funding: uma cobrança a cada 8 h; fcfg usa janela de 2 dias e histórico mínimo de 5
+const H8 = DAY / 3;
+const fundingRows = (rates) => rates.map((r, i) => ({ t: i * H8, r }));
+const fcfg = { ...SIGNAL_DEFAULTS, fundingDays: 2, fundingMinDays: 5 };
+const lastT = (rows) => rows.at(-1).t;
+
+test("fundingSignal: negativo e entre os mais baixos é fundo; alto é topo", () => {
+  // 20 dias em +0,01% e os 2 últimos em −0,02%
+  const neg = fundingRows([...new Array(60).fill(0.0001), ...new Array(6).fill(-0.0002)]);
+  const s = fundingSignal({ rows: neg }, lastT(neg), fcfg);
+  assert.equal(s.id, "funding");
+  assert.equal(s.group, "extreme");
+  assert.equal(s.side, "bottom");
+  near(s.value, -0.0002);
+  assert.equal(s.percentile, 0);
+  // a janela de hoje é toda negativa; a de ontem (metade positiva, metade negativa) já tinha média negativa
+  // e entre as mais baixas; a de anteontem ainda era toda positiva
+  assert.equal(s.bars, 2);
+  assert.match(s.text, /^Funding médio de 2 dias em -0,0200% por cobrança: negativo e entre os mais baixos há 2 dias/);
+
+  // taxa travada no teto por 3 dias: várias janelas empatadas no máximo continuam contando como topo
+  const high = fundingRows([...new Array(60).fill(0.0001), ...new Array(9).fill(0.001)]);
+  const t = fundingSignal({ rows: high }, lastT(high), fcfg);
+  assert.equal(t.side, "top");
+  near(t.value, 0.001);
+  // hoje e ontem a janela é toda no teto; a de anteontem (metade no teto) ainda não chegava aos 10% mais altos
+  assert.equal(t.bars, 2);
+  assert.match(t.text, /entre os mais altos há 2 dias/);
+});
+
+test("fundingSignal: exige o lado certo do zero e ignora o que veio depois de `now`", () => {
+  // sempre positivo e caindo: a média atual é a mais baixa do histórico, mas não é negativa
+  const falling = fundingRows(Array.from({ length: 36 }, (_, i) => 0.001 - i * 0.00002));
+  const s = fundingSignal({ rows: falling }, lastT(falling), fcfg);
+  assert.ok(s.value > 0);
+  assert.equal(s.percentile, 0);
+  assert.equal(s.active, false);
+  assert.equal(s.side, null);
+  assert.match(s.text, /: acima de 0% dos últimos 12 dias$/);
+
+  // análise de uma data passada: as taxas negativas do fim ainda não tinham acontecido
+  const neg = fundingRows([...new Array(30).fill(0.0001), ...new Array(6).fill(-0.0002)]);
+  const past = fundingSignal({ rows: neg }, neg[29].t, fcfg);
+  near(past.value, 0.0001);
+  assert.equal(past.active, false);
+});
+
+test("fundingSignal: fonte ausente, parada ou com pouco histórico", () => {
+  const rows = fundingRows(new Array(36).fill(0.0001));
+  assert.equal(fundingSignal(null, 0, fcfg).reason, "no-data");
+  assert.equal(fundingSignal({ rows: [] }, 0, fcfg).reason, "no-data");
+  const noPerp = fundingSignal({ reason: "no-perpetual" }, 0, fcfg);
+  assert.equal(noPerp.available, false);
+  assert.equal(noPerp.reason, "no-perpetual");
+  assert.equal(noPerp.text, "Funding: a moeda não tem contrato perpétuo");
+  assert.equal(fundingSignal({ reason: "error" }, 0, fcfg).text, "Funding: fonte indisponível no momento");
+  // histórico de 11,7 dias com mínimo de 60 (padrão)
+  assert.equal(fundingSignal({ rows }, lastT(rows)).reason, "history");
+  // última cobrança há mais de 2 dias
+  assert.equal(fundingSignal({ rows }, lastT(rows) + 2 * DAY + 1, fcfg).reason, "stale");
+  assert.equal(fundingSignal({ rows }, lastT(rows) + DAY, fcfg).available, true);
+});
+
+// liquidações: uma linha por dia (US$); lcfg usa janela de 2 dias e histórico mínimo de 5
+const liqRows = (days) => days.map(([long, short], i) => ({ t: i * DAY, long, short })).filter((r) => r.long || r.short);
+const lcfg = { ...SIGNAL_DEFAULTS, liqDays: 2, liqMinDays: 5, liqLookbackDays: 100 };
+const calm = (n) => Array.from({ length: n }, () => [10e6, 10e6]);
+
+test("liquidationSignal: cascata de longs é fundo; de shorts é topo", () => {
+  const longs = liqRows([...calm(12), [300e6, 5e6], [200e6, 5e6]]);
+  const now = 13 * DAY + 1000; // no meio do último dia
+  const s = liquidationSignal({ rows: longs }, now, lcfg);
+  assert.equal(s.id, "liq");
+  assert.equal(s.side, "bottom");
+  assert.equal(s.value, 500e6);
+  assert.equal(s.percentile, 100);
+  // janelas terminando hoje (500M) e ontem (310M) estão acima de 90% das anteriores
+  assert.equal(s.bars, 2);
+  assert.deepEqual([s.details.long, s.details.short], [500e6, 10e6]);
+  assert.equal(
+    s.text,
+    "Liquidações em 2 dias: 500,0M em longs (acima de 100% do histórico) e 10,0M em shorts (acima de 0% do histórico): cascata de longs há 2 dias"
+  );
+
+  const shorts = liqRows([...calm(12), [5e6, 10e6], [5e6, 400e6]]);
+  const t = liquidationSignal({ rows: shorts }, now, lcfg);
+  assert.equal(t.side, "top");
+  assert.equal(t.value, 410e6);
+  assert.equal(t.bars, 1);
+  assert.match(t.text, /cascata de shorts há 1 dia$/);
+});
+
+test("liquidationSignal: os dois lados em cascata, dias sem linha e período calmo", () => {
+  // os dois lados no topo do histórico: empate no percentil, vale o de maior valor (shorts)
+  const both = liqRows([...calm(12), [300e6, 400e6], [300e6, 400e6]]);
+  assert.equal(liquidationSignal({ rows: both }, 13 * DAY + 1000, lcfg).side, "top");
+
+  // a fonte omite os dias zerados: contam como zero e a janela atual fica vazia
+  const gap = liqRows([...calm(12), [0, 0], [0, 0]]);
+  const g = liquidationSignal({ rows: gap }, 13 * DAY + 1000, lcfg);
+  assert.equal(g.available, true);
+  assert.equal(g.active, false);
+  assert.deepEqual([g.details.long, g.details.short], [0, 0]);
+  assert.match(g.text, /^Liquidações em 2 dias: 0 em longs \(acima de 0% do histórico\) e 0 em shorts/);
+
+  const flat = liquidationSignal({ rows: liqRows(calm(14)) }, 13 * DAY + 1000, lcfg);
+  assert.equal(flat.active, false);
+  assert.equal(flat.bars, 0);
+});
+
+test("liquidationSignal: só compara com o histórico recente", () => {
+  // cascatas enormes no passado distante ficam fora da comparação (aqui: últimos 10 dias)
+  const rows = liqRows([[900e6, 0], [900e6, 0], ...calm(20), [100e6, 5e6], [100e6, 5e6]]);
+  const now = 23 * DAY + 1000;
+  const recent = liquidationSignal({ rows }, now, { ...lcfg, liqLookbackDays: 10 });
+  assert.equal(recent.side, "bottom");
+  assert.equal(recent.percentile, 100);
+  // com todo o histórico, as cascatas antigas entram na amostra e o valor de hoje não é o maior
+  const all = liquidationSignal({ rows }, now, lcfg);
+  assert.ok(all.percentile < 100);
+});
+
+test("liquidationSignal: fonte ausente ou com pouco histórico", () => {
+  assert.equal(liquidationSignal(null, 0, lcfg).reason, "no-data");
+  assert.equal(liquidationSignal({ rows: [] }, 0, lcfg).reason, "no-data");
+  const noKey = liquidationSignal({ reason: "no-key" }, 0, lcfg);
+  assert.equal(noKey.available, false);
+  assert.equal(noKey.text, "Liquidações: configure a chave da Coinalyze nas Configurações");
+  assert.equal(liquidationSignal({ reason: "invalid-key" }, 0, lcfg).text, "Liquidações: a chave da Coinalyze foi recusada");
+  assert.equal(liquidationSignal({ reason: "no-market" }, 0, lcfg).reason, "no-market");
+  // 14 dias de histórico com mínimo de 180 (padrão)
+  assert.equal(liquidationSignal({ rows: liqRows(calm(14)) }, 13 * DAY + 1000).reason, "history");
+});
+
 test("regionOf: placar só com sinais disponíveis do grupo de fundo/topo", () => {
   const sig = (side, extra = {}) => ({ group: "extreme", available: true, active: !!side, side, ...extra });
   assert.deepEqual(regionOf([sig("bottom"), sig("bottom"), sig("bottom"), sig("top"), sig(null)]), { side: "bottom", bottom: 3, top: 1, of: 5 });
@@ -293,11 +441,15 @@ test("analyzeSignals: junta tudo num resultado serializável", () => {
   const weekly = pts([1, 2, 3, 4, 5, 6], 7 * DAY);
   const now = endOf(daily);
   const fearGreed = [{ t: now - DAY, v: 18 }];
-  const r = analyzeSignals({ asset: "BTC", daily, weekly, fearGreed, now }, cfg);
+  // funding sem contrato perpétuo e liquidações sem chave: indisponíveis, fora do placar
+  const r = analyzeSignals(
+    { asset: "BTC", daily, weekly, fearGreed, funding: { reason: "no-perpetual" }, liquidations: { reason: "no-key" }, now },
+    cfg
+  );
 
   assert.equal(r.asset, "BTC");
   assert.equal(r.generatedAt, now);
-  assert.deepEqual(r.signals.map((s) => s.id), ["trend-ma-d", "trend-ma-w", "macd-d", "macd-w", "rsi-d", "rsi-w", "stretch-d", "stretch-w", "fng"]);
+  assert.deepEqual(r.signals.map((s) => s.id), ["trend-ma-d", "trend-ma-w", "macd-d", "macd-w", "rsi-d", "rsi-w", "stretch-d", "stretch-w", "fng", "funding", "liq"]);
   assert.deepEqual(r.trend, { d: "down", w: "up" });
   // diário: RSI sobrevendido e preço esticado para baixo; semanal: RSI sobrecomprado e esticagem sem histórico;
   // mercado: medo extremo. Três de fundo e um de topo: fundo provável
@@ -313,6 +465,7 @@ test("analyzeSignals: sem velas, tudo indisponível", () => {
   assert.deepEqual(r.region, { side: "neutral", bottom: 0, top: 0, of: 0 });
   assert.ok(r.signals.every((s) => !s.available));
   assert.deepEqual([...new Set(r.signals.map((s) => s.reason))], ["history", "no-data"]);
+  assert.deepEqual(r.signals.slice(-2).map((s) => s.id), ["funding", "liq"]);
 });
 
 test("SIGNAL_DEFAULTS: limiares da v1", () => {
@@ -321,4 +474,6 @@ test("SIGNAL_DEFAULTS: limiares da v1", () => {
   assert.deepEqual([SIGNAL_DEFAULTS.rsiPeriod, SIGNAL_DEFAULTS.rsiOversold, SIGNAL_DEFAULTS.rsiOverbought], [14, 30, 70]);
   assert.deepEqual([SIGNAL_DEFAULTS.macd.fast, SIGNAL_DEFAULTS.macd.slow, SIGNAL_DEFAULTS.macd.signal], [12, 26, 9]);
   assert.deepEqual([SIGNAL_DEFAULTS.fngFear, SIGNAL_DEFAULTS.fngGreed], [25, 76]);
+  assert.deepEqual([SIGNAL_DEFAULTS.fundingDays, SIGNAL_DEFAULTS.fundingLow, SIGNAL_DEFAULTS.fundingHigh], [7, 10, 90]);
+  assert.deepEqual([SIGNAL_DEFAULTS.liqDays, SIGNAL_DEFAULTS.liqHigh, SIGNAL_DEFAULTS.liqLookbackDays], [7, 90, 730]);
 });

@@ -32,8 +32,8 @@ Todas as rotas estão em `server/routes.js`. Do lado da página, as funções co
 | `GET /order-history/:asset` | `buildOrderHistory` | `fetchOrderHistory` | `orderHistoryTable.js` | `allOrders` 60 s + trades |
 | `GET /trade-history/:asset` | `buildAssetTrades` | `fetchAssetTrades` | `tradeHistoryTable.js` | 30 s + trades |
 | `GET /liquidation-map/:asset` | `buildLiquidationMap` | `fetchLiquidationMap` | PriceChartPanel (camada mapa) | 5 min (+ `/liquidations` 1h, com chave) |
-| `GET /futures-data/:asset` | `buildFuturesData` | `fetchFuturesData` | PriceChartPanel (painéis) | 2 min |
-| `GET /liquidations/:asset` | `buildLiquidations` | `fetchLiquidations` | PriceChartPanel (painel e camada sobre o gráfico; esta com `interval=1h` também) | 5 min |
+| `GET /futures-data/:asset` | `buildFuturesData` | `fetchFuturesData` | PriceChartPanel (painéis), signalsPanel (sinal de funding, `period=1d`) | 2 min |
+| `GET /liquidations/:asset` | `buildLiquidations` | `fetchLiquidations` | PriceChartPanel (painel e camada sobre o gráfico; esta com `interval=1h` também), signalsPanel (sinal de liquidações, `interval=1d`) | 5 min |
 | `GET /fear-greed` | `buildFearGreed` | `fetchFearGreed` | PriceChartPanel (painel Fear & Greed), signalsPanel (sinais) | 10 min |
 | `GET /executed-orders` | `buildExecutedOrders` | `fetchExecutedOrders` | ExecutedOrdersPanel, `chartData.loadMyOrders` | 15 s + trades |
 | `GET /price-chart/:asset` | `buildPriceChart` | `fetchKlines` | `chartData.getKlines` | 60 s |

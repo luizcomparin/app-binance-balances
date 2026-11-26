@@ -11,7 +11,7 @@ storage: []
 
 Como usar este doc: ao concluir uma etapa, marque os itens (`[x]`), anote a data e o que mudou em relação ao plano, e atualize o [README](README.md) e o [catálogo](catalogo-de-sinais.md) no mesmo commit do código.
 
-**Situação em 25/11/2026:** etapas 0 a 3 concluídas. O campo "Sinais" está no cabeçalho do gráfico com tendência, MACD, RSI, esticagem e Fear & Greed; faltam funding e liquidações (etapa 4) e a divergência de RSI (etapa 5).
+**Situação em 26/11/2026:** etapas 0 a 4 concluídas. O campo "Sinais" está no cabeçalho do gráfico com tendência, MACD, RSI, esticagem, Fear & Greed, funding e liquidações; faltam a divergência de RSI (etapa 5) e o fechamento (etapa 6).
 
 ## V1: sinais no gráfico de preço
 
@@ -56,14 +56,22 @@ Mudanças em relação ao plano: a ganância extrema começa em 76 (zona da Alte
 
 Verificado com o server local e o Edge sem interface, em BTC: os dois MACD e o Fear & Greed aparecem na janela, e o valor do Fear & Greed (11) bate com o de `/fear-greed`. **Não verificado:** a fonte do Fear & Greed fora do ar (não foi simulada) e a comparação visual do MACD com o painel do gráfico.
 
-### Etapa 4 — Funding e liquidações (fontes opcionais)
+### Etapa 4 — Funding e liquidações (fontes opcionais) ✅ (26/11/2026)
 
-- [ ] Sinal `funding` (`/futures-data?period=1d`).
-- [ ] Sinal `liq` (`/liquidations` em D).
-- [ ] Estado "indisponível" com motivo: sem perpétuo, sem chave da Coinalyze, erro, pouco histórico.
-- [ ] Reagir a `COINALYZE_KEY_CHANGED`.
-- [ ] Conferir o consumo de chamadas (Coinalyze ~40/min) ao trocar de moeda várias vezes.
-- [ ] Testes.
+- [x] Sinal `funding` (`fundingSignal`, `/futures-data?period=1d`).
+- [x] Sinal `liq` (`liquidationSignal`, `/liquidations` em D).
+- [x] Estado "indisponível" com motivo: sem perpétuo, sem chave da Coinalyze, chave recusada, erro, pouco histórico.
+- [x] Reagir a `COINALYZE_KEY_CHANGED`.
+- [x] Consumo de chamadas da Coinalyze: cache de 30 min por moeda no painel dos sinais (mais os 5 min do server). Cada moeda nova custa uma chamada por corretora (3); abrir mais de ~12 moedas novas no mesmo minuto ainda pode estourar o limite, e aí o sinal fica indisponível até a próxima carga.
+- [x] Testes.
+
+Mudanças em relação ao plano:
+- o funding só é fundo com a média negativa (e baixa), não com "percentil ≤ 10 ou negativa";
+- as liquidações são comparadas com os últimos 2 anos, não com todo o histórico;
+- o histórico do funding é de cerca de 166 dias, não 333 (a rota devolve 500 cobranças; ver B15 em [debitos-tecnicos](../debitos-tecnicos.md));
+- os extremos passaram a ser decididos com os empates contando pela metade (`midRank`), também na esticagem: o funding fica muito tempo parado no mesmo valor, e sem isso um valor empatado no teto não contava como topo.
+
+Verificado com o server local e o Edge sem interface: BTC (funding neutro, cascata de longs ativa), SUI (funding negativo ativo) e USDT (funding sem contrato perpétuo). **Não verificado:** os estados sem chave e de chave recusada da Coinalyze e a reação a `COINALYZE_KEY_CHANGED` na tela (a chave não foi removida para testar; os textos estão cobertos nos testes do núcleo), e o limite da Coinalyze estourado.
 
 ### Etapa 5 — Divergência de RSI
 
@@ -137,6 +145,7 @@ Intenção registrada em 25/11/2026: avaliar os sinais no histórico para saber 
 | Data | O que foi feito |
 |---|---|
 | 25/11/2026 | Levantamento dos indicadores e camadas, decisões iniciais e criação da documentação (etapa 0) |
+| 26/11/2026 | Etapa 4: sinais de funding e de liquidações reais (fontes opcionais), com cache próprio e reação à troca da chave da Coinalyze |
 | 25/11/2026 | Etapa 3: sinais de MACD (D e S) e Fear & Greed |
 | 25/11/2026 | Etapa 2: carga das velas D e S, campo "Sinais" no cabeçalho do gráfico e janela flutuante com os detalhes |
 | 25/11/2026 | Etapa 1: núcleo puro (`signals/signals.js`) com tendência por médias, RSI, esticagem com percentil e placar de região, com testes |

@@ -2,14 +2,14 @@
 titulo: Sinais de compra e venda — visão geral
 resumo: Mecanismo (em desenvolvimento) que lê os indicadores e camadas já existentes nos tempos Diário e Semanal e informa, por paridade, a tendência atual e se o preço está em região provável de fundo ou de topo, listando os sinais presentes.
 arquivos: [public/components/price-chart/signals/signals.js, public/components/price-chart/signals/signalsPanel.js, public/components/price-chart/signals/signals.css, public/components/price-chart/PriceChartPanel.html, public/components/price-chart/PriceChartPanel.js]
-rotas: [GET /price-chart/:asset, GET /fear-greed]
-eventos: []
+rotas: [GET /price-chart/:asset, GET /fear-greed, GET /futures-data/:asset, GET /liquidations/:asset]
+eventos: [COINALYZE_KEY_CHANGED]
 storage: []
 ---
 
 # Sinais de compra e venda
 
-> **Estado: em desenvolvimento.** Etapas 1 a 3 prontas: o campo "Sinais" aparece no cabeçalho do gráfico de preço, com tendência por médias, MACD, RSI, esticagem da média e Fear & Greed. Faltam funding, liquidações e divergência de RSI (etapas 4 e 5). O andamento fica em [planejamento.md](planejamento.md), e este doc é atualizado a cada etapa concluída.
+> **Estado: em desenvolvimento.** Etapas 1 a 4 prontas: o campo "Sinais" aparece no cabeçalho do gráfico de preço, com tendência por médias, MACD, RSI, esticagem da média, Fear & Greed, funding e liquidações. Falta a divergência de RSI (etapa 5) e a revisão dos limiares (etapa 6). O andamento fica em [planejamento.md](planejamento.md), e este doc é atualizado a cada etapa concluída.
 
 Documentação exclusiva dos sinais:
 
@@ -57,7 +57,7 @@ Tudo sai de rotas e funções **que já existem**. A v1 não cria rota nova no s
 | CVD / Delta | `chart/cvd.js` `volumeDelta()` | O das velas | Ideia futura (divergência) |
 | Volatilidade diária | `volatility.js` `dailyVolatility()` | 365 dias | Ideia futura (movimento em σ) |
 | Fear & Greed | `GET /fear-greed` + `chart/fearGreed.js` | Diário desde fev/2018 | Medo/ganância extremos. É do **mercado** (BTC), igual para toda moeda |
-| Funding | `GET /futures-data/:asset?period=1d` | Cerca de 333 dias | Funding extremo. Exige contrato perpétuo |
+| Funding | `GET /futures-data/:asset?period=1d` | As últimas 500 cobranças (cerca de 166 dias com funding a cada 8 h) | Funding extremo. Exige contrato perpétuo |
 | Liquidações reais | `GET /liquidations/:asset` (Coinalyze) | Diário desde 2019 | Cascata de longs/shorts. Exige chave da Coinalyze; limite de ~40 chamadas/min |
 | Open interest, long/short | `GET /futures-data/:asset` | **Só 30 dias** | Fora da v1: histórico curto demais para D/S |
 | Mapa de liquidação estimado | `GET /liquidation-map/:asset` | 30 dias, é estimativa | Fora da v1 |
@@ -70,12 +70,13 @@ Pontos estruturais:
 
 ## Arquitetura
 
-- **Núcleo puro (implementado):** `public/components/price-chart/signals/signals.js`, sem DOM, sem `fetch` e sem ler o relógio. Recebe as velas D e S e o instante `now` e devolve o resultado. Testado em `test/public/signals.test.js`. Reaproveita `movingAverage`, `rsi`, `macd` e `macdHistogramTones`. Recebe também as linhas do Fear & Greed; funding e liquidações entram na etapa 4.
-  - `analyzeSignals({ asset, daily, weekly, fearGreed, now }, cfg?)`: a análise completa.
+- **Núcleo puro (implementado):** `public/components/price-chart/signals/signals.js`, sem DOM, sem `fetch` e sem ler o relógio. Recebe as velas D e S e o instante `now` e devolve o resultado. Testado em `test/public/signals.test.js`. Reaproveita `movingAverage`, `rsi`, `macd` e `macdHistogramTones`. Usa `formatUsdShort` de `core/format.js` nos textos. Recebe também as linhas do Fear & Greed e as fontes opcionais dos futuros (funding e liquidações).
+  - `analyzeSignals({ asset, daily, weekly, fearGreed, funding, liquidations, now }, cfg?)`: a análise completa.
   - `trendSignal`, `macdSignal`, `rsiSignal`, `stretchSignal` `(points, "d" | "w", now, cfg?)`: um sinal cada.
   - `fearGreedSignal(rows, now, cfg?)`: o sinal do Fear & Greed.
+  - `fundingSignal(source, now, cfg?)` e `liquidationSignal(source, now, cfg?)`: as fontes opcionais. `source` é `{ rows }` ou `{ reason }` (por que não há dados: `no-perpetual`, `no-market`, `no-key`, `invalid-key`, `error`); o texto do sinal indisponível explica o motivo.
   - `regionOf(signals, cfg?)`: o placar de confluência.
-  - `lastClosedIndex`, `streak`, `percentileRank`: auxiliares.
+  - `lastClosedIndex`, `streak`, `percentileRank`, `midRank`: auxiliares.
   - `SIGNAL_DEFAULTS`: os limiares fixos da v1. As funções aceitam outra configuração no último parâmetro (os testes usam médias curtas).
 - **Painel (implementado):** `public/components/price-chart/signals/signalsPanel.js`, com o estado próprio (`view`: moeda, resultado, erro, carregando) e o desenho. Estilos em `signals/signals.css` (importado em `public/index.css`); o HTML do campo fica em `PriceChartPanel.html`.
   - `initSignalsPanel()`: liga o clique do campo, o clique fora, o Esc e o "Tentar de novo". Chamada em `initPriceChartPanel()`.
@@ -86,7 +87,10 @@ Pontos estruturais:
   - Velas `1w`: 1 página, que cobre todo o histórico da Binance.
   - Tudo por `chartData.getKlines`, com o cache que já existe: a página recente vale 60 s e as antigas, 10 min. Com o gráfico em D ou S, a página recente é a mesma do gráfico (sem chamada extra).
   - Fear & Greed: `fetchFearGreed()` (`GET /fear-greed`), com cache próprio de 10 min no painel (`loadFearGreedRows`). É do mercado, então uma carga serve a todas as moedas. O Atualizar do topo busca de novo (`loadSignals(asset, { fresh: true })`). Se a fonte falhar, os outros sinais saem normalmente e o do Fear & Greed fica indisponível; numa recarga que falha, ficam as linhas que já estavam.
-  - Funding e liquidações entram na etapa 4.
+  - Funding: `fetchFuturesData(asset, "1d")` (`GET /futures-data`, campo `funding`), cache de 10 min por moeda.
+  - Liquidações: `fetchLiquidations(asset, "1d")` (`GET /liquidations`, soma das 3 corretoras), cache de **30 min** por moeda. Os dados são diários e cada moeda custa uma chamada à Coinalyze por corretora (limite de ~40/min): com o cache longo, trocar de moeda várias vezes não esgota o limite.
+  - Essas duas passam por `loadOptional`, que nunca derruba os outros sinais: devolve `{ rows }` ou `{ reason }`. Só ficam em cache as respostas com dados e os "não existe" (`no-perpetual`, `no-market`); sem chave ou com erro, tenta de novo na próxima carga.
+  - O Atualizar do topo (`fresh`) ignora os caches deste módulo. `COINALYZE_KEY_CHANGED` (chave salva ou removida) limpa o cache de liquidações e recalcula.
 
 Formato do resultado de `analyzeSignals`:
 
@@ -130,6 +134,10 @@ Formato do resultado de `analyzeSignals`:
 - **Moeda recém-listada:** com menos de 200 velas diárias (ou 50 semanais) a tendência fica "–"; com menos de 365 + 200 diárias (ou 52 + 50 semanais) a esticagem fica indisponível. Esses sinais saem do placar.
 - **USDT** abre no par USDT/BRL: os sinais são do dólar em reais. O Fear & Greed (do mercado cripto) entra no placar mesmo assim.
 - **Fear & Greed com cache separado do painel do gráfico:** o painel "Fear & Greed Index" guarda o dele em `PriceChartPanel.js` (`view.fng`). São duas chamadas a `/fear-greed`, mas o server responde do cache de 10 min dele.
+- **Sem chave da Coinalyze:** o sinal de liquidações aparece como "configure a chave da Coinalyze nas Configurações" e sai do placar. **Sem contrato perpétuo:** funding e liquidações ficam indisponíveis.
+- **Limite da Coinalyze estourado:** o sinal de liquidações fica "fonte indisponível no momento" e volta na próxima carga (erros não ficam em cache).
+- **Funding com pouco histórico:** a rota devolve as últimas 500 cobranças. Com menos de 60 dias, o sinal fica indisponível. Como a comparação é com poucos meses, "entre os mais baixos" quer dizer "dos últimos ~166 dias", e o texto diz o período.
+- **USDT (gráfico USDT/BRL):** não tem perpétuo na Binance (funding indisponível), mas a Coinalyze acha um mercado "USDT" em outras corretoras, e o sinal de liquidações aparece com valores pequenos. É do par USDT/USD, não do dólar em reais.
 - **Fear & Greed parado:** se o último valor tiver mais de 2 dias, o sinal fica indisponível (`reason: "stale"`) em vez de usar um valor velho.
 - **Página aberta por muito tempo:** os sinais só são recalculados ao trocar de moeda ou no Atualizar do topo. A hora do cálculo aparece no rodapé da janela.
 - **Clique no título da moeda** (seletor) não fecha a janela dos sinais: o botão do seletor interrompe a propagação do clique (`assetPicker.js`). O mesmo já acontece com os menus de Personalizado e Camadas.
@@ -138,12 +146,14 @@ Formato do resultado de `analyzeSignals`:
 ## Como verificar
 
 1. Abra `/site/grafico-de-preco` em BTC: à direita do cabeçalho aparece "Sinais" com "analisando..." e, em seguida, as pílulas D, S e a região.
-2. Clique no campo: a janela abre abaixo dele, por cima do gráfico, com Tendência e Fundo ou topo. Compare o RSI 14 diário com o painel do RSI em vela D, a distância da SMA 200 com uma SMA 200 adicionada nos Indicadores, o MACD com o painel do MACD (em D e em S) e o Fear & Greed com o painel dele.
+2. Clique no campo: a janela abre abaixo dele, por cima do gráfico, com Tendência e Fundo ou topo. Compare o RSI 14 diário com o painel do RSI em vela D, a distância da SMA 200 com uma SMA 200 adicionada nos Indicadores, o MACD com o painel do MACD (em D e em S), o Fear & Greed com o painel dele e as liquidações com a soma dos últimos 7 dias do painel de Liquidações em vela D.
 3. Feche com Esc e com um clique fora.
 4. Troque a vela do gráfico para 1h: os sinais não mudam (são sempre D e S).
 5. Troque de moeda: o campo volta a "analisando..." e mostra os sinais da nova moeda.
 6. Abra uma moeda listada há pouco tempo: a esticagem aparece como "histórico insuficiente", com a bolinha vazada.
-7. Clique em Atualizar no topo: as pílulas continuam na tela, com um spinner, e a hora do rodapé muda.
+7. Abra USDT: o funding aparece como "a moeda não tem contrato perpétuo", com a bolinha vazada, e o placar conta um sinal a menos.
+8. Remova a chave da Coinalyze nas Configurações: o sinal de liquidações vira "configure a chave...". Salve de novo: ele volta.
+9. Clique em Atualizar no topo: as pílulas continuam na tela, com um spinner, e a hora do rodapé muda.
 
 ## Decisões tomadas
 

@@ -1,11 +1,12 @@
 // Sinais de compra e venda no cabeçalho do gráfico de preço: campo resumido (tendência D/S e região)
 // que abre uma janelinha flutuante com os detalhes. A conta fica em signals.js (pura); aqui ficam a
 // carga das velas diárias e semanais (sempre essas, qualquer que seja a vela na tela), a do Fear & Greed
-// Index e o desenho.
+// Index, a das fontes opcionais dos futuros (funding e liquidações reais) e o desenho.
 // Documentação: docs/sinais/.
 
-import { fetchFearGreed } from "../../../api/binance.js";
+import { fetchFearGreed, fetchFuturesData, fetchLiquidations } from "../../../api/binance.js";
 import { escapeHtml } from "../../../core/dom.js";
+import { COINALYZE_KEY_CHANGED, on } from "../../../core/events.js";
 import { getKlines, KLINES_PAGE } from "../chartData.js";
 import { pairLabel } from "../chartQuote.js";
 import { analyzeSignals } from "./signals.js";
@@ -53,9 +54,37 @@ function loadFearGreedRows({ fresh = false } = {}) {
   return fng.loading;
 }
 
+// Fontes opcionais, por moeda: funding (Binance Futures) e liquidações reais (Coinalyze), sempre em dias.
+// Devolvem { rows } ou { reason } e nunca derrubam os outros sinais. Os dados são diários e mudam devagar,
+// então o cache do cliente é longo: trocar de moeda várias vezes não gasta o limite da Coinalyze (cada
+// moeda custa uma chamada por corretora). Só ficam em cache as respostas com dados e os "não existe"
+// (sem contrato); sem chave ou com erro, tenta de novo na próxima vez.
+const OPTIONAL_CACHE_MS = { funding: 10 * 60 * 1000, liquidations: 30 * 60 * 1000 };
+const KEEP_REASONS = ["no-perpetual", "no-market"];
+const optionalCache = new Map();
+
+async function loadOptional(kind, asset, fetcher, pick, fresh) {
+  const key = `${kind}|${asset}`;
+  const hit = optionalCache.get(key);
+  if (!fresh && hit && Date.now() - hit.at < OPTIONAL_CACHE_MS[kind]) return hit.data;
+  let data;
+  try {
+    const res = await fetcher();
+    data = res?.available ? { rows: pick(res) || [] } : { reason: res?.reason || "error", message: res?.message };
+  } catch (err) {
+    data = { reason: "error", message: err?.message };
+  }
+  if (data.rows || KEEP_REASONS.includes(data.reason)) optionalCache.set(key, { at: Date.now(), data });
+  return data;
+}
+
+const loadFunding = (asset, fresh) => loadOptional("funding", asset, () => fetchFuturesData(asset, "1d"), (res) => res.funding, fresh);
+const loadLiquidations = (asset, fresh) =>
+  loadOptional("liquidations", asset, () => fetchLiquidations(asset, "1d"), (res) => res.rows, fresh);
+
 /**
- * Carrega as velas D e S da moeda e o Fear & Greed e calcula os sinais. Chamada na troca de moeda e no
- * Atualizar do topo (fresh: busca o Fear & Greed de novo, sem usar o cache do cliente).
+ * Carrega as velas D e S da moeda, o Fear & Greed, o funding e as liquidações e calcula os sinais. Chamada
+ * na troca de moeda e no Atualizar do topo (fresh: busca tudo de novo, sem usar os caches deste módulo).
  */
 export async function loadSignals(asset, { fresh = false } = {}) {
   const requestId = ++view.requestId;
@@ -66,13 +95,15 @@ export async function loadSignals(asset, { fresh = false } = {}) {
   view.loading = true;
   render();
   try {
-    const [daily, weekly, fearGreed] = await Promise.all([
+    const [daily, weekly, fearGreed, funding, liquidations] = await Promise.all([
       loadDaily(asset),
       getKlines(asset, "1w").then((d) => d.points || []),
       loadFearGreedRows({ fresh }),
+      loadFunding(asset, fresh),
+      loadLiquidations(asset, fresh),
     ]);
     if (requestId !== view.requestId) return;
-    view.result = analyzeSignals({ asset, daily, weekly, fearGreed, now: Date.now() });
+    view.result = analyzeSignals({ asset, daily, weekly, fearGreed, funding, liquidations, now: Date.now() });
   } catch (err) {
     if (requestId !== view.requestId) return;
     view.result = null;
@@ -178,5 +209,10 @@ export function initSignalsPanel() {
   });
   pop.addEventListener("click", (e) => {
     if (e.target.closest("#price-chart-signals-retry") && view.asset) loadSignals(view.asset);
+  });
+  // chave da Coinalyze salva ou removida: o sinal de liquidações muda (o cache dele só guarda respostas boas)
+  on(COINALYZE_KEY_CHANGED, () => {
+    for (const key of optionalCache.keys()) if (key.startsWith("liquidations|")) optionalCache.delete(key);
+    if (view.asset) loadSignals(view.asset);
   });
 }

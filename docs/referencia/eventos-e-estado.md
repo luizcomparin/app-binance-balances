@@ -44,7 +44,7 @@ Os componentes também guardam estado **próprio**, que não fica em `state`:
 | `BALANCES_UPDATED` | `balances:updated` | resposta de `/balances` | `BalancesPanel.loadBalances` | StatGrid, AssetStrip, ChartsPanel (rosca e barras), orderSimulation, PriceChartPanel (watchlist + moeda inicial) |
 | `POSITIONS_UPDATED` | `positions:updated` | — (lê `state`) | `core/positions.loadPositions` (no início, com `loading=true`, e no fim) | BalancesPanel, pnlCharts, PriceChartPanel |
 | `TAB_CHANGED` | `tab:changed` | nome da aba (`"price-chart"`, `"charts"`, `"balances"`, `"orders"`, `"executed"`) | `Tabs.showTab` (só quando muda) | ExecutedOrdersPanel (carga preguiçosa), PriceChartPanel |
-| `COINALYZE_KEY_CHANGED` | `coinalyze-key:changed` | — | SettingsModal (salvou ou removeu a chave da Coinalyze) | PriceChartPanel (`reloadLiquidations`: painel, camada sobre o gráfico e mapa de liquidação) |
+| `COINALYZE_KEY_CHANGED` | `coinalyze-key:changed` | — | SettingsModal (salvou ou removeu a chave da Coinalyze) | PriceChartPanel (`reloadLiquidations`: painel, camada sobre o gráfico e mapa de liquidação); signalsPanel (limpa o cache de liquidações e recalcula os sinais) |
 
 ## Chamadas diretas entre componentes
 

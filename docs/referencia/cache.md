@@ -50,6 +50,7 @@ O app tem **duas camadas de cache**: memória do server, que se perde ao reinici
 | Liquidações reais | `Map liqRealCache` `asset\|vela` | 5 min (só sucesso ou `no-market`) | `PriceChartPanel.js` |
 | Fear & Greed Index | `view.fng` (um só, vale para todas as moedas) | 10 min (`FNG_CACHE_MS`); na recarga, o dado antigo fica na tela até o novo chegar | `PriceChartPanel.js` |
 | Fear & Greed Index dos sinais | `fng` (um só, vale para todas as moedas) | 10 min (`FNG_CACHE_MS`); o "Atualizar" do topo busca de novo; se a recarga falhar, ficam as linhas antigas | `signals/signalsPanel.js` |
+| Funding e liquidações diárias dos sinais | `optionalCache` (chave `funding\|MOEDA` / `liquidations\|MOEDA`) | funding 10 min, liquidações 30 min (`OPTIONAL_CACHE_MS`); só respostas com dados ou "sem contrato"; o "Atualizar" do topo ignora, e `COINALYZE_KEY_CHANGED` limpa as liquidações | `signals/signalsPanel.js` |
 | Histórico de ordens | `hist.cache` por moeda | 60 s | `orderHistoryTable.js` |
 | Histórico de trades | `st.cache` por moeda | 30 s | `tradeHistoryTable.js` |
 | Posições | `request` em andamento (dedupe) | — (só evita chamadas paralelas) | `core/positions.js` |

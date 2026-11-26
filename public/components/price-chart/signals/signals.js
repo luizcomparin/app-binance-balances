@@ -1,6 +1,6 @@
 // Sinais de compra e venda: núcleo puro (sem DOM, sem rede e sem ler o "agora" por conta própria).
-// Lê as velas diárias e semanais de uma moeda (e o Fear & Greed Index do mercado) e devolve a tendência,
-// a região (fundo/topo provável) e a lista de sinais. Não é previsão. Documentação: docs/sinais/.
+// Lê as velas diárias e semanais de uma moeda (mais o Fear & Greed Index do mercado e, se houver, o funding
+// e as liquidações reais dos futuros) e devolve a tendência, a região (fundo/topo provável) e a lista de sinais. Não é previsão. Documentação: docs/sinais/.
 //
 // Vela em andamento: o valor e o estado "ativo" de cada sinal usam a última vela (mesmo em formação);
 // "há N velas" (`bars`) conta só velas FECHADAS seguidas. Ativo com bars = 0 fica `forming: true`.
@@ -9,6 +9,7 @@
 import { movingAverage } from "../chart/movingAverage.js";
 import { rsi } from "../chart/rsi.js";
 import { macd, MACD_DEFAULT, macdHistogramTones } from "../chart/macd.js";
+import { formatUsdShort } from "../../../core/format.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -27,6 +28,15 @@ export const SIGNAL_DEFAULTS = {
   fngFear: 25, // Fear & Greed até aqui = medo extremo (fundo); é a zona da própria Alternative.me
   fngGreed: 76, // ... e a partir daqui = ganância extrema (topo)
   fngStaleMs: 2 * DAY_MS, // último valor mais velho que isso: a fonte parou
+  fundingDays: 7, // funding: média das taxas dos últimos N dias
+  fundingMinDays: 60, // ... comparada com o histórico da moeda, que precisa cobrir ao menos isto
+  fundingLow: 10, // percentil que conta como fundo (com a média negativa)
+  fundingHigh: 90, // ... e como topo (com a média positiva)
+  fundingStaleMs: 2 * DAY_MS,
+  liqDays: 7, // liquidações: soma dos últimos N dias, por lado
+  liqLookbackDays: 730, // ... comparada com as janelas dos últimos 2 anos (o mercado cresce: histórico antigo distorce)
+  liqMinDays: 180, // histórico mínimo para comparar
+  liqHigh: 90, // percentil que conta como cascata
   regionMin: 3, // sinais do lado dominante para "fundo/topo provável"
   regionMaxOpposite: 1, // ... com no máximo estes do lado oposto
 };
@@ -55,17 +65,30 @@ export function streak(values, end, test) {
   return count;
 }
 
-/** Percentil (0–100) de `value` numa amostra ORDENADA: a parte da amostra que fica abaixo dele. Amostra vazia: null. */
-export function percentileRank(sorted, value) {
+/**
+ * Percentil (0–100) de `value` numa amostra ORDENADA: a parte da amostra que fica abaixo dele
+ * (inclusive: abaixo ou igual). Amostra vazia: null.
+ */
+export function percentileRank(sorted, value, inclusive = false) {
   if (!sorted?.length) return null;
   let lo = 0;
   let hi = sorted.length;
   while (lo < hi) {
     const mid = (lo + hi) >> 1;
-    if (sorted[mid] < value) lo = mid + 1;
+    if (inclusive ? sorted[mid] <= value : sorted[mid] < value) lo = mid + 1;
     else hi = mid;
   }
   return (lo / sorted.length) * 100;
+}
+
+/**
+ * Percentil com os empates divididos ao meio (média do estrito com o inclusivo). É o que decide se um valor
+ * é extremo: uma série parada num valor só fica em 50 (não é extremo), e um valor que empata com o máximo
+ * (ex.: funding travado no teto por vários dias) continua perto de 100.
+ */
+export function midRank(sorted, value) {
+  if (!sorted?.length) return null;
+  return (percentileRank(sorted, value) + percentileRank(sorted, value, true)) / 2;
 }
 
 const unavailable = (id, group, timeframe, reason, text) => ({
@@ -152,7 +175,7 @@ export function stretchSignal(points, tf, now, cfg = SIGNAL_DEFAULTS) {
 
   const sorted = sample.slice().sort((a, b) => a - b);
   const zone = (v) => {
-    const p = percentileRank(sorted, v);
+    const p = midRank(sorted, v);
     if (v < 0 && p <= cfg.stretchLow) return "bottom";
     if (v > 0 && p >= cfg.stretchHigh) return "top";
     return null;
@@ -248,6 +271,144 @@ export function fearGreedSignal(rows, now, cfg = SIGNAL_DEFAULTS) {
   };
 }
 
+// Fontes opcionais (funding, liquidações): chegam como { rows } ou { reason } (por que não há dados)
+const SOURCE_PROBLEMS = {
+  "no-perpetual": "a moeda não tem contrato perpétuo",
+  "no-market": "a moeda não tem contrato perpétuo nas corretoras",
+  "no-key": "configure a chave da Coinalyze nas Configurações",
+  "invalid-key": "a chave da Coinalyze foi recusada",
+  history: "histórico insuficiente para comparar",
+  stale: "a fonte está sem valores novos",
+};
+const sourceProblem = (reason) => SOURCE_PROBLEMS[reason] || "fonte indisponível no momento";
+
+/**
+ * Funding dos futuros perpétuos: média das taxas dos últimos dias, comparada com o histórico da moeda.
+ * Negativa e entre as mais baixas (shorts pagando para ficar vendidos) conta como fundo; positiva e entre
+ * as mais altas (longs pagando caro), como topo. source = { rows: [{ t (ms), r (taxa) }] } ou { reason }.
+ */
+export function fundingSignal(source, now, cfg = SIGNAL_DEFAULTS) {
+  const none = (reason) => unavailable("funding", "extreme", null, reason, `Funding: ${sourceProblem(reason)}`);
+  if (!source?.rows) return none(source?.reason || "no-data");
+  const rows = source.rows.filter((r) => r.t <= now && Number.isFinite(r.r));
+  if (!rows.length) return none("no-data");
+  const first = rows[0].t;
+  const last = rows[rows.length - 1].t;
+  if (now - last > cfg.fundingStaleMs) return none("stale");
+  if (last - first < cfg.fundingMinDays * DAY_MS) return none("history");
+
+  const span = cfg.fundingDays * DAY_MS;
+  // média das taxas cobradas na janela (end − span, end]
+  const meanAt = (end) => {
+    let sum = 0;
+    let count = 0;
+    for (let i = rows.length - 1; i >= 0 && rows[i].t > end - span; i--) {
+      if (rows[i].t > end) continue;
+      sum += rows[i].r;
+      count++;
+    }
+    return count ? sum / count : null;
+  };
+  // amostra: a média da janela que termina em cada cobrança, desde que a janela caiba no histórico
+  const sorted = rows.filter((r) => r.t - first >= span).map((r) => meanAt(r.t)).sort((a, b) => a - b);
+  const zone = (mean) => {
+    if (mean === null) return null;
+    const p = midRank(sorted, mean);
+    if (mean < 0 && p <= cfg.fundingLow) return "bottom";
+    if (mean > 0 && p >= cfg.fundingHigh) return "top";
+    return null;
+  };
+
+  const value = meanAt(now);
+  if (value === null) return none("stale");
+  const side = zone(value);
+  // há quantos dias seguidos a média de 7 dias está na zona (janelas terminando hoje, ontem, anteontem...)
+  let bars = 0;
+  if (side) while (now - bars * DAY_MS - span >= first && zone(meanAt(now - bars * DAY_MS)) === side) bars++;
+  const percentile = percentileRank(sorted, value);
+  const days = Math.round((last - first) / DAY_MS);
+  const pct = `${value > 0 ? "+" : ""}${num(value * 100, 4)}%`;
+  const where = `Funding médio de ${cfg.fundingDays} dias em ${pct} por cobrança`;
+  const history = `acima de ${Math.floor(percentile)}% dos últimos ${days} dias`;
+
+  return {
+    id: "funding", group: "extreme", timeframe: null, available: true,
+    active: !!side, side, value, bars, forming: false, percentile,
+    details: { days, samples: sorted.length, min: sorted[0], max: sorted[sorted.length - 1] },
+    text: side
+      ? `${where}: ${side === "bottom" ? "negativo e entre os mais baixos" : "entre os mais altos"} há ${barsText(bars, "d")}, ${history}`
+      : `${where}: ${history}`,
+  };
+}
+
+/**
+ * Liquidações reais dos futuros: soma dos últimos dias, por lado, comparada com as mesmas janelas dos
+ * últimos 2 anos da própria moeda. Cascata de longs (vendas forçadas) conta como fundo; de shorts (compras
+ * forçadas), como topo. source = { rows: [{ t (ms, início do dia UTC), long, short (US$) }] } ou { reason };
+ * dia sem linha vale zero (a fonte omite os dias zerados).
+ */
+export function liquidationSignal(source, now, cfg = SIGNAL_DEFAULTS) {
+  const none = (reason) => unavailable("liq", "extreme", null, reason, `Liquidações: ${sourceProblem(reason)}`);
+  if (!source?.rows) return none(source?.reason || "no-data");
+  const rows = source.rows.filter((r) => r.t <= now);
+  if (!rows.length) return none("no-data");
+
+  const dayOf = (t) => Math.floor(t / DAY_MS);
+  const today = dayOf(now);
+  const start = Math.max(dayOf(rows[0].t), today - cfg.liqLookbackDays);
+  const size = today - start + 1;
+  const daily = { long: new Array(size).fill(0), short: new Array(size).fill(0) };
+  for (const r of rows) {
+    const i = dayOf(r.t) - start;
+    if (i < 0) continue;
+    daily.long[i] += r.long || 0;
+    daily.short[i] += r.short || 0;
+  }
+  // soma móvel de N dias terminando em cada dia (null enquanto a janela não cabe)
+  const rolling = (values) => {
+    const out = new Array(size).fill(null);
+    let sum = 0;
+    for (let i = 0; i < size; i++) {
+      sum += values[i] - (i >= cfg.liqDays ? values[i - cfg.liqDays] : 0);
+      if (i >= cfg.liqDays - 1) out[i] = sum;
+    }
+    return out;
+  };
+  const sums = { long: rolling(daily.long), short: rolling(daily.short) };
+  // amostra: as janelas que terminam em dias já fechados (a de hoje é só comparada com elas)
+  const sample = (side) => sums[side].slice(0, size - 1).filter((v) => v !== null).sort((a, b) => a - b);
+  const sorted = { long: sample("long"), short: sample("short") };
+  if (sorted.long.length < cfg.liqMinDays) return none("history");
+
+  const rankAt = (i) => ({ long: midRank(sorted.long, sums.long[i]), short: midRank(sorted.short, sums.short[i]) });
+  // longs liquidados em cascata = fundo; shorts = topo; os dois ao mesmo tempo: vale o mais extremo
+  const zoneAt = (i) => {
+    if (sums.long[i] === null) return null;
+    const p = rankAt(i);
+    const long = p.long >= cfg.liqHigh && sums.long[i] > 0;
+    const short = p.short >= cfg.liqHigh && sums.short[i] > 0;
+    if (long && short) return p.long > p.short || (p.long === p.short && sums.long[i] >= sums.short[i]) ? "bottom" : "top";
+    return long ? "bottom" : short ? "top" : null;
+  };
+
+  const cur = size - 1;
+  const side = zoneAt(cur);
+  let bars = 0;
+  if (side) while (cur - bars >= 0 && zoneAt(cur - bars) === side) bars++;
+  // no texto e em `percentile`: a parte do histórico que fica abaixo do valor de hoje
+  const p = { long: percentileRank(sorted.long, sums.long[cur]), short: percentileRank(sorted.short, sums.short[cur]) };
+  const part = (name, key) => `${formatUsdShort(sums[key][cur])} em ${name} (acima de ${Math.floor(p[key])}% do histórico)`;
+  const where = `Liquidações em ${cfg.liqDays} dias: ${part("longs", "long")} e ${part("shorts", "short")}`;
+
+  return {
+    id: "liq", group: "extreme", timeframe: null, available: true,
+    active: !!side, side, value: side === "top" ? sums.short[cur] : sums.long[cur], bars, forming: false,
+    percentile: side === "top" ? p.short : p.long,
+    details: { long: sums.long[cur], short: sums.short[cur], longPercentile: p.long, shortPercentile: p.short, samples: sorted.long.length },
+    text: side ? `${where}: cascata de ${side === "bottom" ? "longs" : "shorts"} há ${barsText(bars, "d")}` : where,
+  };
+}
+
 /** Placar de confluência: conta os sinais de fundo e de topo ativos entre os disponíveis do grupo "extreme". */
 export function regionOf(signals, cfg = SIGNAL_DEFAULTS) {
   const usable = signals.filter((s) => s.group === "extreme" && s.available);
@@ -262,9 +423,10 @@ export function regionOf(signals, cfg = SIGNAL_DEFAULTS) {
  * Análise completa de uma moeda.
  * daily / weekly: velas [{ time (ms da abertura), close, ... }] em ordem crescente; now: instante da análise (ms).
  * fearGreed: linhas do Fear & Greed Index ([{ t, v }]) ou null se a fonte não respondeu.
+ * funding / liquidations: fontes opcionais dos futuros, { rows } ou { reason } (ver fundingSignal e liquidationSignal).
  * Devolve { asset, generatedAt, trend: { d, w }, region, signals } (serializável em JSON).
  */
-export function analyzeSignals({ asset, daily, weekly, fearGreed, now }, cfg = SIGNAL_DEFAULTS) {
+export function analyzeSignals({ asset, daily, weekly, fearGreed, funding, liquidations, now }, cfg = SIGNAL_DEFAULTS) {
   const series = { d: daily || [], w: weekly || [] };
   const signals = [];
   for (const tf of ["d", "w"]) signals.push(trendSignal(series[tf], tf, now, cfg));
@@ -272,6 +434,8 @@ export function analyzeSignals({ asset, daily, weekly, fearGreed, now }, cfg = S
   for (const tf of ["d", "w"]) signals.push(rsiSignal(series[tf], tf, now, cfg));
   for (const tf of ["d", "w"]) signals.push(stretchSignal(series[tf], tf, now, cfg));
   signals.push(fearGreedSignal(fearGreed, now, cfg));
+  signals.push(fundingSignal(funding, now, cfg));
+  signals.push(liquidationSignal(liquidations, now, cfg));
 
   const trendOf = (tf) => {
     const s = signals.find((x) => x.id === `trend-ma-${tf}`);
