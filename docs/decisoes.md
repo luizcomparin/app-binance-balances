@@ -17,6 +17,7 @@ São comportamentos que **parecem** errados ou incompletos, mas são escolhas do
 | Aba padrão = **Gráfico de preço**. Timeframe padrão = **D + 1 ano**. Moeda padrão = última vista → BTC → a maior | Uso mais comum | `Tabs.html`, `PriceChartPanel.js` |
 | Velas **intradiárias em hora local**, diárias e maiores no **dia UTC** | Mesmo comportamento da Binance | `chart/axis.js` |
 | O eixo de preço automático inclui os preços médios, mas **não** as ordens abertas | Ordens muito distantes achatariam o gráfico. O resumo "↑ N acima" cobre isso | `createChart.js` (`autoscaleInfoProvider`), `overlays.js` |
+| O **eixo de tempo** fica logo abaixo do painel de preço, acima do volume e dos outros painéis | As datas ficam junto das velas, sem precisar rolar até o último painel. A biblioteca só desenha o eixo no fim, então a linha dele é movida no DOM | `createChart.js` (`placeTimeAxis`) |
 | Indicadores, volatilidade e DCA são calculados **no front** | Usam as velas que já estão carregadas e evitam rotas novas | `movingAverage.js`, `bollinger.js`, `volatility.js`, `dca.js` |
 | Filtro de período dos históricos é **local** (a lista vem inteira) | Uma requisição por moeda, e trocar o período é instantâneo | `periodFilter.js` |
 | Liquidações reais dependem de uma chave **opcional** da Coinalyze | Sem chave, o resto do app funciona igual | `liquidations.js` |

@@ -72,6 +72,7 @@ Cache de 2 min. O formato está em [api.md](../../referencia/api.md#get-futures-
   - Alturas: `PANE_HEIGHT = 96` px (ou a de `PANE_DEFAULT_HEIGHTS`: 150 px no RSI e no Fear & Greed, 130 px no MACD) até a pessoa arrastar; depois vale `priceChartPaneHeights`. `applyHeights()` reaplica com `setStretchFactor` a cada resize.
   - Os títulos e spinners são HTML sobre o canvas, reposicionados por `ResizeObserver`. Têm spinner os painéis que carregam dado próprio: liquidações, Fear & Greed e os de futuros.
 - `createChart.update` define a variável CSS `--sub-panes` (quantidade de painéis), que aumenta a altura do gráfico.
+- O **eixo de tempo** fica logo abaixo do painel de preço, acima do volume e dos outros painéis (não no fim da lista). A biblioteca não tem opção para isso: `createPriceChart` (em `createChart.js`, `placeTimeAxis`) move a linha do eixo na tabela que a biblioteca monta, e um `MutationObserver` devolve para o fim cada painel novo, que a biblioteca insere antes da linha do eixo.
 
 ## Casos de borda
 

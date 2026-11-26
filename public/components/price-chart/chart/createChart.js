@@ -93,6 +93,23 @@ export function createPriceChart(els, handlers = {}) {
     },
   });
 
+  // Eixo de tempo logo abaixo do painel de preço (acima do volume e dos outros painéis), não no fim da lista.
+  // A biblioteca monta tudo numa tabela (uma linha por painel/divisória e a do eixo por último) e não tem
+  // opção para isso: a linha do eixo é movida no DOM. Como ela insere cada painel novo *antes* da linha do
+  // eixo, o observador devolve para o fim (na ordem) o que aparecer entre o painel de preço e o eixo.
+  const table = container.querySelector("table");
+  const timeAxisRow = table?.lastElementChild;
+  if (timeAxisRow && timeAxisRow !== table.firstElementChild) {
+    const placeTimeAxis = () => {
+      if (timeAxisRow.parentNode !== table) return;
+      const between = [];
+      for (let el = table.firstElementChild?.nextElementSibling; el && el !== timeAxisRow; el = el.nextElementSibling) between.push(el);
+      if (between.length) table.append(...between);
+    };
+    placeTimeAxis();
+    new MutationObserver(placeTimeAxis).observe(table, { childList: true });
+  }
+
   const tooltip = createTooltip(wrap, container);
 
   // mapa de liquidação estimado (anexado à série principal; reanexado quando ela é recriada)
