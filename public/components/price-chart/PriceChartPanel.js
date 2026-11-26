@@ -1453,7 +1453,7 @@ export function refreshPriceChart() {
     reloadMyOrders(asset),
     reloadHistory(ordersTab === "history"),
     reloadTrades(ordersTab === "trades"),
-    loadSignals(asset),
+    loadSignals(asset, { fresh: true }),
     ...refreshLayers(asset),
   ];
   if (isOpen()) tasks.push(loadChart({ keepWindow: true }));

@@ -67,6 +67,8 @@ Cache de 10 min (`fearGreed`). A API não exige chave; o limite informado é de 
   - `drawFng` só refaz os dados quando mudam as velas, a resposta ou a série. Cada ponto leva a cor da sua zona (`color` do dado da linha);
   - quando muda um painel **antes** dele (volume, CVD, RSI, MACD ou liquidações), `withTailMoved(fn)` tira o Fear & Greed junto com os de futuros e o recoloca, redesenhado. Ver [paineis-de-futuros](paineis-de-futuros.md).
 
+Os [sinais de compra e venda](../../sinais/README.md) também leem `/fear-greed` (medo ou ganância extremos), com carga e cache próprios em `signals/signalsPanel.js`.
+
 ## Regras de negócio e fórmulas
 
 `alignFearGreed` dá a cada vela **o último valor publicado até o fim dela**:

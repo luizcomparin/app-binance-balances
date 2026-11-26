@@ -11,7 +11,7 @@ storage: []
 
 Como usar este doc: ao concluir uma etapa, marque os itens (`[x]`), anote a data e o que mudou em relação ao plano, e atualize o [README](README.md) e o [catálogo](catalogo-de-sinais.md) no mesmo commit do código.
 
-**Situação em 25/11/2026:** etapas 0, 1 e 2 concluídas. O campo "Sinais" está no cabeçalho do gráfico com tendência, RSI e esticagem; faltam as fontes das etapas 3 a 5.
+**Situação em 25/11/2026:** etapas 0 a 3 concluídas. O campo "Sinais" está no cabeçalho do gráfico com tendência, MACD, RSI, esticagem e Fear & Greed; faltam funding e liquidações (etapa 4) e a divergência de RSI (etapa 5).
 
 ## V1: sinais no gráfico de preço
 
@@ -46,11 +46,15 @@ Verificado com o server local e o Edge sem interface: sinais de BTC, ETH, XRP, S
 
 Ajuste feito ao ver dados reais: o percentil da esticagem é arredondado para baixo no texto (um valor perto do máximo aparecia como "acima de 100% do histórico" sem ser o máximo).
 
-### Etapa 3 — Fear & Greed e MACD
+### Etapa 3 — Fear & Greed e MACD ✅ (25/11/2026)
 
-- [ ] Sinal `fng` (reaproveitando a carga única de `/fear-greed`).
-- [ ] Sinais `macd-w` e `macd-d`.
-- [ ] Testes.
+- [x] Sinal `fng` (`fearGreedSignal`), com a carga de `/fear-greed` no painel dos sinais.
+- [x] Sinais `macd-w` e `macd-d` (`macdSignal`).
+- [x] Testes.
+
+Mudanças em relação ao plano: a ganância extrema começa em 76 (zona da Alternative.me), não em 75; o painel dos sinais tem cache próprio do Fear & Greed (10 min) em vez de dividir o do painel do gráfico, para não acoplar os dois módulos.
+
+Verificado com o server local e o Edge sem interface, em BTC: os dois MACD e o Fear & Greed aparecem na janela, e o valor do Fear & Greed (11) bate com o de `/fear-greed`. **Não verificado:** a fonte do Fear & Greed fora do ar (não foi simulada) e a comparação visual do MACD com o painel do gráfico.
 
 ### Etapa 4 — Funding e liquidações (fontes opcionais)
 
@@ -133,5 +137,6 @@ Intenção registrada em 25/11/2026: avaliar os sinais no histórico para saber 
 | Data | O que foi feito |
 |---|---|
 | 25/11/2026 | Levantamento dos indicadores e camadas, decisões iniciais e criação da documentação (etapa 0) |
+| 25/11/2026 | Etapa 3: sinais de MACD (D e S) e Fear & Greed |
 | 25/11/2026 | Etapa 2: carga das velas D e S, campo "Sinais" no cabeçalho do gráfico e janela flutuante com os detalhes |
 | 25/11/2026 | Etapa 1: núcleo puro (`signals/signals.js`) com tendência por médias, RSI, esticagem com percentil e placar de região, com testes |

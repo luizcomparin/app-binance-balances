@@ -1,6 +1,6 @@
 // Sinais de compra e venda: núcleo puro (sem DOM, sem rede e sem ler o "agora" por conta própria).
-// Lê as velas diárias e semanais de uma moeda e devolve a tendência, a região (fundo/topo provável)
-// e a lista de sinais. Não é previsão. Documentação: docs/sinais/.
+// Lê as velas diárias e semanais de uma moeda (e o Fear & Greed Index do mercado) e devolve a tendência,
+// a região (fundo/topo provável) e a lista de sinais. Não é previsão. Documentação: docs/sinais/.
 //
 // Vela em andamento: o valor e o estado "ativo" de cada sinal usam a última vela (mesmo em formação);
 // "há N velas" (`bars`) conta só velas FECHADAS seguidas. Ativo com bars = 0 fica `forming: true`.
@@ -8,6 +8,7 @@
 
 import { movingAverage } from "../chart/movingAverage.js";
 import { rsi } from "../chart/rsi.js";
+import { macd, MACD_DEFAULT, macdHistogramTones } from "../chart/macd.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -21,6 +22,11 @@ export const SIGNAL_DEFAULTS = {
   rsiOverbought: 70,
   stretchLow: 10, // percentil da esticagem que conta como fundo
   stretchHigh: 90, // ... e como topo
+  macd: { fast: MACD_DEFAULT.fast, slow: MACD_DEFAULT.slow, signal: MACD_DEFAULT.signal, oscType: "EMA", signalType: "EMA" },
+  macdCrossBars: 3, // cruzamento do MACD com o sinal: avisa se foi nas últimas N velas
+  fngFear: 25, // Fear & Greed até aqui = medo extremo (fundo); é a zona da própria Alternative.me
+  fngGreed: 76, // ... e a partir daqui = ganância extrema (topo)
+  fngStaleMs: 2 * DAY_MS, // último valor mais velho que isso: a fonte parou
   regionMin: 3, // sinais do lado dominante para "fundo/topo provável"
   regionMaxOpposite: 1, // ... com no máximo estes do lado oposto
 };
@@ -170,6 +176,78 @@ export function stretchSignal(points, tf, now, cfg = SIGNAL_DEFAULTS) {
   };
 }
 
+/**
+ * MACD: acima de zero favorece alta, abaixo favorece baixa. Avisa o cruzamento recente com a linha de
+ * sinal (o histograma trocou de lado) e o histograma perdendo força (barras voltando em direção ao zero).
+ */
+export function macdSignal(points, tf, now, cfg = SIGNAL_DEFAULTS) {
+  const id = `macd-${tf}`;
+  const n = points?.length || 0;
+  const { macd: line, hist } = macd(points, cfg.macd);
+  const value = n ? line[n - 1] : null;
+  const name = `MACD ${TF_LABEL[tf]} (${cfg.macd.fast}/${cfg.macd.slow}/${cfg.macd.signal})`;
+  if (value === null || hist[n - 1] === null) {
+    return unavailable(id, "trend", tf, "history", `${name}: histórico insuficiente`);
+  }
+
+  const sideOf = (v) => (v > 0 ? "up" : v < 0 ? "down" : null);
+  const side = sideOf(value);
+  const bars = side ? streak(line, lastClosedIndex(points, cfg[tf].ms, now), (v) => sideOf(v) === side) : 0;
+
+  // cruzamento: a vela mais recente (até N atrás) em que o histograma trocou de lado
+  let cross = null;
+  for (let ago = 0; ago < cfg.macdCrossBars && !cross; ago++) {
+    const i = n - 1 - ago;
+    const prev = hist[i - 1];
+    if (prev === null || prev === undefined) break;
+    if (hist[i] > 0 && prev <= 0) cross = { dir: "up", barsAgo: ago };
+    else if (hist[i] < 0 && prev >= 0) cross = { dir: "down", barsAgo: ago };
+  }
+  const weakening = !macdHistogramTones(hist)[n - 1].strong;
+
+  const parts = [];
+  if (side) parts.push(`${side === "up" ? "acima" : "abaixo"} de zero ${sinceText(bars, tf)} (favorece ${side === "up" ? "alta" : "baixa"})`);
+  else parts.push("em zero");
+  if (cross) {
+    const when = cross.barsAgo === 0 ? "na última vela" : `há ${cross.barsAgo} ${cross.barsAgo === 1 ? "vela" : "velas"}`;
+    parts.push(`cruzou o sinal para ${cross.dir === "up" ? "cima" : "baixo"} ${when}`);
+  }
+  if (weakening) parts.push("histograma perdendo força");
+
+  return {
+    id, group: "trend", timeframe: tf, available: true,
+    active: !!side, side, value, bars, forming: !!side && bars === 0,
+    details: { hist: hist[n - 1], cross, weakening },
+    text: `${name}: ${parts.join("; ")}`,
+  };
+}
+
+/**
+ * Fear & Greed Index (do mercado, igual para toda moeda): medo extremo conta como sinal de fundo e
+ * ganância extrema, de topo. rows = [{ t (ms), v (0–100) }] em ordem de tempo, um valor por dia.
+ * O valor do dia já sai fechado: aqui não existe "vela em formação".
+ */
+export function fearGreedSignal(rows, now, cfg = SIGNAL_DEFAULTS) {
+  const none = (reason, why) => unavailable("fng", "extreme", null, reason, `Fear & Greed: ${why}`);
+  const list = (rows || []).filter((r) => r.t <= now);
+  if (!list.length) return none("no-data", "sem dados da fonte");
+  const last = list[list.length - 1];
+  if (now - last.t > cfg.fngStaleMs) return none("stale", "a fonte está sem valores novos");
+
+  const zone = (v) => (v <= cfg.fngFear ? "bottom" : v >= cfg.fngGreed ? "top" : null);
+  const side = zone(last.v);
+  const bars = side ? streak(list.map((r) => r.v), list.length - 1, (v) => zone(v) === side) : 0;
+  const label = `Fear & Greed em ${last.v}`;
+
+  return {
+    id: "fng", group: "extreme", timeframe: null, available: true,
+    active: !!side, side, value: last.v, bars, forming: false,
+    text: side
+      ? `${label}: ${side === "bottom" ? "medo extremo" : "ganância extrema"} há ${barsText(bars, "d")} (índice do mercado)`
+      : `${label}: sem extremo (índice do mercado; medo extremo até ${cfg.fngFear}, ganância extrema a partir de ${cfg.fngGreed})`,
+  };
+}
+
 /** Placar de confluência: conta os sinais de fundo e de topo ativos entre os disponíveis do grupo "extreme". */
 export function regionOf(signals, cfg = SIGNAL_DEFAULTS) {
   const usable = signals.filter((s) => s.group === "extreme" && s.available);
@@ -183,14 +261,17 @@ export function regionOf(signals, cfg = SIGNAL_DEFAULTS) {
 /**
  * Análise completa de uma moeda.
  * daily / weekly: velas [{ time (ms da abertura), close, ... }] em ordem crescente; now: instante da análise (ms).
+ * fearGreed: linhas do Fear & Greed Index ([{ t, v }]) ou null se a fonte não respondeu.
  * Devolve { asset, generatedAt, trend: { d, w }, region, signals } (serializável em JSON).
  */
-export function analyzeSignals({ asset, daily, weekly, now }, cfg = SIGNAL_DEFAULTS) {
+export function analyzeSignals({ asset, daily, weekly, fearGreed, now }, cfg = SIGNAL_DEFAULTS) {
   const series = { d: daily || [], w: weekly || [] };
   const signals = [];
   for (const tf of ["d", "w"]) signals.push(trendSignal(series[tf], tf, now, cfg));
+  for (const tf of ["d", "w"]) signals.push(macdSignal(series[tf], tf, now, cfg));
   for (const tf of ["d", "w"]) signals.push(rsiSignal(series[tf], tf, now, cfg));
   for (const tf of ["d", "w"]) signals.push(stretchSignal(series[tf], tf, now, cfg));
+  signals.push(fearGreedSignal(fearGreed, now, cfg));
 
   const trendOf = (tf) => {
     const s = signals.find((x) => x.id === `trend-ma-${tf}`);

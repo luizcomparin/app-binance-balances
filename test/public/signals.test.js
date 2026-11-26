@@ -2,7 +2,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  analyzeSignals, lastClosedIndex, percentileRank, regionOf, rsiSignal, SIGNAL_DEFAULTS, streak, stretchSignal, trendSignal,
+  analyzeSignals, fearGreedSignal, lastClosedIndex, macdSignal, percentileRank, regionOf, rsiSignal, SIGNAL_DEFAULTS, streak,
+  stretchSignal, trendSignal,
 } from "../../public/components/price-chart/signals/signals.js";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -18,6 +19,7 @@ const cfg = {
   w: { ms: 7 * DAY, maShort: 2, maLong: 4, stretchMa: 4, minSamples: 5 },
   slopeBars: 2,
   rsiPeriod: 3,
+  macd: { fast: 2, slow: 3, signal: 2, oscType: "EMA", signalType: "EMA" },
 };
 
 test("lastClosedIndex: a última vela só conta se já terminou", () => {
@@ -176,6 +178,103 @@ test("stretchSignal: histórico insuficiente", () => {
   assert.equal(s.reason, "history");
 });
 
+test("macdSignal: acima de zero favorece alta, abaixo favorece baixa", () => {
+  // subindo cada vez mais: MACD positivo desde a 3ª vela (média lenta de 3) e histograma crescendo
+  const up = pts([1, 2, 4, 8, 16, 32, 64]);
+  const s = macdSignal(up, "d", endOf(up), cfg);
+  assert.equal(s.id, "macd-d");
+  assert.equal(s.group, "trend");
+  assert.equal(s.side, "up");
+  assert.equal(s.bars, 5);
+  assert.deepEqual([s.details.cross, s.details.weakening], [null, false]);
+  assert.equal(s.text, "MACD diário (2/3/2): acima de zero há 5 dias (favorece alta)");
+
+  // caindo cada vez menos: MACD negativo, mas o histograma (positivo) vem encolhendo
+  const down = pts([64, 32, 16, 8, 4, 2, 1], 7 * DAY);
+  const d = macdSignal(down, "w", endOf(down, 7 * DAY), cfg);
+  assert.equal(d.side, "down");
+  assert.equal(d.bars, 5);
+  assert.equal(d.details.weakening, true);
+  assert.equal(d.text, "MACD semanal (2/3/2): abaixo de zero há 5 semanas (favorece baixa); histograma perdendo força");
+});
+
+test("macdSignal: cruzamento recente com a linha de sinal", () => {
+  // a alta perde o fôlego na última vela: o MACD segue positivo, mas cai abaixo do sinal
+  const stall = pts([1, 2, 4, 8, 16, 32, 64, 66]);
+  const s = macdSignal(stall, "d", endOf(stall), cfg);
+  assert.equal(s.side, "up");
+  assert.deepEqual(s.details.cross, { dir: "down", barsAgo: 0 });
+  assert.match(s.text, /cruzou o sinal para baixo na última vela$/);
+
+  // virada: cruzou para baixo há 2 velas e o MACD já está negativo há 2
+  const turn = pts([1, 2, 4, 8, 16, 32, 64, 40, 20, 10]);
+  const t = macdSignal(turn, "d", endOf(turn), cfg);
+  assert.equal(t.side, "down");
+  assert.equal(t.bars, 2);
+  assert.deepEqual(t.details.cross, { dir: "down", barsAgo: 2 });
+  assert.match(t.text, /cruzou o sinal para baixo há 2 velas; histograma perdendo força$/);
+  // cruzamento mais antigo que o limite não é avisado
+  assert.equal(macdSignal(turn, "d", endOf(turn), { ...cfg, macdCrossBars: 2 }).details.cross, null);
+});
+
+test("macdSignal: vela em formação e histórico insuficiente", () => {
+  // a última vela (em formação) derruba o MACD para baixo de zero
+  const p = pts([1, 2, 4, 8, 16, 32, 64, 40, 20]);
+  const s = macdSignal(p, "d", endOf(p) - 1, cfg);
+  assert.equal(s.side, "down");
+  assert.equal(s.bars, 0);
+  assert.equal(s.forming, true);
+
+  // o histograma precisa da média lenta (3) mais o sinal (2): 4 velas
+  const few = pts([1, 2, 4]);
+  assert.equal(macdSignal(few, "d", endOf(few), cfg).available, false);
+  assert.equal(macdSignal([], "w", 0, cfg).reason, "history");
+  assert.equal(macdSignal(null, "w", 0, cfg).available, false);
+});
+
+const fngRows = (values) => values.map((v, i) => ({ t: i * DAY, v }));
+
+test("fearGreedSignal: medo extremo, ganância extrema e sem extremo", () => {
+  const fear = fngRows([40, 30, 25, 20, 12]);
+  const s = fearGreedSignal(fear, 4 * DAY + 1000);
+  assert.equal(s.id, "fng");
+  assert.equal(s.group, "extreme");
+  assert.equal(s.timeframe, null);
+  assert.equal(s.side, "bottom");
+  assert.equal(s.value, 12);
+  // 25, 20 e 12: o limite (25) já conta
+  assert.equal(s.bars, 3);
+  assert.equal(s.forming, false);
+  assert.equal(s.text, "Fear & Greed em 12: medo extremo há 3 dias (índice do mercado)");
+
+  const greed = fearGreedSignal(fngRows([50, 75, 76]), 2 * DAY);
+  assert.equal(greed.side, "top");
+  // 75 ainda é "ganância" na Alternative.me: só o 76 conta
+  assert.equal(greed.bars, 1);
+  assert.match(greed.text, /ganância extrema há 1 dia/);
+
+  const mid = fearGreedSignal(fngRows([10, 50]), DAY);
+  assert.equal(mid.available, true);
+  assert.equal(mid.active, false);
+  assert.equal(mid.side, null);
+  assert.equal(mid.bars, 0);
+  assert.match(mid.text, /^Fear & Greed em 50: sem extremo/);
+});
+
+test("fearGreedSignal: sem dados, fonte parada e valores depois de `now`", () => {
+  assert.equal(fearGreedSignal(null, 0).reason, "no-data");
+  assert.equal(fearGreedSignal([], 0).reason, "no-data");
+  // último valor há mais de 2 dias
+  const stale = fearGreedSignal(fngRows([10, 10]), 3 * DAY + 1);
+  assert.equal(stale.available, false);
+  assert.equal(stale.reason, "stale");
+  assert.equal(fearGreedSignal(fngRows([10, 10]), 3 * DAY).available, true);
+  // análise de uma data passada: os valores publicados depois dela não entram
+  const past = fearGreedSignal(fngRows([10, 15, 90, 95]), DAY + 1);
+  assert.equal(past.value, 15);
+  assert.equal(past.bars, 2);
+});
+
 test("regionOf: placar só com sinais disponíveis do grupo de fundo/topo", () => {
   const sig = (side, extra = {}) => ({ group: "extreme", available: true, active: !!side, side, ...extra });
   assert.deepEqual(regionOf([sig("bottom"), sig("bottom"), sig("bottom"), sig("top"), sig(null)]), { side: "bottom", bottom: 3, top: 1, of: 5 });
@@ -193,14 +292,18 @@ test("analyzeSignals: junta tudo num resultado serializável", () => {
   const daily = pts([...new Array(12).fill(100), 99, 98, 97, 60]);
   const weekly = pts([1, 2, 3, 4, 5, 6], 7 * DAY);
   const now = endOf(daily);
-  const r = analyzeSignals({ asset: "BTC", daily, weekly, now }, cfg);
+  const fearGreed = [{ t: now - DAY, v: 18 }];
+  const r = analyzeSignals({ asset: "BTC", daily, weekly, fearGreed, now }, cfg);
 
   assert.equal(r.asset, "BTC");
   assert.equal(r.generatedAt, now);
-  assert.deepEqual(r.signals.map((s) => s.id), ["trend-ma-d", "trend-ma-w", "rsi-d", "rsi-w", "stretch-d", "stretch-w"]);
+  assert.deepEqual(r.signals.map((s) => s.id), ["trend-ma-d", "trend-ma-w", "macd-d", "macd-w", "rsi-d", "rsi-w", "stretch-d", "stretch-w", "fng"]);
   assert.deepEqual(r.trend, { d: "down", w: "up" });
-  // diário: RSI sobrevendido e preço esticado para baixo; semanal: RSI sobrecomprado e esticagem sem histórico
-  assert.deepEqual(r.region, { side: "neutral", bottom: 2, top: 1, of: 3 });
+  // diário: RSI sobrevendido e preço esticado para baixo; semanal: RSI sobrecomprado e esticagem sem histórico;
+  // mercado: medo extremo. Três de fundo e um de topo: fundo provável
+  assert.deepEqual(r.region, { side: "bottom", bottom: 3, top: 1, of: 4 });
+  // a tendência exibida vem das médias; o MACD é só confirmação
+  assert.equal(r.signals.find((s) => s.id === "macd-w").side, "up");
   assert.deepEqual(JSON.parse(JSON.stringify(r)), r);
 });
 
@@ -208,11 +311,14 @@ test("analyzeSignals: sem velas, tudo indisponível", () => {
   const r = analyzeSignals({ asset: "X", daily: [], weekly: null, now: 0 });
   assert.deepEqual(r.trend, { d: null, w: null });
   assert.deepEqual(r.region, { side: "neutral", bottom: 0, top: 0, of: 0 });
-  assert.ok(r.signals.every((s) => !s.available && s.reason === "history"));
+  assert.ok(r.signals.every((s) => !s.available));
+  assert.deepEqual([...new Set(r.signals.map((s) => s.reason))], ["history", "no-data"]);
 });
 
 test("SIGNAL_DEFAULTS: limiares da v1", () => {
   assert.deepEqual([SIGNAL_DEFAULTS.d.maShort, SIGNAL_DEFAULTS.d.maLong, SIGNAL_DEFAULTS.d.stretchMa], [50, 200, 200]);
   assert.deepEqual([SIGNAL_DEFAULTS.w.maShort, SIGNAL_DEFAULTS.w.maLong, SIGNAL_DEFAULTS.w.stretchMa], [20, 50, 50]);
   assert.deepEqual([SIGNAL_DEFAULTS.rsiPeriod, SIGNAL_DEFAULTS.rsiOversold, SIGNAL_DEFAULTS.rsiOverbought], [14, 30, 70]);
+  assert.deepEqual([SIGNAL_DEFAULTS.macd.fast, SIGNAL_DEFAULTS.macd.slow, SIGNAL_DEFAULTS.macd.signal], [12, 26, 9]);
+  assert.deepEqual([SIGNAL_DEFAULTS.fngFear, SIGNAL_DEFAULTS.fngGreed], [25, 76]);
 });

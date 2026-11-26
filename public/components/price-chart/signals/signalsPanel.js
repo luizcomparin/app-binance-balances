@@ -1,8 +1,10 @@
 // Sinais de compra e venda no cabeçalho do gráfico de preço: campo resumido (tendência D/S e região)
 // que abre uma janelinha flutuante com os detalhes. A conta fica em signals.js (pura); aqui ficam a
-// carga das velas diárias e semanais (sempre essas, qualquer que seja a vela na tela) e o desenho.
+// carga das velas diárias e semanais (sempre essas, qualquer que seja a vela na tela), a do Fear & Greed
+// Index e o desenho.
 // Documentação: docs/sinais/.
 
+import { fetchFearGreed } from "../../../api/binance.js";
 import { escapeHtml } from "../../../core/dom.js";
 import { getKlines, KLINES_PAGE } from "../chartData.js";
 import { pairLabel } from "../chartQuote.js";
@@ -29,8 +31,33 @@ async function loadDaily(asset) {
   return points;
 }
 
-/** Carrega as velas D e S da moeda e calcula os sinais. Chamada na troca de moeda e no Atualizar do topo. */
-export async function loadSignals(asset) {
+// Fear & Greed Index: é do mercado, então uma carga serve a todas as moedas (10 min, como o server).
+// Fonte fora do ar não derruba os outros sinais: devolve null e o sinal fica "indisponível".
+const FNG_CACHE_MS = 10 * 60 * 1000;
+const fng = { at: 0, rows: null, loading: null };
+
+function loadFearGreedRows({ fresh = false } = {}) {
+  if (!fresh && fng.rows && Date.now() - fng.at < FNG_CACHE_MS) return Promise.resolve(fng.rows);
+  if (fng.loading) return fng.loading;
+  fng.loading = fetchFearGreed()
+    .then((data) => {
+      if (!data?.available) return fng.rows; // falhou: fica com o que já tinha (o sinal confere se está velho)
+      fng.rows = data.rows || [];
+      fng.at = Date.now();
+      return fng.rows;
+    })
+    .catch(() => fng.rows)
+    .finally(() => {
+      fng.loading = null;
+    });
+  return fng.loading;
+}
+
+/**
+ * Carrega as velas D e S da moeda e o Fear & Greed e calcula os sinais. Chamada na troca de moeda e no
+ * Atualizar do topo (fresh: busca o Fear & Greed de novo, sem usar o cache do cliente).
+ */
+export async function loadSignals(asset, { fresh = false } = {}) {
   const requestId = ++view.requestId;
   // na troca de moeda some o resultado anterior; no Atualizar ele continua na tela até o novo chegar
   if (view.asset !== asset) view.result = null;
@@ -39,9 +66,13 @@ export async function loadSignals(asset) {
   view.loading = true;
   render();
   try {
-    const [daily, weekly] = await Promise.all([loadDaily(asset), getKlines(asset, "1w").then((d) => d.points || [])]);
+    const [daily, weekly, fearGreed] = await Promise.all([
+      loadDaily(asset),
+      getKlines(asset, "1w").then((d) => d.points || []),
+      loadFearGreedRows({ fresh }),
+    ]);
     if (requestId !== view.requestId) return;
-    view.result = analyzeSignals({ asset, daily, weekly, now: Date.now() });
+    view.result = analyzeSignals({ asset, daily, weekly, fearGreed, now: Date.now() });
   } catch (err) {
     if (requestId !== view.requestId) return;
     view.result = null;

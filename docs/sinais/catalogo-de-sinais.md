@@ -24,10 +24,10 @@ Convenções:
 |---|---|---|---|---|---|
 | `trend-ma-d` | Tendência diária por médias | Alta: fechamento acima da SMA 50 e da SMA 200, com SMA 50 acima da SMA 200. Baixa: o inverso. Qualquer outra combinação: lateral. Mostra também a inclinação da SMA 200 (valor atual × o de 10 velas atrás) | velas D, `movingAverage` | 1 | implementado |
 | `trend-ma-w` | Tendência semanal por médias | Igual, com SMA 20 e SMA 50 semanais | velas S, `movingAverage` | 1 | implementado |
-| `macd-w` | MACD semanal (12/26/9) | Acima de zero: favorece alta; abaixo: baixa. Avisa cruzamento do sinal nas últimas 3 velas e histograma perdendo força (barras voltando ao zero, `macdHistogramTones`) | velas S, `macd` | 3 | planejado |
-| `macd-d` | MACD diário (12/26/9) | Igual ao semanal, como leitura secundária | velas D, `macd` | 3 | planejado |
+| `macd-d` | MACD diário (12/26/9, EMA) | Igual ao semanal, como leitura secundária | velas D, `macd` | 3 | implementado |
+| `macd-w` | MACD semanal (12/26/9, EMA) | Linha MACD acima de zero: favorece alta; abaixo: baixa. "Há N velas" conta as velas fechadas seguidas desse lado do zero. Avisa o cruzamento com a linha de sinal (o histograma trocou de lado) se foi nas últimas 3 velas, contando a em formação, e o histograma perdendo força (barra voltando em direção ao zero, `macdHistogramTones`) | velas S, `macd` | 3 | implementado |
 
-A tendência exibida no campo resumido (`trend.d`, `trend.w`) vem dos sinais por médias; o MACD aparece como confirmação ou divergência dela.
+A tendência exibida no campo resumido (`trend.d`, `trend.w`) vem dos sinais por médias; o MACD aparece na janela, na mesma seção, como confirmação ou divergência dela. O MACD não entra no placar de fundo/topo.
 
 ## Fundo ou topo (entram no placar de confluência)
 
@@ -37,7 +37,7 @@ A tendência exibida no campo resumido (`trend.d`, `trend.w`) vem dos sinais por
 | `rsi-w` | RSI 14 semanal | Mesmos níveis; mostra há quantas semanas | idem | velas S, `rsi` | 1 | implementado |
 | `stretch-d` | Esticagem da SMA 200 diária | `fechamento / SMA 200 − 1`, comparada com o histórico da moeda. Fundo: preço **abaixo** da média e percentil ≤ 10. Topo: preço **acima** da média e percentil ≥ 90. Mostra o valor atual, o percentil e os extremos já atingidos (máximo e mínimo históricos da esticagem) | ≤10 fundo, ≥90 topo | velas D (até 3 páginas), `movingAverage` | 1 | implementado |
 | `stretch-w` | Esticagem da SMA 50 semanal | Igual, sobre as velas semanais | idem | velas S | 1 | implementado |
-| `fng` | Fear & Greed extremo | ≤ 25 (medo extremo) ou ≥ 75 (ganância extrema). Mostra há quantos dias seguidos | ≤25 fundo, ≥75 topo | `/fear-greed` | 3 | planejado |
+| `fng` | Fear & Greed extremo | ≤ 25 (medo extremo) ou ≥ 76 (ganância extrema). Mostra há quantos dias seguidos, contando o de hoje | ≤25 fundo, ≥76 topo | `/fear-greed` | 3 | implementado |
 | `funding` | Funding extremo | Média da taxa nos últimos 7 dias no percentil ≤ 10 (ou negativa) ou ≥ 90 do histórico de ~333 dias | baixo/negativo fundo, alto topo | `/futures-data?period=1d` | 4 | planejado |
 | `liq` | Cascata de liquidações | Soma liquidada nos últimos 7 dias, por lado, comparada com todas as janelas de 7 dias do histórico. Percentil ≥ 90 em longs liquidados ou em shorts liquidados. 3 corretoras (Binance + Bybit + OKX) | longs liquidados fundo, shorts liquidados topo | `/liquidations` (D) | 4 | planejado |
 | `rsi-div-d` | Divergência RSI × preço (D) | Fundo: o preço faz mínima mais baixa que a do pivô anterior e o RSI faz mínima mais alta. Topo: o inverso. Pivôs e janela a definir na etapa 5 | altista fundo, baixista topo | velas D, `rsi` | 5 | planejado |
@@ -47,6 +47,8 @@ Observações sobre os padrões:
 
 - **Esticagem exige o lado certo da média:** numa moeda que passou quase todo o histórico acima da média, o percentil 10 pode ser um preço encostado nela, e isso não é "esticado para baixo". Por isso o sinal de fundo só vale com o preço abaixo da média, e o de topo, acima.
 - **Tendência sem a média longa** (menos de 200 velas diárias ou 50 semanais) fica indisponível.
+- **Fear & Greed em 76, e não 75:** o plano dizia 75, mas na Alternative.me a zona "ganância extrema" começa em 76 (75 ainda é "ganância"). O sinal segue a zona da fonte, igual ao painel do gráfico.
+- **Fear & Greed não tem vela em formação:** o valor do dia já sai fechado, às 00:00 UTC. Com o último valor mais velho que 2 dias, o sinal fica indisponível.
 - **Fear & Greed** é do mercado (calculado sobre o BTC): o mesmo valor vale para qualquer moeda. Ainda assim entra no placar de cada uma, porque altcoins costumam fazer fundo e topo junto com o mercado.
 - **Liquidações em percentil**, e não em USDT fixo: o mesmo valor é irrelevante no BTC e enorme numa altcoin. A conta se parece com a de `topShareCutoff` em `chart/liquidationBubbles.js`.
 - **Funding e liquidações são opcionais:** sem contrato perpétuo ou sem chave da Coinalyze, ficam "indisponíveis" e saem do placar.
