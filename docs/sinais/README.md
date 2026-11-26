@@ -1,6 +1,6 @@
 ---
 titulo: Sinais de compra e venda — visão geral
-resumo: Mecanismo (em desenvolvimento) que lê os indicadores e camadas já existentes nos tempos Diário e Semanal e informa, por paridade, a tendência atual e se o preço está em região provável de fundo ou de topo, listando os sinais presentes.
+resumo: Mecanismo que lê os indicadores e camadas já existentes nos tempos Diário e Semanal e informa, por paridade, a tendência atual e se o preço está em região provável de fundo ou de topo, listando os sinais presentes.
 arquivos: [public/components/price-chart/signals/signals.js, public/components/price-chart/signals/signalsPanel.js, public/components/price-chart/signals/signals.css, public/components/price-chart/PriceChartPanel.html, public/components/price-chart/PriceChartPanel.js]
 rotas: [GET /price-chart/:asset, GET /fear-greed, GET /futures-data/:asset, GET /liquidations/:asset]
 eventos: [COINALYZE_KEY_CHANGED]
@@ -9,7 +9,7 @@ storage: []
 
 # Sinais de compra e venda
 
-> **Estado: em desenvolvimento.** Etapas 1 a 5 prontas: o campo "Sinais" aparece no cabeçalho do gráfico de preço com todos os sinais da v1: tendência por médias, MACD, RSI, divergência de RSI, esticagem da média, Fear & Greed, funding e liquidações. Falta a etapa 6: revisar os limiares e a regra do placar. O andamento fica em [planejamento.md](planejamento.md), e este doc é atualizado a cada etapa concluída.
+> **Estado: v1 concluída (26/11/2026).** O campo "Sinais" está no cabeçalho do gráfico de preço com todos os sinais planejados e o placar por famílias. Ficaram pendências de decisão e a v2 (varredura de ativos e backtest): ver [planejamento.md](planejamento.md). Este doc continua sendo atualizado a cada mudança.
 
 Documentação exclusiva dos sinais:
 
@@ -18,13 +18,14 @@ Documentação exclusiva dos sinais:
 | este | O que é, como aparece na tela, de onde vêm os dados, arquitetura e decisões tomadas |
 | [catalogo-de-sinais.md](catalogo-de-sinais.md) | Cada sinal: regra, limiares padrão, fonte, o que indica e em que etapa entra |
 | [planejamento.md](planejamento.md) | Etapas da v1 com marcação de concluído, pendências de decisão, preparos da v2 e ideias futuras |
+| [calibracao.md](calibracao.md) | O que a varredura do passado mostrou sobre cada sinal e sobre o placar; por que a regra é por famílias |
 
 ## O que é
 
 Um campo informativo **por paridade** no gráfico de preço. Ele não prevê nem recomenda: mostra quais sinais estão presentes agora e que padrão eles formam. Responde a três perguntas:
 
 1. **Tendência atual:** alta, baixa ou lateral, no Diário e no Semanal.
-2. **Região:** fundo provável, neutra ou topo provável, com um placar de confluência ("4 de 6 sinais de fundo").
+2. **Região:** fundo provável, neutra ou topo provável, com um placar de confluência por grupos de sinais ("3 de 5 grupos apontam fundo").
 3. **Quais sinais estão ativos:** cada um com o valor, há quantas velas está ativo e, quando há histórico, em que percentil o valor atual fica.
 
 **Tempos gráficos:** Diário (D) e Semanal (S), **sempre**, qualquer que seja a vela na tela (como a [faixa estatística](../funcionalidades/grafico-de-preco/faixa-estatistica.md), que usa sempre velas diárias). 4h e Mensal ficam como refinamento futuro, numa visão alternativa, para não virar excesso.
@@ -33,10 +34,11 @@ Um campo informativo **por paridade** no gráfico de preço. Ele não prevê nem
 
 - **Campo resumido "Sinais"** (`#price-chart-signals`) no cabeçalho do gráfico, na ponta direita da linha das informações de preço (`#price-chart-info`). Três pílulas:
   - **D** e **S**: tendência diária e semanal. ▲ verde = alta, ▼ vermelha = baixa, ▬ cinza = lateral, "–" = histórico insuficiente.
-  - **Região:** "Fundo provável 3/4" (verde), "Topo provável 3/4" (vermelha) ou "Região neutra" (cinza). Os números são sinais ativos do lado ÷ sinais disponíveis. O `title` de cada pílula traz o detalhe.
+  - **Região:** "Fundo provável 3/5" (verde), "Topo provável 3/5" (vermelha) ou "Região neutra" (cinza). Os números são grupos de sinais apontando aquele lado ÷ grupos disponíveis. O `title` de cada pílula traz o detalhe.
 - **Clicar no campo abre a janelinha flutuante** (`#price-chart-signals-pop`) logo abaixo dele, alinhada à direita, por cima do gráfico e da watchlist:
   - **Tendência:** uma linha por sinal de tendência.
-  - **Fundo ou topo:** o placar ("fundo 1 · topo 0 · de 4 disponíveis") e uma linha por sinal.
+  - **Fundo ou topo:** o placar ("grupos: fundo 3 · topo 0 · de 5 disponíveis") e os sinais separados por grupo (RSI, Divergência de RSI, Esticagem da média, Sentimento do mercado, Futuros). O grupo que conta para um lado ganha a marca "fundo" ou "topo" ao lado do nome.
+  - A janela rola quando os sinais não cabem.
   - Bolinha de cada linha: verde = fundo ou alta; vermelha = topo ou baixa; apagada = sinal não ativo; vazada = indisponível.
   - Rodapé: a hora do cálculo e o aviso de que não é previsão.
 - Fecha com clique fora ou Esc.
@@ -75,7 +77,8 @@ Pontos estruturais:
   - `trendSignal`, `macdSignal`, `rsiSignal`, `rsiDivergenceSignal`, `stretchSignal` `(points, "d" | "w", now, cfg?)`: um sinal cada.
   - `fearGreedSignal(rows, now, cfg?)`: o sinal do Fear & Greed.
   - `fundingSignal(source, now, cfg?)` e `liquidationSignal(source, now, cfg?)`: as fontes opcionais. `source` é `{ rows }` ou `{ reason }` (por que não há dados: `no-perpetual`, `no-market`, `no-key`, `invalid-key`, `error`); o texto do sinal indisponível explica o motivo.
-  - `regionOf(signals, cfg?)`: o placar de confluência.
+  - `regionOf(signals, cfg?)`: o placar de confluência, contado por família.
+  - `SIGNAL_FAMILIES`: as famílias dos sinais de fundo/topo (`key`, `label`, `ids`). `analyzeSignals` grava a família em cada sinal (`family`).
   - `lastClosedIndex`, `streak`, `percentileRank`, `midRank`: auxiliares.
   - `SIGNAL_DEFAULTS`: os limiares fixos da v1. As funções aceitam outra configuração no último parâmetro (os testes usam médias curtas).
 - **Painel (implementado):** `public/components/price-chart/signals/signalsPanel.js`, com o estado próprio (`view`: moeda, resultado, erro, carregando) e o desenho. Estilos em `signals/signals.css` (importado em `public/index.css`); o HTML do campo fica em `PriceChartPanel.html`.
@@ -99,10 +102,12 @@ Formato do resultado de `analyzeSignals`:
   asset: "BTC",
   generatedAt: 1764000000000,
   trend: { d: "up" | "down" | "side", w: "up" | "down" | "side" },
-  region: { side: "bottom" | "top" | "neutral", bottom: 4, top: 0, of: 6 },   // placar de confluência
+  // placar de confluência, em FAMÍLIAS de sinais; signals = a mesma contagem sinal a sinal
+  region: { side: "bottom" | "top" | "neutral", bottom: 3, top: 0, of: 5, signals: { bottom: 4, top: 0, of: 9 } },
   signals: [{
     id: "rsi-d",            // identificador estável
     group: "trend" | "extreme" | "context",
+    family: "rsi",          // família no placar (rsi, div, stretch, sentiment, futures); null nos de tendência
     timeframe: "d" | "w" | null,
     available: true,        // false + reason quando a fonte falta (sem chave, sem perpétuo, pouco histórico)
     active: true,
@@ -126,6 +131,8 @@ Formato do resultado de `analyzeSignals`:
 - **Percentil em vez de valor absoluto** sempre que houver histórico: "o preço está mais esticado que em 96% do histórico desta moeda" vale para BTC e para altcoin; "50M liquidados" não.
 - **Fonte ausente não conta contra.** Sem chave da Coinalyze, sem contrato perpétuo ou com histórico insuficiente, o sinal aparece como "indisponível" (com o motivo) e sai do denominador do placar.
 - **Confluência, não alerta único.** Um sinal isolado erra muito; a leitura é o conjunto.
+- **O placar conta famílias, não sinais soltos.** Sinais que medem a mesma coisa (RSI diário e semanal, esticagem diária e semanal) acendem juntos; contados um a um, "fundo provável" aparecia com 3 sinais de 9 e não dizia nada. As famílias são RSI, divergência de RSI, esticagem da média, sentimento do mercado (Fear & Greed) e futuros (funding e liquidações). A região vira "fundo provável" ou "topo provável" com 3 ou mais famílias de um lado e no máximo 1 do outro. Ver [calibracao.md](calibracao.md).
+- **"Topo provável" não foi confirmado pelo histórico.** Na varredura da etapa 6, os sinais de topo vieram antes de mais alta, não de queda. O rótulo continua na tela enquanto a decisão sobre ele está pendente (ver [calibracao.md](calibracao.md#o-que-ficou-em-aberto)).
 - **Não é previsão.** A janela traz esse aviso, como a faixa estatística e o mapa de liquidação.
 - **Só leitura e limites de API:** nenhuma chamada nova fora de `publicGet`/`fapiGet`/`coinalyzeGet`/`alternativeGet`; tudo passa pelas rotas existentes e seus caches.
 
@@ -152,7 +159,7 @@ Formato do resultado de `analyzeSignals`:
 4. Troque a vela do gráfico para 1h: os sinais não mudam (são sempre D e S).
 5. Troque de moeda: o campo volta a "analisando..." e mostra os sinais da nova moeda.
 6. Abra uma moeda listada há pouco tempo: a esticagem aparece como "histórico insuficiente", com a bolinha vazada.
-7. Abra USDT: o funding aparece como "a moeda não tem contrato perpétuo", com a bolinha vazada, e o placar conta um sinal a menos.
+7. Abra USDT: o funding aparece como "a moeda não tem contrato perpétuo", com a bolinha vazada, e o grupo Futuros conta só com as liquidações.
 8. Remova a chave da Coinalyze nas Configurações: o sinal de liquidações vira "configure a chave...". Salve de novo: ele volta.
 9. Clique em Atualizar no topo: as pílulas continuam na tela, com um spinner, e a hora do rodapé muda.
 

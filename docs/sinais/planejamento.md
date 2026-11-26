@@ -11,7 +11,7 @@ storage: []
 
 Como usar este doc: ao concluir uma etapa, marque os itens (`[x]`), anote a data e o que mudou em relação ao plano, e atualize o [README](README.md) e o [catálogo](catalogo-de-sinais.md) no mesmo commit do código.
 
-**Situação em 26/11/2026:** etapas 0 a 5 concluídas. Todos os sinais da v1 estão no campo "Sinais" do gráfico. Falta a etapa 6: revisar os limiares e a regra do placar (com 9 sinais de fundo/topo, o corte de 3 ficou fácil de atingir) e fechar a v1.
+**Situação em 26/11/2026:** v1 concluída (etapas 0 a 6). Ficam as pendências de decisão abaixo e a v2.
 
 ## V1: sinais no gráfico de preço
 
@@ -80,14 +80,29 @@ Verificado com o server local e o Edge sem interface: BTC (funding neutro, casca
 
 Verificado com velas reais: no momento não há divergência em BTC, ETH, XRP, SUI, SOL, LINK, AAVE e NEAR (os preços vêm fazendo mínimas novas), e a janela mostra "nenhuma recente" nas duas linhas. Para ver o sinal ativar, o passado foi varrido dia a dia: no BTC diário foram 14 divergências em 1100 velas (ativo em cerca de 12% delas) e 8 no semanal em 300 velas; ETH e SOL ficaram em 13 e 11 no diário. Isso só confirma que a detecção funciona e não dispara o tempo todo; **não é backtest** nem diz se o sinal acerta. **Não verificado:** o sinal ativo na tela (não há nenhum ativo agora) e a comparação visual dos pivôs com o gráfico.
 
-### Etapa 6 — Fechamento da v1
+### Etapa 6 — Fechamento da v1 ✅ (26/11/2026)
 
-- [ ] Revisar limiares e a regra do placar olhando moedas reais (BTC, ETH e duas altcoins).
-- [ ] Atualizar os docs de referência que se aplicarem: [armazenamento-local](../referencia/armazenamento-local.md), [cache](../referencia/cache.md), [glossario](../referencia/glossario.md), cabeçalhos YAML e `node docs/verificar-cobertura.mjs`.
-- [ ] Decidir o que entra em seguida (pendências abaixo e candidatos do catálogo).
+- [x] Revisar limiares e a regra do placar olhando moedas reais (BTC, ETH, SOL, XRP e LINK).
+- [x] Docs de referência, cabeçalhos YAML e `node docs/verificar-cobertura.mjs`.
+- [x] O que entra em seguida: ficou como recomendação abaixo, à espera de decisão.
+
+O que foi feito:
+- Varredura do passado de BTC, ETH, SOL, XRP e LINK (2020 a 2026), dia a dia e sem dado do futuro. Resultado completo em [calibracao.md](calibracao.md).
+- **Regra do placar trocada para famílias de sinais** (3 ou mais famílias de um lado, no máximo 1 do outro). Com sinais soltos, "fundo provável" não se distinguia de um dia qualquer.
+- **Limiares mantidos.** Uma versão mais exigente (Fear & Greed 15/85, liquidações no percentil 95) foi testada e não trouxe ganho claro.
+- A janela passou a mostrar os sinais de fundo/topo separados por família.
+- Docs de referência: [glossario](../referencia/glossario.md) com os termos dos sinais; [cache](../referencia/cache.md), [api](../referencia/api.md) e [eventos-e-estado](../referencia/eventos-e-estado.md) já tinham sido atualizados nas etapas 3 e 4; os sinais não usam `localStorage`.
+
+Verificado: `npm test`, cobertura dos docs e a janela em BTC no Edge sem interface. **Não verificado:** uma moeda com região de topo na tela (não há nenhuma agora).
+
+**Recomendação para a sequência**, nesta ordem:
+1. Decidir o rótulo "Topo provável" (pendência abaixo): é a única leitura da tela que o histórico contradiz.
+2. Backtest (v2), começando pela estatística "o que aconteceu depois" por sinal e por moeda: a varredura mostrou que os sinais valem muito diferente entre si, e isso merece aparecer na janela.
+3. Só depois, novos sinais do catálogo e a tela de varredura.
 
 ## Pendências de decisão
 
+- **Rótulo "Topo provável".** Na varredura da etapa 6, os sinais de topo e a região de topo vieram antes de mais alta, não de queda (ver [calibracao.md](calibracao.md#sinais-de-topo-um-a-um)). Opções: (a) manter o nome e pôr um aviso na janela; (b) trocar por um nome descritivo, como "Sobrecomprado" ou "Esticado para cima"; (c) tirar o rótulo de região do lado de topo e deixar só a lista de sinais. Em aberto desde 26/11/2026.
 - **Estatística "o que aconteceu depois"** (explicada abaixo): entra na v1, depois da etapa 6, ou junto com o backtest da v2? Em aberto desde 25/11/2026.
 
 ### O que é a estatística "o que aconteceu depois"
@@ -147,6 +162,7 @@ Intenção registrada em 25/11/2026: avaliar os sinais no histórico para saber 
 | Data | O que foi feito |
 |---|---|
 | 25/11/2026 | Levantamento dos indicadores e camadas, decisões iniciais e criação da documentação (etapa 0) |
+| 26/11/2026 | Etapa 6: varredura histórica de 5 moedas, placar por famílias de sinais, sinais agrupados por família na janela e fechamento da v1 |
 | 26/11/2026 | Etapa 5: sinal de divergência entre o preço e o RSI (D e S). Com ele, todos os sinais da v1 estão implementados |
 | 26/11/2026 | Etapa 4: sinais de funding e de liquidações reais (fontes opcionais), com cache próprio e reação à troca da chave da Coinalyze |
 | 25/11/2026 | Etapa 3: sinais de MACD (D e S) e Fear & Greed |

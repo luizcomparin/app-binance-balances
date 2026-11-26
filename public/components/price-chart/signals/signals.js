@@ -41,9 +41,20 @@ export const SIGNAL_DEFAULTS = {
   liqLookbackDays: 730, // ... comparada com as janelas dos últimos 2 anos (o mercado cresce: histórico antigo distorce)
   liqMinDays: 180, // histórico mínimo para comparar
   liqHigh: 90, // percentil que conta como cascata
-  regionMin: 3, // sinais do lado dominante para "fundo/topo provável"
-  regionMaxOpposite: 1, // ... com no máximo estes do lado oposto
+  regionMin: 3, // famílias de sinais do lado dominante para "fundo/topo provável"
+  regionMaxOpposite: 1, // ... com no máximo estas do lado oposto
 };
+
+// Famílias dos sinais de fundo/topo: sinais que medem a mesma coisa (o RSI diário e o semanal, por exemplo)
+// costumam acender juntos, então o placar conta cada família uma vez só.
+export const SIGNAL_FAMILIES = [
+  { key: "rsi", label: "RSI", ids: ["rsi-d", "rsi-w"] },
+  { key: "div", label: "Divergência de RSI", ids: ["rsi-div-d", "rsi-div-w"] },
+  { key: "stretch", label: "Esticagem da média", ids: ["stretch-d", "stretch-w"] },
+  { key: "sentiment", label: "Sentimento do mercado", ids: ["fng"] },
+  { key: "futures", label: "Futuros", ids: ["funding", "liq"] },
+];
+const familyOf = (id) => SIGNAL_FAMILIES.find((f) => f.ids.includes(id))?.key ?? null;
 
 const TF_LABEL = { d: "diário", w: "semanal" };
 const TF_LABEL_FEM = { d: "diária", w: "semanal" }; // "tendência diária", "SMA 200 diária"
@@ -481,14 +492,25 @@ export function liquidationSignal(source, now, cfg = SIGNAL_DEFAULTS) {
   };
 }
 
-/** Placar de confluência: conta os sinais de fundo e de topo ativos entre os disponíveis do grupo "extreme". */
+/**
+ * Placar de confluência dos sinais do grupo "extreme" (fundo/topo), contado por FAMÍLIA: uma família conta
+ * para um lado quando ao menos um dos seus sinais disponíveis está ativo nesse lado. Sinal sem família
+ * (`family` ausente) conta como uma família só dele.
+ * Devolve { side, bottom, top, of } em famílias (of = famílias com algum sinal disponível) e
+ * signals: { bottom, top, of } com a contagem sinal a sinal.
+ */
 export function regionOf(signals, cfg = SIGNAL_DEFAULTS) {
   const usable = signals.filter((s) => s.group === "extreme" && s.available);
-  const bottom = usable.filter((s) => s.active && s.side === "bottom").length;
-  const top = usable.filter((s) => s.active && s.side === "top").length;
+  const count = (side) => usable.filter((s) => s.active && s.side === side);
+  const families = (list) => new Set(list.map((s) => s.family ?? s.id ?? s)).size;
+  const bottom = families(count("bottom"));
+  const top = families(count("top"));
   const wins = (a, b) => a >= cfg.regionMin && b <= cfg.regionMaxOpposite;
   const side = wins(bottom, top) ? "bottom" : wins(top, bottom) ? "top" : "neutral";
-  return { side, bottom, top, of: usable.length };
+  return {
+    side, bottom, top, of: families(usable),
+    signals: { bottom: count("bottom").length, top: count("top").length, of: usable.length },
+  };
 }
 
 /**
@@ -496,7 +518,8 @@ export function regionOf(signals, cfg = SIGNAL_DEFAULTS) {
  * daily / weekly: velas [{ time (ms da abertura), close, ... }] em ordem crescente; now: instante da análise (ms).
  * fearGreed: linhas do Fear & Greed Index ([{ t, v }]) ou null se a fonte não respondeu.
  * funding / liquidations: fontes opcionais dos futuros, { rows } ou { reason } (ver fundingSignal e liquidationSignal).
- * Devolve { asset, generatedAt, trend: { d, w }, region, signals } (serializável em JSON).
+ * Devolve { asset, generatedAt, trend: { d, w }, region, signals } (serializável em JSON). Cada sinal sai
+ * com `family` (a família dele no placar; null nos de tendência).
  */
 export function analyzeSignals({ asset, daily, weekly, fearGreed, funding, liquidations, now }, cfg = SIGNAL_DEFAULTS) {
   const series = { d: daily || [], w: weekly || [] };
@@ -509,6 +532,7 @@ export function analyzeSignals({ asset, daily, weekly, fearGreed, funding, liqui
   signals.push(fearGreedSignal(fearGreed, now, cfg));
   signals.push(fundingSignal(funding, now, cfg));
   signals.push(liquidationSignal(liquidations, now, cfg));
+  for (const s of signals) s.family = familyOf(s.id);
 
   const trendOf = (tf) => {
     const s = signals.find((x) => x.id === `trend-ma-${tf}`);

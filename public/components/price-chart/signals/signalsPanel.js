@@ -9,7 +9,7 @@ import { escapeHtml } from "../../../core/dom.js";
 import { COINALYZE_KEY_CHANGED, on } from "../../../core/events.js";
 import { getKlines, KLINES_PAGE } from "../chartData.js";
 import { pairLabel } from "../chartQuote.js";
-import { analyzeSignals } from "./signals.js";
+import { analyzeSignals, SIGNAL_FAMILIES } from "./signals.js";
 
 // velas diárias: até 3 páginas (cerca de 8 anos), para o percentil da esticagem ter histórico
 const DAILY_PAGES = 3;
@@ -127,7 +127,8 @@ const trendChip = (label, title, side) => {
 
 function regionChip(region) {
   if (!region.of) return `<span class="pcs-chip off" title="Nenhum sinal de fundo ou topo disponível">sem dados</span>`;
-  const title = `Sinais de fundo: ${region.bottom} · de topo: ${region.top} · disponíveis: ${region.of}`;
+  // o placar conta grupos de sinais (RSI, divergência, esticagem, sentimento, futuros), não sinais soltos
+  const title = `Grupos de sinais apontando fundo: ${region.bottom} · topo: ${region.top} · disponíveis: ${region.of}`;
   if (region.side === "bottom") return `<span class="pcs-chip pos" title="${title}">Fundo provável ${region.bottom}/${region.of}</span>`;
   if (region.side === "top") return `<span class="pcs-chip neg" title="${title}">Topo provável ${region.top}/${region.of}</span>`;
   return `<span class="pcs-chip flat" title="${title}">Região neutra</span>`;
@@ -167,16 +168,24 @@ function popHtml() {
   const { signals, region, generatedAt } = view.result;
   const group = (name) => signals.filter((s) => s.group === name).map(signalRow).join("");
   const score = region.of
-    ? `fundo ${region.bottom} · topo ${region.top} · de ${region.of} ${region.of === 1 ? "disponível" : "disponíveis"}`
+    ? `grupos: fundo ${region.bottom} · topo ${region.top} · de ${region.of} ${region.of === 1 ? "disponível" : "disponíveis"}`
     : "nenhum sinal disponível";
+  // sinais de fundo/topo separados por família: cada uma conta uma vez só no placar
+  const families = SIGNAL_FAMILIES.map((f) => {
+    const rows = signals.filter((s) => s.family === f.key);
+    const side = ["bottom", "top"].find((x) => rows.some((s) => s.available && s.active && s.side === x));
+    const mark = side ? `<span class="pcs-family-mark ${side === "bottom" ? "pos" : "neg"}">${side === "bottom" ? "fundo" : "topo"}</span>` : "";
+    return `<li class="pcs-family">${f.label}${mark}</li>${rows.map(signalRow).join("")}`;
+  }).join("");
   const time = new Date(generatedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   return `${title}
     <div class="pcs-group">Tendência</div>
     <ul class="pcs-list">${group("trend")}</ul>
     <div class="pcs-group">Fundo ou topo <span class="pcs-score">${score}</span></div>
-    <ul class="pcs-list">${group("extreme")}</ul>
-    <p class="pcs-note">Calculado às ${time} com as velas diárias e semanais, qualquer que seja a vela do gráfico.
-      Não é previsão nem recomendação: mostra só quais sinais estão presentes agora.</p>`;
+    <ul class="pcs-list">${families}</ul>
+    <p class="pcs-note">"Fundo provável" ou "topo provável" aparece quando 3 ou mais grupos apontam o mesmo lado
+      e no máximo 1 aponta o contrário. Calculado às ${time} com as velas diárias e semanais, qualquer que seja a
+      vela do gráfico. Não é previsão nem recomendação: mostra só quais sinais estão presentes agora.</p>`;
 }
 
 function render() {

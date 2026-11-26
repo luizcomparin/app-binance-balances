@@ -27,6 +27,14 @@ storage: []
 | Investido | `investedUSDT` | Soma de todas as compras (com taxas). |
 | Cobertura | `coverage` | Fração da quantidade atual explicada pelos trades (o resto veio de depósito, Convert, Earn…). Abaixo de 95% aparece ⚠. |
 | Distância | `distancePct` | Quanto o preço atual precisa andar até a ordem aberta executar. |
+| Sinais | `analyzeSignals`, `signals` | Leituras dos indicadores no diário e no semanal que apontam tendência, fundo ou topo. Ver [sinais](../sinais/README.md). |
+| Região (fundo/topo provável, neutra) | `region.side` | Resultado do placar de confluência: 3 ou mais famílias de sinais de um lado e no máximo 1 do outro. |
+| Família (grupo) de sinais | `family`, `SIGNAL_FAMILIES` | Sinais que medem a mesma coisa e contam uma vez só no placar: RSI, divergência de RSI, esticagem da média, sentimento do mercado, futuros. |
+| Esticagem | `stretch-d`, `stretch-w` | Distância, em %, do preço até uma média móvel (SMA 200 diária, SMA 50 semanal), comparada com o histórico da própria moeda. |
+| Divergência de RSI | `rsi-div-d`, `rsi-div-w` | O preço faz fundo mais baixo e o RSI, mais alto (de alta); ou topo mais alto no preço e mais baixo no RSI (de baixa). |
+| Pivô | `divPivot` | Fundo ou topo confirmado: a mínima (ou máxima) da vela é o extremo entre N velas fechadas de cada lado. |
+| Cascata de liquidações | `liq` | Soma liquidada em 7 dias entre as 10% maiores dos últimos 2 anos da moeda. De longs conta como fundo; de shorts, como topo. |
+| Vela em formação | `forming` | A vela ainda em andamento. O valor do sinal a usa, mas o "há N velas" conta só as fechadas. |
 | Médio após compras/vendas abertas | `projectedAvg` / `projectedSellAvg` | Preço médio se todas as ordens abertas daquele lado executassem. |
 | Vela / tamanho da vela | `interval` (`1h·4h·1d·1w·1M`) | Agregação OHLC. |
 | Período | `range` | Janela de tempo visível (`7d … all`, ou personalizada `<n>d/m/y`). |

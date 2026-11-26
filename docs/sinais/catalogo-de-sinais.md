@@ -31,6 +31,8 @@ A tendência exibida no campo resumido (`trend.d`, `trend.w`) vem dos sinais por
 
 ## Fundo ou topo (entram no placar de confluência)
 
+No placar, os sinais contam por **família** (`SIGNAL_FAMILIES`): RSI (`rsi-d`, `rsi-w`), divergência de RSI (`rsi-div-d`, `rsi-div-w`), esticagem da média (`stretch-d`, `stretch-w`), sentimento do mercado (`fng`) e futuros (`funding`, `liq`).
+
 | Id | Sinal | Regra padrão | Lado | Fonte | Etapa | Estado |
 |---|---|---|---|---|---|---|
 | `rsi-d` | RSI 14 diário | ≤ 30: sobrevendido; ≥ 70: sobrecomprado. Mostra há quantos dias | ≤30 fundo, ≥70 topo | velas D, `rsi` | 1 | implementado |
@@ -62,9 +64,11 @@ Observações sobre os padrões:
 
 ## Região (placar)
 
-- Cada sinal da tabela acima que estiver **ativo** conta um ponto para "fundo" ou para "topo". O denominador é o número de sinais **disponíveis**.
-- Implementado em `regionOf`. Leitura padrão (a calibrar na etapa 6): "fundo provável" ou "topo provável" quando um lado tiver pelo menos 3 sinais ativos e o outro, nenhum ou um; senão, "neutra".
-- A janela mostra o placar dos dois lados e a lista; o campo resumido mostra só o lado dominante.
+- Implementado em `regionOf`. Uma família conta para "fundo" (ou "topo") quando ao menos um dos seus sinais disponíveis está ativo nesse lado. O denominador é o número de famílias com algum sinal **disponível**.
+- "Fundo provável" ou "topo provável": 3 ou mais famílias de um lado (`regionMin`) e no máximo 1 do outro (`regionMaxOpposite`); senão, "neutra".
+- Uma família pode contar para os dois lados ao mesmo tempo (RSI diário sobrevendido com o semanal sobrecomprado).
+- A regra foi revista na etapa 6: até então contava sinais soltos (3 de 9), o que não distinguia nada. Os números estão em [calibracao.md](calibracao.md).
+- A janela mostra o placar dos dois lados e os sinais por família; o campo resumido mostra só o lado dominante.
 
 ## Candidatos para depois da v1
 

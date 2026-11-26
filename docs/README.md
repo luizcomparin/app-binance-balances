@@ -10,7 +10,7 @@ Documentação oficial do app. Comece pelo [AGENTS.md](../AGENTS.md), que traz a
 | `referencia/` | Catálogos: rotas, eventos, `localStorage`, caches, APIs externas, configuração, glossário | Para consultar um detalhe exato |
 | `funcionalidades/` | Um doc por funcionalidade, sempre com **os dois lados** (página e server) | Antes de alterar uma funcionalidade |
 | `funcionalidades/grafico-de-preco/` | O gráfico de preço, dividido por subfuncionalidade | Idem |
-| `sinais/` | Sinais de compra e venda (**em desenvolvimento**): visão, catálogo de sinais e etapas | Antes de mexer nos sinais |
+| `sinais/` | Sinais de compra e venda: visão, catálogo de sinais, etapas e calibração | Antes de mexer nos sinais |
 | `decisoes.md` | Comportamentos intencionais que parecem "errados" | Antes de "corrigir" algo |
 | `debitos-tecnicos.md` | Duplicações, padrões inconsistentes, bugs suspeitos | Ao planejar refatorações |
 | `backlog/` | Ideias avaliadas e não implementadas | Ao planejar funcionalidades |
@@ -95,10 +95,11 @@ As seções aparecem sempre nesta ordem; quando uma não se aplica, ela é omiti
 - [grafico-de-preco/watchlist-e-seletor.md](funcionalidades/grafico-de-preco/watchlist-e-seletor.md): lista lateral e seletor do título.
 - [grafico-de-preco/abas-de-ordens.md](funcionalidades/grafico-de-preco/abas-de-ordens.md): ordens abertas, histórico de ordens e de trades.
 
-**Sinais de compra e venda** (em desenvolvimento)
+**Sinais de compra e venda**
 - [sinais/README.md](sinais/README.md): o que é, interface, fontes de dados, arquitetura e decisões.
 - [sinais/catalogo-de-sinais.md](sinais/catalogo-de-sinais.md): cada sinal, com regra, limiares e fonte; candidatos futuros.
 - [sinais/planejamento.md](sinais/planejamento.md): etapas da v1, pendências, preparos da v2 e ideias futuras.
+- [sinais/calibracao.md](sinais/calibracao.md): varredura histórica que embasou a regra do placar; o que ficou em aberto.
 
 **Outros**
 - [decisoes.md](decisoes.md) · [debitos-tecnicos.md](debitos-tecnicos.md) · [backlog/ideias-futuras.md](backlog/ideias-futuras.md) · [historico/analise-2026-11-18.md](historico/analise-2026-11-18.md) (desatualizado)

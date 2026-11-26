@@ -139,6 +139,25 @@
   list-style: none;
 }
 
+/* nome da família (RSI, Esticagem...) acima dos sinais dela; a marca diz para que lado ela conta no placar */
+.pcs-family {
+  margin-top: 4px;
+  color: #c9d6f2;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.pcs-family-mark {
+  margin-left: 6px;
+  padding: 0 6px;
+  border: 1px solid;
+  border-radius: 999px;
+  font-size: 11px;
+}
+
+.pcs-family-mark.pos { color: #52ffa8; border-color: rgba(82, 255, 168, 0.4); }
+.pcs-family-mark.neg { color: #ff7272; border-color: rgba(255, 114, 114, 0.4); }
+
 .pcs-row {
   display: flex;
   align-items: flex-start;
