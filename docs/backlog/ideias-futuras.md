@@ -2,6 +2,8 @@
 
 Funcionalidades já avaliadas e ainda não implementadas.
 
+As ideias dos **sinais de compra e venda** (varredura de ativos, backtest, sinais candidatos) ficam na documentação própria: [sinais/planejamento.md](../sinais/planejamento.md).
+
 ## Liquidez real no livro de ofertas (paredes de ordens)
 
 Mostrar, no gráfico de preço, onde há grandes ordens limite paradas agora: blocos de compra abaixo do preço e de venda acima. Diferente do mapa de liquidação (que é uma estimativa), aqui o dado é real.
