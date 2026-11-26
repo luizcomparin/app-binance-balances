@@ -11,7 +11,7 @@ import { COINALYZE_KEY_CHANGED, on } from "../../../core/events.js";
 import { getKlines, KLINES_PAGE } from "../chartData.js";
 import { pairLabel } from "../chartQuote.js";
 import { analyzeSignals, SIGNAL_FAMILIES } from "./signals.js";
-import { baseText, outcomeStats, outcomeText, REGION_KEY, signalHistory } from "./signalHistory.js";
+import { baseText, outcomeStats, outcomeText, REGION_KEY, signalHistory, STRONG_KEY } from "./signalHistory.js";
 
 // velas diárias: até 3 páginas (cerca de 8 anos), para o percentil da esticagem ter histórico
 const DAILY_PAGES = 3;
@@ -161,13 +161,21 @@ const trendChip = (label, title, side) => {
   return `<span class="pcs-chip ${t.cls}" title="Tendência ${title}: ${t.name}">${label} ${t.arrow}</span>`;
 };
 
+// Nome da região na tela. Fundo: "Sobrevendido" e, com o RSI semanal a favor (region.strong), "Fundo provável".
+// Topo: "Sobrecomprado" (e não "topo provável": no histórico, esses sinais não vieram antes de quedas).
+const regionName = (region) =>
+  region.side === "bottom" ? (region.strong ? "Fundo provável" : "Sobrevendido") : region.side === "top" ? "Sobrecomprado" : null;
+
 function regionChip(region) {
   if (!region.of) return `<span class="pcs-chip off" title="Nenhum sinal de fundo ou topo disponível">sem dados</span>`;
   // o placar conta grupos de sinais (RSI, divergência, esticagem, sentimento, futuros), não sinais soltos
   const title = `Grupos de sinais apontando fundo: ${region.bottom} · topo: ${region.top} · disponíveis: ${region.of}`;
-  if (region.side === "bottom") return `<span class="pcs-chip pos" title="${title}">Fundo provável ${region.bottom}/${region.of}</span>`;
-  // lado de topo: "Sobrecomprado", e não "topo provável" (no histórico, esses sinais não vieram antes de quedas)
-  if (region.side === "top") return `<span class="pcs-chip neg" title="${title}">Sobrecomprado ${region.top}/${region.of}</span>`;
+  if (region.side === "bottom") {
+    const strong = region.strong ? " strong" : "";
+    const why = region.strong ? " · com o RSI semanal a favor" : "";
+    return `<span class="pcs-chip pos${strong}" title="${title}${why}">${regionName(region)} ${region.bottom}/${region.of}</span>`;
+  }
+  if (region.side === "top") return `<span class="pcs-chip neg" title="${title}">${regionName(region)} ${region.top}/${region.of}</span>`;
   return `<span class="pcs-chip flat" title="${title}">Região neutra</span>`;
 }
 
@@ -227,11 +235,12 @@ function popHtml() {
   }).join("");
   const time = new Date(generatedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   const base = view.history?.stats ? baseText(view.history.stats.base) : "";
-  // região de fundo provável / sobrecomprado: o que aconteceu nas vezes anteriores em que o placar chegou nela
-  const regionName = { bottom: "Fundo provável", top: "Sobrecomprado" }[region.side];
+  // região ativa: o que aconteceu nas vezes anteriores em que o placar chegou nela (no nível em que está agora)
+  const name = regionName(region);
+  const past = view.history?.stats?.signals[region.strong ? STRONG_KEY : REGION_KEY]?.[region.side];
   const regionPast =
-    regionName && view.history?.stats
-      ? `<p class="pcs-outcome pcs-region-past">${regionName}: ${escapeHtml(lowerFirst(outcomeText(view.history.stats.signals[REGION_KEY]?.[region.side])))}</p>`
+    name && view.history?.stats
+      ? `<p class="pcs-outcome pcs-region-past">${name}: ${escapeHtml(lowerFirst(outcomeText(past)))}</p>`
       : "";
   return `${title}
     <div class="pcs-group">Tendência</div>
@@ -240,8 +249,9 @@ function popHtml() {
     ${regionPast}
     <ul class="pcs-list">${families}</ul>
     ${base ? `<p class="pcs-note">${escapeHtml(base)} As "vezes anteriores" de cada sinal contam os dias em que ele ativou depois de ficar apagado por mais de 14 dias.</p>` : ""}
-    <p class="pcs-note">"Fundo provável" ou "Sobrecomprado" aparece quando 3 ou mais grupos apontam o mesmo lado
-      (fundo ou topo) e no máximo 1 aponta o contrário. Calculado às ${time} com as velas diárias e semanais,
+    <p class="pcs-note">"Sobrevendido" ou "Sobrecomprado" aparece quando 3 ou mais grupos apontam o mesmo lado
+      (fundo ou topo) e no máximo 1 aponta o contrário. "Sobrevendido" vira "Fundo provável" quando o RSI semanal
+      está a favor: sobrevendido ou com divergência de alta. Calculado às ${time} com as velas diárias e semanais,
       qualquer que seja a vela do gráfico. Não é previsão nem recomendação: mostra só quais sinais estão
       presentes agora e o que aconteceu no passado desta moeda.</p>`;
 }

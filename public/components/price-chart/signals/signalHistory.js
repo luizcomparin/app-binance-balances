@@ -9,8 +9,10 @@ import {
   stretchSignal,
 } from "./signals.js";
 
-// chave do placar (região de fundo provável ou sobrecomprado) no histórico, ao lado dos ids dos sinais
+// chaves do placar no histórico, ao lado dos ids dos sinais: a região (sobrevendido ou sobrecomprado) e o
+// nível forte da região de fundo ("fundo provável")
 export const REGION_KEY = "region";
+export const STRONG_KEY = "region-strong";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -46,7 +48,8 @@ export function weeklyAsOf(weekly, daily, i) {
 
 /**
  * Lado ("bottom" | "top" | null) de cada sinal de fundo/topo no fim do dia `i`. Indisponível conta como null.
- * Inclui o placar daquele dia em `region` (null = região neutra).
+ * Inclui o placar daquele dia em `region` (null = região neutra) e, em `region-strong`, "bottom" quando a
+ * região de fundo estava no nível forte.
  */
 export function extremeStatesAt({ daily, weekly, fearGreed, funding, liquidations }, i, cfg = SIGNAL_DEFAULTS) {
   const now = daily[i].time + DAY_MS;
@@ -63,8 +66,9 @@ export function extremeStatesAt({ daily, weekly, fearGreed, funding, liquidation
     s.family = SIGNAL_FAMILIES.find((f) => f.ids.includes(s.id))?.key ?? null;
     on[s.id] = s.available && s.active ? s.side : null;
   }
-  const region = regionOf(signals, cfg).side;
-  on[REGION_KEY] = region === "neutral" ? null : region;
+  const region = regionOf(signals, cfg);
+  on[REGION_KEY] = region.side === "neutral" ? null : region.side;
+  on[STRONG_KEY] = region.strong ? "bottom" : null;
   return on;
 }
 
@@ -136,7 +140,11 @@ export function outcomeStats(days, opts = HISTORY_DEFAULTS) {
   return { days: days.length, base, signals };
 }
 
-const pctText = (v) => `${v > 0 ? "+" : ""}${(v * 100).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}%`;
+// arredonda antes de pôr o sinal, para não sair "-0%"
+const pctText = (v) => {
+  const n = Math.round(v * 100) || 0;
+  return `${n > 0 ? "+" : ""}${n.toLocaleString("pt-BR")}%`;
+};
 
 /**
  * Frase com o histórico de um sinal ativo: "Nas 14 vezes anteriores nesta moeda: 30 dias depois, alta em

@@ -11,7 +11,7 @@ storage: []
 
 Como usar este doc: ao concluir uma etapa, marque os itens (`[x]`), anote a data e o que mudou em relação ao plano, e atualize o [README](README.md) e o [catálogo](catalogo-de-sinais.md) no mesmo commit do código.
 
-**Situação em 26/11/2026:** v1 concluída (etapas 0 a 6), mais o rótulo "Sobrecomprado" e a estatística "o que aconteceu depois". Fica a decisão sobre o peso dos sinais fortes (pendências abaixo) e a v2.
+**Situação em 26/11/2026:** v1 concluída (etapas 0 a 6), mais os rótulos "Sobrevendido" / "Fundo provável" / "Sobrecomprado" e a estatística "o que aconteceu depois". Sem pendências de decisão; o próximo passo é a v2.
 
 ## V1: sinais no gráfico de preço
 
@@ -111,8 +111,18 @@ Verificado: `npm test`, cobertura dos docs e a janela em BTC no Edge sem interfa
 
 Verificado: `npm test`; a conta com velas reais de BTC (2939 dias em cerca de 2 s) e SUI; a janela em BTC no Edge sem interface, com as linhas de histórico dos três sinais ativos, a da região e a linha de base. **Não verificado:** a janela enquanto a conta roda (o estado "Calculando..."), a troca de moeda no meio da conta na tela, e uma moeda em "Sobrecomprado".
 
+#### Dois níveis na região de fundo ✅ (26/11/2026)
+
+- [x] Região de fundo comum renomeada para "Sobrevendido" (par de "Sobrecomprado").
+- [x] "Fundo provável" passa a ser o nível forte: "Sobrevendido" com RSI semanal sobrevendido ou divergência de alta semanal (`region.strong`).
+- [x] Histórico próprio do nível forte na janela (`region-strong`).
+- [x] Testes.
+
+Verificado: `npm test`; BTC na tela mostra "Sobrevendido 3/5" (o RSI semanal está em 35, neutro) com a linha de histórico da região; no histórico de BTC, ETH e XRP, "Fundo provável" aconteceu de 2 a 4 vezes por moeda. **Não verificado:** a pílula "Fundo provável" na tela (nenhuma moeda conferida está nesse nível agora).
+
 ## Pendências de decisão
 
+- ~~Peso para os sinais fortes~~: decidido em 26/11/2026 (dois níveis, sem pesos numéricos). Texto original:
 - **Peso para os sinais fortes.** A análise ([calibracao.md](calibracao.md#pesos-para-os-sinais-fortes-análise)) não sustenta pesos numéricos; o que se sustentou foi a força dos sinais semanais de RSI. Recomendação: um segundo nível, "Fundo forte", quando a região de fundo provável inclui RSI semanal sobrevendido ou divergência de alta semanal. Aguardando decisão desde 26/11/2026.
 - ~~Rótulo "Topo provável"~~: decidido em 26/11/2026, virou "Sobrecomprado".
 - ~~Estatística "o que aconteceu depois"~~: implementada em 26/11/2026 (a explicação original segue abaixo).
@@ -174,6 +184,7 @@ Intenção registrada em 25/11/2026: avaliar os sinais no histórico para saber 
 | Data | O que foi feito |
 |---|---|
 | 25/11/2026 | Levantamento dos indicadores e camadas, decisões iniciais e criação da documentação (etapa 0) |
+| 26/11/2026 | Região de fundo em dois níveis: "Sobrevendido" e "Fundo provável" (com o RSI semanal a favor) |
 | 26/11/2026 | Rótulo "Sobrecomprado" no lugar de "Topo provável"; estatística "o que aconteceu depois" na janela; análise de pesos para os sinais fortes |
 | 26/11/2026 | Etapa 6: varredura histórica de 5 moedas, placar por famílias de sinais, sinais agrupados por família na janela e fechamento da v1 |
 | 26/11/2026 | Etapa 5: sinal de divergência entre o preço e o RSI (D e S). Com ele, todos os sinais da v1 estão implementados |

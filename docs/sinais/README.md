@@ -25,7 +25,7 @@ Documentação exclusiva dos sinais:
 Um campo informativo **por paridade** no gráfico de preço. Ele não prevê nem recomenda: mostra quais sinais estão presentes agora e que padrão eles formam. Responde a três perguntas:
 
 1. **Tendência atual:** alta, baixa ou lateral, no Diário e no Semanal.
-2. **Região:** fundo provável, neutra ou sobrecomprado, com um placar de confluência por grupos de sinais ("3 de 5 grupos apontam fundo").
+2. **Região:** sobrevendido, fundo provável (sobrevendido com o RSI semanal a favor), neutra ou sobrecomprado, com um placar de confluência por grupos de sinais ("3 de 5 grupos apontam fundo").
 3. **Quais sinais estão ativos:** cada um com o valor, há quantas velas está ativo e, quando há histórico, em que percentil o valor atual fica.
 4. **O que aconteceu depois, no passado desta moeda:** para cada sinal ativo e para a região, quantas vezes isso já aconteceu e o que o preço fez 30 e 90 dias depois.
 
@@ -35,11 +35,11 @@ Um campo informativo **por paridade** no gráfico de preço. Ele não prevê nem
 
 - **Campo resumido "Sinais"** (`#price-chart-signals`) no cabeçalho do gráfico, na ponta direita da linha das informações de preço (`#price-chart-info`). Três pílulas:
   - **D** e **S**: tendência diária e semanal. ▲ verde = alta, ▼ vermelha = baixa, ▬ cinza = lateral, "–" = histórico insuficiente.
-  - **Região:** "Fundo provável 3/5" (verde), "Sobrecomprado 3/5" (vermelha) ou "Região neutra" (cinza). Os números são grupos de sinais apontando aquele lado ÷ grupos disponíveis. O `title` de cada pílula traz o detalhe.
+  - **Região:** "Sobrevendido 3/5" (verde), "Fundo provável 3/5" (verde mais forte: sobrevendido com o RSI semanal a favor), "Sobrecomprado 3/5" (vermelha) ou "Região neutra" (cinza). Os números são grupos de sinais apontando aquele lado ÷ grupos disponíveis. O `title` de cada pílula traz o detalhe.
 - **Clicar no campo abre a janelinha flutuante** (`#price-chart-signals-pop`) logo abaixo dele, alinhada à direita, por cima do gráfico e da watchlist:
   - **Tendência:** uma linha por sinal de tendência.
   - **Fundo ou topo:** o placar ("grupos: fundo 3 · topo 0 · de 5 disponíveis") e os sinais separados por grupo (RSI, Divergência de RSI, Esticagem da média, Sentimento do mercado, Futuros). O grupo que conta para um lado ganha a marca "fundo" ou "topo" ao lado do nome.
-  - **O que aconteceu depois:** embaixo de cada sinal de fundo/topo **ativo**, uma linha menor: "Nas 20 vezes anteriores nesta moeda: 30 dias depois, alta em 8 (40%), mediana -1%; 90 dias depois, alta em 12 (60%), mediana +7%." Com menos de 5 vezes, avisa "(pouco para concluir)"; sem nenhuma, "Primeira vez no histórico carregado". A mesma frase aparece para a região, logo abaixo do placar, quando ela é "Fundo provável" ou "Sobrecomprado". Enquanto a conta roda, aparece "Calculando o que aconteceu nas vezes anteriores...".
+  - **O que aconteceu depois:** embaixo de cada sinal de fundo/topo **ativo**, uma linha menor: "Nas 20 vezes anteriores nesta moeda: 30 dias depois, alta em 8 (40%), mediana -1%; 90 dias depois, alta em 12 (60%), mediana +7%." Com menos de 5 vezes, avisa "(pouco para concluir)"; sem nenhuma, "Primeira vez no histórico carregado". A mesma frase aparece para a região, logo abaixo do placar, quando ela é "Sobrevendido", "Fundo provável" ou "Sobrecomprado" (no nível em que está agora: as vezes anteriores de "Fundo provável" contam só os períodos com o RSI semanal a favor). Enquanto a conta roda, aparece "Calculando o que aconteceu nas vezes anteriores...".
   - **Linha de base** no rodapé: o que o preço fez a partir de um dia qualquer da mesma moeda. É a comparação que dá sentido aos números de cada sinal.
   - A janela rola quando os sinais não cabem.
   - Bolinha de cada linha: verde = fundo ou alta; vermelha = topo ou baixa; apagada = sinal não ativo; vazada = indisponível.
@@ -85,7 +85,7 @@ Pontos estruturais:
   - `lastClosedIndex`, `streak`, `percentileRank`, `midRank`: auxiliares.
   - `SIGNAL_DEFAULTS`: os limiares fixos da v1. As funções aceitam outra configuração no último parâmetro (os testes usam médias curtas).
 - **Histórico (implementado):** `public/components/price-chart/signals/signalHistory.js`, puro, testado em `test/public/signalHistory.test.js`.
-  - `signalHistory(input, { now, shouldStop, pause })`: percorre as velas diárias (a partir da 60ª) e, para cada dia já fechado, calcula os sinais de fundo/topo e o placar **só com o que existia até aquele dia** (`extremeStatesAt`; a vela semanal em andamento é refeita por `weeklyAsOf`). Devolve `[{ t, close, on: { id: lado } }]`; a chave `region` (`REGION_KEY`) guarda o placar do dia. Leva cerca de 2 s para 8 anos, então trabalha em fatias de 12 ms e devolve o controle à página entre elas; `shouldStop` interrompe (troca de moeda).
+  - `signalHistory(input, { now, shouldStop, pause })`: percorre as velas diárias (a partir da 60ª) e, para cada dia já fechado, calcula os sinais de fundo/topo e o placar **só com o que existia até aquele dia** (`extremeStatesAt`; a vela semanal em andamento é refeita por `weeklyAsOf`). Devolve `[{ t, close, on: { id: lado } }]`; a chave `region` (`REGION_KEY`) guarda o placar do dia, e `region-strong` (`STRONG_KEY`), os dias em que a região de fundo estava no nível forte. Leva cerca de 2 s para 8 anos, então trabalha em fatias de 12 ms e devolve o controle à página entre elas; `shouldStop` interrompe (troca de moeda).
   - `outcomeStats(days)`: por sinal e por lado, as "vezes" (dias de ativação depois de mais de 14 dias apagado; ativações coladas contam como uma) e, 30 e 90 dias depois de cada uma, quantas terminaram em alta, a mediana, a pior e a melhor. Também a linha de base de todos os dias.
   - `outcomeText(stat)` e `baseText(base)`: as frases da janela.
   - `HISTORY_DEFAULTS`: horizontes (30 e 90 dias), intervalo entre ativações (14 dias), mínimo de vezes para não avisar (5).
@@ -112,7 +112,8 @@ Formato do resultado de `analyzeSignals`:
   generatedAt: 1764000000000,
   trend: { d: "up" | "down" | "side", w: "up" | "down" | "side" },
   // placar de confluência, em FAMÍLIAS de sinais; signals = a mesma contagem sinal a sinal
-  region: { side: "bottom" | "top" | "neutral", bottom: 3, top: 0, of: 5, signals: { bottom: 4, top: 0, of: 9 } },
+  // strong: região de fundo com o RSI semanal a favor (na tela, "Fundo provável" em vez de "Sobrevendido")
+  region: { side: "bottom" | "top" | "neutral", strong: false, bottom: 3, top: 0, of: 5, signals: { bottom: 4, top: 0, of: 9 } },
   signals: [{
     id: "rsi-d",            // identificador estável
     group: "trend" | "extreme" | "context",
@@ -140,7 +141,8 @@ Formato do resultado de `analyzeSignals`:
 - **Percentil em vez de valor absoluto** sempre que houver histórico: "o preço está mais esticado que em 96% do histórico desta moeda" vale para BTC e para altcoin; "50M liquidados" não.
 - **Fonte ausente não conta contra.** Sem chave da Coinalyze, sem contrato perpétuo ou com histórico insuficiente, o sinal aparece como "indisponível" (com o motivo) e sai do denominador do placar.
 - **Confluência, não alerta único.** Um sinal isolado erra muito; a leitura é o conjunto.
-- **O placar conta famílias, não sinais soltos.** Sinais que medem a mesma coisa (RSI diário e semanal, esticagem diária e semanal) acendem juntos; contados um a um, "fundo provável" aparecia com 3 sinais de 9 e não dizia nada. As famílias são RSI, divergência de RSI, esticagem da média, sentimento do mercado (Fear & Greed) e futuros (funding e liquidações). A região vira "fundo provável" ou "sobrecomprado" com 3 ou mais famílias de um lado e no máximo 1 do outro. Ver [calibracao.md](calibracao.md).
+- **O placar conta famílias, não sinais soltos.** Sinais que medem a mesma coisa (RSI diário e semanal, esticagem diária e semanal) acendem juntos; contados um a um, "fundo provável" aparecia com 3 sinais de 9 e não dizia nada. As famílias são RSI, divergência de RSI, esticagem da média, sentimento do mercado (Fear & Greed) e futuros (funding e liquidações). A região vira "sobrevendido" ou "sobrecomprado" com 3 ou mais famílias de um lado e no máximo 1 do outro. Ver [calibracao.md](calibracao.md).
+- **A região de fundo tem dois níveis.** "Sobrevendido" é a região comum. Ela vira "Fundo provável" quando, entre os sinais de fundo ativos, está o RSI semanal sobrevendido (`rsi-w`) ou a divergência de alta semanal (`rsi-div-w`) (`region.strong`, `strongBottomIds`). Foram os únicos sinais que se sustentaram dentro e fora da amostra na análise de pesos; a alternativa de somar pesos numéricos não ganhou da contagem simples (ver [calibracao.md](calibracao.md#pesos-para-os-sinais-fortes-análise)). "Fundo provável" é raro: no histórico carregado, de 2 a 4 vezes por moeda em BTC, ETH e XRP.
 - **O lado de topo se chama "Sobrecomprado", não "topo provável".** Na varredura da etapa 6, os sinais de topo vieram antes de mais alta, não de queda; o nome descreve o que os sinais medem sem prometer reversão (decisão de 26/11/2026). No código o lado continua `"top"`, e as listas da janela ainda dizem "topo" (ver [calibracao.md](calibracao.md)).
 - **Não é previsão.** A janela traz esse aviso, como a faixa estatística e o mapa de liquidação.
 - **Só leitura e limites de API:** nenhuma chamada nova fora de `publicGet`/`fapiGet`/`coinalyzeGet`/`alternativeGet`; tudo passa pelas rotas existentes e seus caches.
@@ -188,5 +190,6 @@ Formato do resultado de `analyzeSignals`:
 | 26/11/2026 | Placar por famílias de sinais (etapa 6) |
 | 26/11/2026 | Região de topo passa a se chamar "Sobrecomprado" |
 | 26/11/2026 | Estatística "o que aconteceu depois" entra na janela, por sinal e por moeda |
+| 26/11/2026 | Dois níveis na região de fundo: "Sobrevendido" (comum) e "Fundo provável" (com o RSI semanal a favor). Sem pesos numéricos |
 
 Pendências de decisão estão em [planejamento.md](planejamento.md#pendências-de-decisão).

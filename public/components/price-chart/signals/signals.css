@@ -58,7 +58,8 @@
   font-weight: 500;
 }
 
-/* pílulas: verde = alta / fundo provável, vermelho = baixa / sobrecomprado, cinza = lateral / neutra */
+/* pílulas: verde = alta / sobrevendido (mais forte em "fundo provável"), vermelho = baixa / sobrecomprado,
+   cinza = lateral / neutra */
 .pcs-chip {
   padding: 2px 10px;
   border: 1px solid;
@@ -72,6 +73,13 @@
   background: rgba(82, 255, 168, 0.12);
   border-color: rgba(82, 255, 168, 0.4);
   color: #52ffa8;
+}
+
+/* "Fundo provável": região de fundo com o RSI semanal a favor */
+.pcs-chip.pos.strong {
+  background: rgba(82, 255, 168, 0.28);
+  border-color: #52ffa8;
+  color: #d9ffe9;
 }
 
 .pcs-chip.neg {

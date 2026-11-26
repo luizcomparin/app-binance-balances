@@ -510,7 +510,7 @@ test("regionOf: placar só com sinais disponíveis do grupo de fundo/topo", () =
   const sig = (side, extra = {}) => ({ group: "extreme", available: true, active: !!side, side, ...extra });
   // sem família, cada sinal conta sozinho
   assert.deepEqual(regionOf([sig("bottom"), sig("bottom"), sig("bottom"), sig("top"), sig(null)]), {
-    side: "bottom", bottom: 3, top: 1, of: 5, signals: { bottom: 3, top: 1, of: 5 },
+    side: "bottom", strong: false, bottom: 3, top: 1, of: 5, signals: { bottom: 3, top: 1, of: 5 },
   });
   assert.equal(regionOf([sig("top"), sig("top"), sig("top")]).side, "top");
   // dois de cada lado, ou só dois: neutra
@@ -518,15 +518,15 @@ test("regionOf: placar só com sinais disponíveis do grupo de fundo/topo", () =
   assert.equal(regionOf([sig("bottom"), sig("bottom")]).side, "neutral");
   // indisponíveis e sinais de tendência ficam fora do placar
   const mixed = [sig("bottom"), sig(null, { available: false }), { group: "trend", available: true, active: true, side: "down" }];
-  assert.deepEqual(regionOf(mixed), { side: "neutral", bottom: 1, top: 0, of: 1, signals: { bottom: 1, top: 0, of: 1 } });
-  assert.deepEqual(regionOf([]), { side: "neutral", bottom: 0, top: 0, of: 0, signals: { bottom: 0, top: 0, of: 0 } });
+  assert.deepEqual(regionOf(mixed), { side: "neutral", strong: false, bottom: 1, top: 0, of: 1, signals: { bottom: 1, top: 0, of: 1 } });
+  assert.deepEqual(regionOf([]), { side: "neutral", strong: false, bottom: 0, top: 0, of: 0, signals: { bottom: 0, top: 0, of: 0 } });
 });
 
 test("regionOf: sinais da mesma família contam uma vez só", () => {
   const sig = (family, side, extra = {}) => ({ group: "extreme", family, available: true, active: !!side, side, ...extra });
   // quatro sinais de fundo, mas só duas famílias: não chega a "fundo provável"
   const two = regionOf([sig("rsi", "bottom"), sig("rsi", "bottom"), sig("stretch", "bottom"), sig("stretch", "bottom"), sig("div", null)]);
-  assert.deepEqual(two, { side: "neutral", bottom: 2, top: 0, of: 3, signals: { bottom: 4, top: 0, of: 5 } });
+  assert.deepEqual(two, { side: "neutral", strong: false, bottom: 2, top: 0, of: 3, signals: { bottom: 4, top: 0, of: 5 } });
   // três famílias de fundo e uma de topo
   const three = regionOf([sig("rsi", "bottom"), sig("stretch", "bottom"), sig("sentiment", "bottom"), sig("futures", "top"), sig("futures", null)]);
   assert.deepEqual([three.side, three.bottom, three.top, three.of], ["bottom", 3, 1, 4]);
@@ -535,6 +535,27 @@ test("regionOf: sinais da mesma família contam uma vez só", () => {
   assert.deepEqual([both.bottom, both.top, both.of], [1, 1, 1]);
   // família só com sinais indisponíveis não entra no total
   assert.equal(regionOf([sig("rsi", "bottom"), sig("futures", null, { available: false })]).of, 1);
+});
+
+test("regionOf: nível forte só na região de fundo com o RSI semanal a favor", () => {
+  const sig = (id, family, side) => ({ id, group: "extreme", family, available: true, active: !!side, side });
+  const rest = [sig("stretch-d", "stretch", "bottom"), sig("fng", "sentiment", "bottom")];
+  // três famílias de fundo, mas o RSI é só o diário: região de fundo comum
+  const common = regionOf([sig("rsi-d", "rsi", "bottom"), ...rest]);
+  assert.deepEqual([common.side, common.strong], ["bottom", false]);
+  // com o RSI semanal sobrevendido ou a divergência de alta semanal: forte
+  assert.equal(regionOf([sig("rsi-w", "rsi", "bottom"), ...rest]).strong, true);
+  assert.equal(regionOf([sig("rsi-div-w", "div", "bottom"), ...rest]).strong, true);
+  // RSI semanal a favor sem chegar à região (só duas famílias): não é forte
+  const two = regionOf([sig("rsi-w", "rsi", "bottom"), sig("fng", "sentiment", "bottom")]);
+  assert.deepEqual([two.side, two.strong], ["neutral", false]);
+  // região de topo nunca é forte, nem com o RSI semanal sobrecomprado
+  const top = regionOf([sig("rsi-w", "rsi", "top"), sig("stretch-w", "stretch", "top"), sig("fng", "sentiment", "top")]);
+  assert.deepEqual([top.side, top.strong], ["top", false]);
+  // o sinal semanal precisa estar do lado de fundo
+  const mixed = regionOf([sig("rsi-w", "rsi", "top"), sig("rsi-d", "rsi", "bottom"), ...rest, sig("liq", "futures", "bottom")]);
+  assert.deepEqual([mixed.side, mixed.strong], ["bottom", false]);
+  assert.deepEqual(SIGNAL_DEFAULTS.strongBottomIds, ["rsi-w", "rsi-div-w"]);
 });
 
 test("SIGNAL_FAMILIES: todo sinal de fundo/topo tem família, e os de tendência não", () => {
@@ -566,7 +587,8 @@ test("analyzeSignals: junta tudo num resultado serializável", () => {
   // mercado: medo extremo. Três de fundo e um de topo: fundo provável
   // Famílias de fundo: RSI, esticagem e sentimento; de topo: RSI. Disponíveis: essas três e a divergência
   // (diária, sem nenhuma recente); os futuros ficam de fora
-  assert.deepEqual(r.region, { side: "bottom", bottom: 3, top: 1, of: 4, signals: { bottom: 3, top: 1, of: 5 } });
+  // o RSI semanal está sobrecomprado, não a favor: região de fundo comum
+  assert.deepEqual(r.region, { side: "bottom", strong: false, bottom: 3, top: 1, of: 4, signals: { bottom: 3, top: 1, of: 5 } });
   // a tendência exibida vem das médias; o MACD é só confirmação
   assert.equal(r.signals.find((s) => s.id === "macd-w").side, "up");
   assert.deepEqual(JSON.parse(JSON.stringify(r)), r);
@@ -575,7 +597,7 @@ test("analyzeSignals: junta tudo num resultado serializável", () => {
 test("analyzeSignals: sem velas, tudo indisponível", () => {
   const r = analyzeSignals({ asset: "X", daily: [], weekly: null, now: 0 });
   assert.deepEqual(r.trend, { d: null, w: null });
-  assert.deepEqual(r.region, { side: "neutral", bottom: 0, top: 0, of: 0, signals: { bottom: 0, top: 0, of: 0 } });
+  assert.deepEqual(r.region, { side: "neutral", strong: false, bottom: 0, top: 0, of: 0, signals: { bottom: 0, top: 0, of: 0 } });
   assert.ok(r.signals.every((s) => !s.available));
   assert.deepEqual([...new Set(r.signals.map((s) => s.reason))], ["history", "no-data"]);
   assert.deepEqual(r.signals.slice(-2).map((s) => s.id), ["funding", "liq"]);

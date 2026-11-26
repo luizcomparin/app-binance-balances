@@ -129,13 +129,13 @@ O que os números dizem:
 - **Pesos numéricos não ganharam da regra atual fora da amostra.** O peso pelo resultado passado é o caso típico de ajuste excessivo: foi o melhor no período de ajuste (74% em 90 dias) e o pior no teste (50%).
 - **O que se manteve nos dois períodos foi a força dos sinais semanais de RSI** (sobrevenda e divergência de alta). Por dia, eles vieram antes de alta em 76% / 82% dos dias até 2023 e em 79% / 87% depois. Mas são só 10 vezes em cada período, e por vez o período de ajuste foi fraco em 30 dias (40%).
 
-Recomendação: em vez de uma soma de pesos, um **segundo nível** na região. "Fundo provável" continua como está, e passa a "Fundo forte" quando entre os sinais ativos há RSI semanal sobrevendido ou divergência de alta semanal. É simples de explicar, não depende de números ajustados ao passado e usa a única diferença que apareceu nos dois períodos. Fica a ressalva das 10 vezes: é uma aposta razoável, não uma regra provada. Nada disso foi implementado; a decisão está em [planejamento](planejamento.md#pendências-de-decisão).
+Recomendação: em vez de uma soma de pesos, um **segundo nível** na região. "Fundo provável" continua como está, e passa a "Fundo forte" quando entre os sinais ativos há RSI semanal sobrevendido ou divergência de alta semanal. É simples de explicar, não depende de números ajustados ao passado e usa a única diferença que apareceu nos dois períodos. Fica a ressalva das 10 vezes: é uma aposta razoável, não uma regra provada. **Decisão (26/11/2026):** adotado, com outros nomes. A região de fundo comum passou a se chamar "Sobrevendido" (par de "Sobrecomprado"), e o nível com o RSI semanal a favor ficou com o nome "Fundo provável". Nas tabelas deste doc, "fundo provável" ainda é o nome antigo da região comum (3 ou mais famílias).
 
 O lado de topo não entrou na análise: nenhum sinal de topo veio antes de quedas, então não há "forte" para destacar.
 
 ## O que ficou em aberto
 
 - ~~O nome "Topo provável"~~: decidido em 26/11/2026. A região de topo passou a se chamar **"Sobrecomprado"**, que descreve o que os sinais medem sem prometer reversão.
-- **Peso por sinal.** Analisado na seção acima; a recomendação (nível "Fundo forte") aguarda decisão.
+- ~~Peso por sinal~~: analisado na seção acima e decidido (dois níveis, sem pesos numéricos).
 - **Fundo depende de a queda parar.** Medo extremo, cascata de longs e esticagem acendem durante toda a baixa. Um filtro do tipo "o preço parou de fazer mínimas" (ou a divergência, que já exige isso) pode separar o fim da queda do meio dela. Ideia para testar no backtest.
 - **Funding** não foi avaliado.

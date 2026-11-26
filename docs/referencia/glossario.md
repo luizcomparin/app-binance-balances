@@ -28,7 +28,8 @@ storage: []
 | Cobertura | `coverage` | Fração da quantidade atual explicada pelos trades (o resto veio de depósito, Convert, Earn…). Abaixo de 95% aparece ⚠. |
 | Distância | `distancePct` | Quanto o preço atual precisa andar até a ordem aberta executar. |
 | Sinais | `analyzeSignals`, `signals` | Leituras dos indicadores no diário e no semanal que apontam tendência, fundo ou topo. Ver [sinais](../sinais/README.md). |
-| Região (fundo provável, sobrecomprado, neutra) | `region.side` (`bottom`, `top`, `neutral`) | Resultado do placar de confluência: 3 ou mais famílias de sinais de um lado e no máximo 1 do outro. O lado de topo aparece como "Sobrecomprado". |
+| Região (sobrevendido, sobrecomprado, neutra) | `region.side` (`bottom`, `top`, `neutral`) | Resultado do placar de confluência: 3 ou mais famílias de sinais de um lado e no máximo 1 do outro. Fundo aparece como "Sobrevendido" e topo, como "Sobrecomprado". |
+| Fundo provável | `region.strong` | A região "Sobrevendido" com o RSI semanal a favor: sobrevendido ou com divergência de alta. |
 | Vezes anteriores | `outcomeStats`, `episodes` | Quantas vezes um sinal já ativou no histórico da moeda (depois de mais de 14 dias apagado) e o que o preço fez 30 e 90 dias depois. |
 | Linha de base | `stats.base` | O que o preço fez a partir de um dia qualquer do mesmo histórico; referência para ler as "vezes anteriores". |
 | Família (grupo) de sinais | `family`, `SIGNAL_FAMILIES` | Sinais que medem a mesma coisa e contam uma vez só no placar: RSI, divergência de RSI, esticagem da média, sentimento do mercado, futuros. |

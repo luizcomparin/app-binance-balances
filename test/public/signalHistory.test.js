@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  baseText, extremeStatesAt, HISTORY_DEFAULTS, outcomeStats, outcomeText, REGION_KEY, signalHistory, weeklyAsOf,
+  baseText, extremeStatesAt, HISTORY_DEFAULTS, outcomeStats, outcomeText, REGION_KEY, signalHistory, STRONG_KEY, weeklyAsOf,
 } from "../../public/components/price-chart/signals/signalHistory.js";
 import { SIGNAL_DEFAULTS } from "../../public/components/price-chart/signals/signals.js";
 
@@ -36,15 +36,16 @@ test("extremeStatesAt: um lado por sinal de fundo/topo, mais o placar", () => {
   const daily = candles([20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4.5, 4, 3.5, 3]);
   const on = extremeStatesAt({ daily, weekly: [], fearGreed: [{ t: 19 * DAY, v: 10 }], funding: null, liquidations: null }, 19);
   assert.deepEqual(Object.keys(on).sort(), [
-    "fng", "funding", "liq", REGION_KEY, "rsi-d", "rsi-div-d", "rsi-div-w", "rsi-w", "stretch-d", "stretch-w",
+    "fng", "funding", "liq", REGION_KEY, STRONG_KEY, "rsi-d", "rsi-div-d", "rsi-div-w", "rsi-w", "stretch-d", "stretch-w",
   ].sort());
   // só quedas: RSI diário sobrevendido; medo extremo; o resto sem histórico ou sem fonte
   assert.equal(on["rsi-d"], "bottom");
   assert.equal(on.fng, "bottom");
   assert.equal(on["stretch-d"], null);
   assert.equal(on.liq, null);
-  // duas famílias de fundo não chegam a "fundo provável"
+  // duas famílias de fundo não chegam à região de fundo (nem ao nível forte)
   assert.equal(on[REGION_KEY], null);
+  assert.equal(on[STRONG_KEY], null);
   // o Fear & Greed publicado depois do dia avaliado não entra
   assert.equal(extremeStatesAt({ daily, weekly: [], fearGreed: [{ t: 19 * DAY, v: 10 }] }, 15).fng, null);
 });
@@ -123,6 +124,8 @@ test("outcomeText: frase do histórico de um sinal", () => {
     outcomeText({ episodes: 2, 30: r(1, 1, 0.2), 90: r(0, 0, null) }),
     "Na única vez anterior nesta moeda (pouco para concluir): 30 dias depois, alta em 1 (100%), mediana +20%."
   );
+  // mediana que arredonda para zero não sai como "-0%"
+  assert.match(outcomeText({ episodes: 6, 30: r(6, 2, -0.004), 90: r(6, 3, 0.004) }), /mediana 0%; 90 dias depois, alta em 3 \(50%\), mediana 0%\.$/);
   // ativou agora pela primeira vez (ou nunca tinha ativado)
   const first = "Primeira vez no histórico carregado desta moeda: não há como comparar.";
   assert.equal(outcomeText({ episodes: 1, 30: r(0, 0, null), 90: r(0, 0, null) }), first);
