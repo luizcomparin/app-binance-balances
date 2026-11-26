@@ -1,7 +1,7 @@
 ---
 titulo: Sinais — catálogo
 resumo: Lista de cada sinal planejado (regra, limiares padrão, fonte, o que indica, etapa) e dos sinais candidatos para depois da v1.
-arquivos: []
+arquivos: [public/components/price-chart/signals/signals.js]
 rotas: []
 eventos: []
 storage: []
@@ -9,21 +9,21 @@ storage: []
 
 # Catálogo de sinais
 
-> **Estado: planejado.** As regras e os limiares abaixo são os **padrões iniciais** combinados antes da implementação. Cada sinal é revisado quando for implementado; o que mudar é corrigido aqui, e a coluna "Estado" passa a "implementado".
+> As regras e os limiares são os **padrões fixos da v1** (`SIGNAL_DEFAULTS` em `signals/signals.js`). A coluna "Estado" diz o que já existe no núcleo de cálculo; os "planejados" são revisados quando forem implementados. Nenhum sinal aparece na tela ainda (etapa 2).
 
 Convenções:
 
 - **D** = velas diárias, **S** = velas semanais.
-- "Há N velas" conta velas **fechadas** seguidas com o sinal ativo. A vela em andamento entra só como valor atual, marcada como "em formação" (a confirmar na etapa 1).
-- **Percentil:** posição do valor atual entre todos os valores do histórico carregado da própria moeda. Exige um mínimo de amostras; abaixo disso o sinal fica "indisponível: pouco histórico".
+- "Há N velas" conta velas **fechadas** seguidas com o sinal ativo. O valor e o estado ativo usam a última vela, mesmo em andamento; se só ela estiver na zona, o sinal sai como "na vela em formação" (`forming`).
+- **Percentil:** posição do valor atual entre todos os valores do histórico carregado da própria moeda. A amostra são as velas fechadas. Exige um mínimo de amostras (365 em D, 52 em S); abaixo disso o sinal fica indisponível (`reason: "history"`).
 - "Etapa" aponta para o [planejamento](planejamento.md).
 
 ## Tendência
 
 | Id | Sinal | Regra padrão | Fonte | Etapa | Estado |
 |---|---|---|---|---|---|
-| `trend-ma-d` | Tendência diária por médias | Alta: fechamento acima da SMA 50 e da SMA 200, com SMA 50 acima da SMA 200. Baixa: o inverso. Qualquer outra combinação: lateral. Mostra também a inclinação da SMA 200 (valor atual × o de 10 velas atrás) | velas D, `movingAverage` | 1 | planejado |
-| `trend-ma-w` | Tendência semanal por médias | Igual, com SMA 20 e SMA 50 semanais | velas S, `movingAverage` | 1 | planejado |
+| `trend-ma-d` | Tendência diária por médias | Alta: fechamento acima da SMA 50 e da SMA 200, com SMA 50 acima da SMA 200. Baixa: o inverso. Qualquer outra combinação: lateral. Mostra também a inclinação da SMA 200 (valor atual × o de 10 velas atrás) | velas D, `movingAverage` | 1 | implementado |
+| `trend-ma-w` | Tendência semanal por médias | Igual, com SMA 20 e SMA 50 semanais | velas S, `movingAverage` | 1 | implementado |
 | `macd-w` | MACD semanal (12/26/9) | Acima de zero: favorece alta; abaixo: baixa. Avisa cruzamento do sinal nas últimas 3 velas e histograma perdendo força (barras voltando ao zero, `macdHistogramTones`) | velas S, `macd` | 3 | planejado |
 | `macd-d` | MACD diário (12/26/9) | Igual ao semanal, como leitura secundária | velas D, `macd` | 3 | planejado |
 
@@ -33,10 +33,10 @@ A tendência exibida no campo resumido (`trend.d`, `trend.w`) vem dos sinais por
 
 | Id | Sinal | Regra padrão | Lado | Fonte | Etapa | Estado |
 |---|---|---|---|---|---|---|
-| `rsi-d` | RSI 14 diário | ≤ 30: sobrevendido; ≥ 70: sobrecomprado. Mostra há quantos dias | ≤30 fundo, ≥70 topo | velas D, `rsi` | 1 | planejado |
-| `rsi-w` | RSI 14 semanal | Mesmos níveis; mostra há quantas semanas | idem | velas S, `rsi` | 1 | planejado |
-| `stretch-d` | Esticagem da SMA 200 diária | `fechamento / SMA 200 − 1`, comparada com o histórico da moeda. Percentil ≤ 10: muito abaixo da média; ≥ 90: muito acima. Mostra o valor atual, o percentil e os extremos já atingidos (máximo e mínimo históricos da esticagem) | ≤10 fundo, ≥90 topo | velas D (até 3 páginas), `movingAverage` | 1 | planejado |
-| `stretch-w` | Esticagem da SMA 50 semanal | Igual, sobre as velas semanais | idem | velas S | 1 | planejado |
+| `rsi-d` | RSI 14 diário | ≤ 30: sobrevendido; ≥ 70: sobrecomprado. Mostra há quantos dias | ≤30 fundo, ≥70 topo | velas D, `rsi` | 1 | implementado |
+| `rsi-w` | RSI 14 semanal | Mesmos níveis; mostra há quantas semanas | idem | velas S, `rsi` | 1 | implementado |
+| `stretch-d` | Esticagem da SMA 200 diária | `fechamento / SMA 200 − 1`, comparada com o histórico da moeda. Fundo: preço **abaixo** da média e percentil ≤ 10. Topo: preço **acima** da média e percentil ≥ 90. Mostra o valor atual, o percentil e os extremos já atingidos (máximo e mínimo históricos da esticagem) | ≤10 fundo, ≥90 topo | velas D (até 3 páginas), `movingAverage` | 1 | implementado |
+| `stretch-w` | Esticagem da SMA 50 semanal | Igual, sobre as velas semanais | idem | velas S | 1 | implementado |
 | `fng` | Fear & Greed extremo | ≤ 25 (medo extremo) ou ≥ 75 (ganância extrema). Mostra há quantos dias seguidos | ≤25 fundo, ≥75 topo | `/fear-greed` | 3 | planejado |
 | `funding` | Funding extremo | Média da taxa nos últimos 7 dias no percentil ≤ 10 (ou negativa) ou ≥ 90 do histórico de ~333 dias | baixo/negativo fundo, alto topo | `/futures-data?period=1d` | 4 | planejado |
 | `liq` | Cascata de liquidações | Soma liquidada nos últimos 7 dias, por lado, comparada com todas as janelas de 7 dias do histórico. Percentil ≥ 90 em longs liquidados ou em shorts liquidados. 3 corretoras (Binance + Bybit + OKX) | longs liquidados fundo, shorts liquidados topo | `/liquidations` (D) | 4 | planejado |
@@ -45,6 +45,8 @@ A tendência exibida no campo resumido (`trend.d`, `trend.w`) vem dos sinais por
 
 Observações sobre os padrões:
 
+- **Esticagem exige o lado certo da média:** numa moeda que passou quase todo o histórico acima da média, o percentil 10 pode ser um preço encostado nela, e isso não é "esticado para baixo". Por isso o sinal de fundo só vale com o preço abaixo da média, e o de topo, acima.
+- **Tendência sem a média longa** (menos de 200 velas diárias ou 50 semanais) fica indisponível.
 - **Fear & Greed** é do mercado (calculado sobre o BTC): o mesmo valor vale para qualquer moeda. Ainda assim entra no placar de cada uma, porque altcoins costumam fazer fundo e topo junto com o mercado.
 - **Liquidações em percentil**, e não em USDT fixo: o mesmo valor é irrelevante no BTC e enorme numa altcoin. A conta se parece com a de `topShareCutoff` em `chart/liquidationBubbles.js`.
 - **Funding e liquidações são opcionais:** sem contrato perpétuo ou sem chave da Coinalyze, ficam "indisponíveis" e saem do placar.
@@ -53,7 +55,7 @@ Observações sobre os padrões:
 ## Região (placar)
 
 - Cada sinal da tabela acima que estiver **ativo** conta um ponto para "fundo" ou para "topo". O denominador é o número de sinais **disponíveis**.
-- Leitura padrão (a calibrar na etapa 6): "fundo provável" ou "topo provável" quando um lado tiver pelo menos 3 sinais ativos e o outro, nenhum ou um; senão, "neutra".
+- Implementado em `regionOf`. Leitura padrão (a calibrar na etapa 6): "fundo provável" ou "topo provável" quando um lado tiver pelo menos 3 sinais ativos e o outro, nenhum ou um; senão, "neutra".
 - A janela mostra o placar dos dois lados e a lista; o campo resumido mostra só o lado dominante.
 
 ## Candidatos para depois da v1

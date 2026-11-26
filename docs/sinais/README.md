@@ -1,7 +1,7 @@
 ---
 titulo: Sinais de compra e venda — visão geral
-resumo: Mecanismo (em planejamento) que lê os indicadores e camadas já existentes nos tempos Diário e Semanal e informa, por paridade, a tendência atual e se o preço está em região provável de fundo ou de topo, listando os sinais presentes.
-arquivos: []
+resumo: Mecanismo (em desenvolvimento; o núcleo de cálculo existe, a interface ainda não) que lê os indicadores e camadas já existentes nos tempos Diário e Semanal e informa, por paridade, a tendência atual e se o preço está em região provável de fundo ou de topo, listando os sinais presentes.
+arquivos: [public/components/price-chart/signals/signals.js]
 rotas: []
 eventos: []
 storage: []
@@ -9,7 +9,7 @@ storage: []
 
 # Sinais de compra e venda
 
-> **Estado: em planejamento. Nada foi implementado ainda.** O andamento fica em [planejamento.md](planejamento.md). Este doc é atualizado a cada etapa concluída; quando houver código, o cabeçalho acima passa a listar os arquivos, rotas e chaves de storage.
+> **Estado: em desenvolvimento.** A etapa 1 está pronta: o núcleo de cálculo (`signals/signals.js`) com tendência por médias, RSI, esticagem e o placar de região, com testes. **Ainda não há nada na tela**: a carga dos dados e a interface são a etapa 2. O andamento fica em [planejamento.md](planejamento.md), e este doc é atualizado a cada etapa concluída.
 
 Documentação exclusiva dos sinais:
 
@@ -62,15 +62,18 @@ Pontos estruturais:
 - Os indicadores são **funções puras no front**, hoje calculadas sobre a vela que está na tela. Os sinais chamam as mesmas funções com velas D e S próprias.
 - O projeto é ESM (`"type": "module"` no `package.json`), então o server consegue importar essas funções puras. Isso é o que permite a v2 (varredura) reutilizar o núcleo sem reescrever.
 
-## Arquitetura planejada
+## Arquitetura
 
-Os nomes de arquivo são a intenção e podem mudar na implementação; este doc será ajustado.
+- **Núcleo puro (implementado):** `public/components/price-chart/signals/signals.js`, sem DOM, sem `fetch` e sem ler o relógio. Recebe as velas D e S e o instante `now` e devolve o resultado. Testado em `test/public/signals.test.js`. Reaproveita `movingAverage` e `rsi`; as séries opcionais (Fear & Greed, funding, liquidações) entram nas etapas 3 e 4.
+  - `analyzeSignals({ asset, daily, weekly, now }, cfg?)`: a análise completa.
+  - `trendSignal`, `rsiSignal`, `stretchSignal` `(points, "d" | "w", now, cfg?)`: um sinal cada.
+  - `regionOf(signals, cfg?)`: o placar de confluência.
+  - `lastClosedIndex`, `streak`, `percentileRank`: auxiliares.
+  - `SIGNAL_DEFAULTS`: os limiares fixos da v1. As funções aceitam outra configuração no último parâmetro (os testes usam médias curtas).
+- **Carga dos dados (planejada, etapa 2)** no front, por moeda, independente das camadas ligadas: velas `1d` (até 3 páginas, cerca de 8 anos, para os percentis) e `1w` (1 página cobre todo o histórico), mais Fear & Greed, funding e liquidações quando disponíveis. Usa os caches que já existem (`getKlines`, `futCache`, `liqRealCache`, `view.fng`).
+- **Componente (planejado, etapa 2)** do campo resumido e da janela flutuante, em módulo próprio (o `PriceChartPanel.js` já é grande; ver [debitos-tecnicos](../debitos-tecnicos.md)).
 
-- **Núcleo puro**, sem DOM e sem `fetch`: recebe as velas D e S e as séries opcionais (Fear & Greed, funding, liquidações) e devolve o resultado. Testado em `test/`. Reaproveita `movingAverage`, `rsi`, `macd` etc.
-- **Carga dos dados** no front, por moeda, independente das camadas ligadas: velas `1d` (até 3 páginas, cerca de 8 anos, para os percentis) e `1w` (1 página cobre todo o histórico), mais Fear & Greed, funding e liquidações quando disponíveis. Usa os caches que já existem (`getKlines`, `futCache`, `liqRealCache`, `view.fng`).
-- **Componente** do campo resumido e da janela flutuante, em módulo próprio (o `PriceChartPanel.js` já é grande; ver [debitos-tecnicos](../debitos-tecnicos.md)).
-
-Formato do resultado (rascunho):
+Formato do resultado de `analyzeSignals`:
 
 ```js
 {
@@ -86,14 +89,19 @@ Formato do resultado (rascunho):
     active: true,
     side: "bottom" | "top" | "up" | "down" | null,
     value: 27.4,            // valor atual do indicador
-    bars: 3,                // há quantas velas seguidas está ativo
-    percentile: 4,          // posição do valor atual no histórico da própria moeda (quando se aplica)
+    bars: 3,                // há quantas velas FECHADAS seguidas está ativo
+    forming: false,         // true: ativo só na vela em formação (bars = 0)
+    percentile: 4,          // posição do valor atual no histórico da própria moeda (só na esticagem)
+    details: { ... },       // números de apoio do sinal (médias, inclinação, extremos da esticagem)
     text: "RSI diário em 27,4: sobrevendido há 3 dias",
   }],
 }
 ```
 
 ## Regras gerais
+
+- **Vela em formação:** o valor e o estado "ativo" de cada sinal usam a última vela, mesmo em andamento, para o campo refletir o preço de agora. Já o "há N velas" (`bars`) conta só velas **fechadas** seguidas. Um sinal ativo com `bars = 0` vem com `forming: true` e o texto "na vela em formação": ainda não foi confirmado por um fechamento. A última vela conta como fechada quando `time + duração ≤ now`.
+- **Calculável no passado:** as funções recebem as velas e o `now`. Para analisar uma data antiga (backtest), basta passar as velas até ela.
 
 - **Limiares fixos na v1**, com padrões razoáveis (ver o [catálogo](catalogo-de-sinais.md)). Tornar configurável é ideia futura.
 - **Percentil em vez de valor absoluto** sempre que houver histórico: "o preço está mais esticado que em 96% do histórico desta moeda" vale para BTC e para altcoin; "50M liquidados" não.

@@ -11,7 +11,7 @@ storage: []
 
 Como usar este doc: ao concluir uma etapa, marque os itens (`[x]`), anote a data e o que mudou em relação ao plano, e atualize o [README](README.md) e o [catálogo](catalogo-de-sinais.md) no mesmo commit do código.
 
-**Situação em 25/11/2026:** etapa 0 concluída; nenhuma linha de código dos sinais escrita.
+**Situação em 25/11/2026:** etapas 0 e 1 concluídas. Existe o núcleo de cálculo com testes; ainda não há nada na tela.
 
 ## V1: sinais no gráfico de preço
 
@@ -23,14 +23,16 @@ Cada etapa termina com algo utilizável, `npm test` passando e docs atualizados.
 - [x] Definir escopo (D e S), interface (campo resumido + janela flutuante) e limiares fixos.
 - [x] Criar esta documentação (`docs/sinais/`).
 
-### Etapa 1 — Núcleo puro: tendência, RSI e esticagem
+### Etapa 1 — Núcleo puro: tendência, RSI e esticagem ✅ (25/11/2026)
 
-- [ ] Módulo puro com o formato do resultado descrito no [README](README.md#arquitetura-planejada).
-- [ ] Sinais `trend-ma-d`, `trend-ma-w`, `rsi-d`, `rsi-w`, `stretch-d`, `stretch-w`.
-- [ ] Funções auxiliares: contagem de velas seguidas, percentil no histórico, mínimo de amostras.
-- [ ] Definir o tratamento da vela em andamento (fechada × em formação).
-- [ ] Placar de região.
-- [ ] Testes em `test/public/`.
+- [x] Módulo puro `public/components/price-chart/signals/signals.js`, com o formato do resultado descrito no [README](README.md#arquitetura).
+- [x] Sinais `trend-ma-d`, `trend-ma-w`, `rsi-d`, `rsi-w`, `stretch-d`, `stretch-w`.
+- [x] Funções auxiliares: contagem de velas seguidas (`streak`), percentil no histórico (`percentileRank`), mínimo de amostras.
+- [x] Tratamento da vela em andamento: o valor e o "ativo" usam a última vela; "há N velas" conta só as fechadas (`forming`).
+- [x] Placar de região (`regionOf`).
+- [x] Testes em `test/public/signals.test.js`.
+
+Mudanças em relação ao plano: a esticagem só vira sinal de fundo com o preço abaixo da média (e de topo, acima); o texto de cada sinal (`text`) já sai pronto do núcleo, em PT-BR. **Não verificado ainda:** os sinais com velas reais da Binance; isso acontece na etapa 2, quando houver a carga dos dados.
 
 ### Etapa 2 — Dados D/S e interface
 
@@ -127,3 +129,4 @@ Intenção registrada em 25/11/2026: avaliar os sinais no histórico para saber 
 | Data | O que foi feito |
 |---|---|
 | 25/11/2026 | Levantamento dos indicadores e camadas, decisões iniciais e criação da documentação (etapa 0) |
+| 25/11/2026 | Etapa 1: núcleo puro (`signals/signals.js`) com tendência por médias, RSI, esticagem com percentil e placar de região, com testes |

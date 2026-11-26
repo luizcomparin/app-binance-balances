@@ -50,6 +50,7 @@ Qualquer parte do app abre uma moeda aqui com `window.openPriceChart(asset)`.
 | `chart/rsi.js` | Cálculo do RSI e limites das configurações | [rsi](rsi.md) |
 | `chart/macd.js` | Cálculo do MACD, tons do histograma e limites das configurações | [macd](macd.md) |
 | `chart/fearGreed.js` | Zonas (nome e cor) do Fear & Greed Index e encaixe do valor diário nas velas | [fear-and-greed](fear-and-greed.md) |
+| `signals/signals.js` | Sinais de compra e venda: núcleo de cálculo puro (tendência, RSI, esticagem, placar). Ainda sem interface | [sinais](../../sinais/README.md) |
 | `watchlist.js`, `assetPicker.js` | Lista lateral e seletor do título | [watchlist-e-seletor](watchlist-e-seletor.md) |
 | `chartQuote.js` | Cotação do gráfico: USDT em USDT/BRL, demais em USDT (`quoteOf`, `pairLabel`, preço das ordens na cotação do gráfico) | [watchlist-e-seletor](watchlist-e-seletor.md) |
 | `openOrdersTable.js`, `orderHistoryTable.js`, `tradeHistoryTable.js`, `periodFilter.js`, `loadError.js` | Abas abaixo do gráfico | [abas-de-ordens](abas-de-ordens.md) |
