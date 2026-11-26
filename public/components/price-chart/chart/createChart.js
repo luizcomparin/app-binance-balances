@@ -43,7 +43,8 @@ const DEFAULT_MARGINS = { top: 0.2, bottom: 0.1 };
  *                        liquidationBubbles: { events, style, minUsd, pct, top } das liquidações reais (chart/liquidationBubbles.js) | null,
  *                        futures: resposta de /futures-data | null (painéis de OI, long/short e funding),
  *                        futuresPanes: painéis de futuros ligados (["oi", "ls", "funding"] ou parte),
- *                        liquidations: resposta de /liquidations | null (painel de liquidações reais) }
+ *                        liquidations: resposta de /liquidations | null (painel de liquidações reais),
+ *                        fearGreed: resposta de /fear-greed | PANE_LOADING | null (painel do Fear & Greed Index) }
  *   window: { fromMs, toMs } → mostra essa janela de tempo (novo período/moeda/vela); null → tudo
  *   prepended: n → n velas antigas foram adicionadas no início (mantém a posição da tela)
  */
@@ -565,7 +566,7 @@ export function createPriceChart(els, handlers = {}) {
       liquidation.setData(opts.liquidation || null, opts.liquidationSettings);
       bubbles.setData(opts.liquidationBubbles || null);
       // primeiro a altura final do gráfico, depois os painéis (as alturas deles partem dela)
-      // (volume, CVD, RSI e MACD, quando ligados + os de futuros ligados, quando há dados + 1 de liquidações reais;
+      // (volume, CVD, RSI e MACD, quando ligados + os de futuros ligados, quando há dados + 1 de liquidações reais + 1 do Fear & Greed;
       // RSI e MACD contam 1,5 e 1,3: a altura padrão deles é maior, PANE_DEFAULT_HEIGHTS)
       const futPanes = opts.futures ? opts.futuresPanes || [] : [];
       const volume = opts.volume !== false;
@@ -574,13 +575,14 @@ export function createPriceChart(els, handlers = {}) {
       const macd = opts.macd || null;
       wrap.style.setProperty(
         "--sub-panes",
-        s.points?.length ? (volume ? 1 : 0) + (cvd ? 1 : 0) + (rsi ? 1.5 : 0) + (macd ? 1.3 : 0) + futPanes.length + (opts.liquidations ? 1 : 0) : 0
+        s.points?.length ? (volume ? 1 : 0) + (cvd ? 1 : 0) + (rsi ? 1.5 : 0) + (macd ? 1.3 : 0) + futPanes.length + (opts.liquidations ? 1 : 0) + (opts.fearGreed ? 1 : 0) : 0
       );
       futures.update(s.points, s.interval, opts.futures || null, opts.liquidations || null, futPanes, volume);
       futures.setVolumeAverages(volume ? (opts.volumeAverages || []).filter((m) => m.visible) : []);
       futures.setCvd(cvd);
       futures.setRsi(rsi);
       futures.setMacd(macd);
+      futures.setFearGreed(opts.fearGreed || null);
       drawMarkers(); // de novo, agora com o eixo de tempo final (ver drawMarkers)
       syncPriceScales();
       scheduleOffscreen();

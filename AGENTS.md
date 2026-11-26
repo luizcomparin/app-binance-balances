@@ -44,6 +44,7 @@ server/
   binance/market.js        cotações, ticker 24h, exchangeInfo, conversão p/ USDT
   binance/futures.js       fapi pública: contrato perpétuo da moeda, séries /futures/data
   coinalyze/client.js      GET autenticado na Coinalyze
+  alternativeme/client.js  GET público na Alternative.me (Fear & Greed Index)
   services/*.js            uma regra de negócio por arquivo (wallet, positions, priceChart...)
 public/
   index.html / index.js    página única; index.js faz o boot e expõe funções em window.*
@@ -68,7 +69,7 @@ docs/                      documentação oficial (índice em docs/README.md)
 | Eventos e `state` do front | [referencia/eventos-e-estado.md](docs/referencia/eventos-e-estado.md) | `public/core/events.js`, `public/core/state.js` |
 | Chaves de `localStorage` | [referencia/armazenamento-local.md](docs/referencia/armazenamento-local.md) | — |
 | Caches e TTLs (server e front) | [referencia/cache.md](docs/referencia/cache.md) | `server/lib/cache.js` |
-| Binance / Futures / Coinalyze / CDNs | [referencia/integracoes-externas.md](docs/referencia/integracoes-externas.md) | `server/binance/*`, `server/coinalyze/*` |
+| Binance / Futures / Coinalyze / Alternative.me / CDNs | [referencia/integracoes-externas.md](docs/referencia/integracoes-externas.md) | `server/binance/*`, `server/coinalyze/*`, `server/alternativeme/*` |
 | `.env`, chaves, CORS, segurança | [referencia/configuracao-e-seguranca.md](docs/referencia/configuracao-e-seguranca.md) | `server/config.js` |
 | Termos (P&L, preço médio dinâmico, cobertura, OI…) | [referencia/glossario.md](docs/referencia/glossario.md) | — |
 | Cards do topo, faixa de ativos, total da carteira | [funcionalidades/carteira-e-cards.md](docs/funcionalidades/carteira-e-cards.md) | `services/wallet.js`, `StatGrid`, `AssetStrip` |
@@ -92,6 +93,7 @@ docs/                      documentação oficial (índice em docs/README.md)
 | Camada: RSI (painel com engrenagem de configurações) | [grafico-de-preco/rsi.md](docs/funcionalidades/grafico-de-preco/rsi.md) | `chart/rsi.js`, `paneSettings.js`, `chart/futuresPanes.js` |
 | Camada: painéis de volume/CVD/OI/long-short/funding | [grafico-de-preco/paineis-de-futuros.md](docs/funcionalidades/grafico-de-preco/paineis-de-futuros.md) | `services/futuresData.js`, `chart/futuresPanes.js`, `chart/cvd.js`, `paneSettings.js` |
 | Camada: liquidações reais (Coinalyze) | [grafico-de-preco/liquidacoes-reais.md](docs/funcionalidades/grafico-de-preco/liquidacoes-reais.md) | `services/liquidations.js`, `chart/liquidationBubbles.js` |
+| Camada: Fear & Greed Index (sentimento do mercado, Alternative.me) | [grafico-de-preco/fear-and-greed.md](docs/funcionalidades/grafico-de-preco/fear-and-greed.md) | `services/fearGreed.js`, `chart/fearGreed.js`, `chart/futuresPanes.js` |
 | Watchlist e seletor de moeda | [grafico-de-preco/watchlist-e-seletor.md](docs/funcionalidades/grafico-de-preco/watchlist-e-seletor.md) | `watchlist.js`, `assetPicker.js` |
 | Abas abaixo do gráfico (ordens abertas, históricos) | [grafico-de-preco/abas-de-ordens.md](docs/funcionalidades/grafico-de-preco/abas-de-ordens.md) | `*Table.js`, `periodFilter.js` |
 | Decisões intencionais (não "corrigir") | [decisoes.md](docs/decisoes.md) | — |
@@ -105,7 +107,7 @@ Para achar o doc de um arquivo específico, faça um grep pelo caminho: `grep -r
 1. **Escopo estrito.** Faça só o que foi pedido. Não refatore, não "melhore" e não corrija nada fora do pedido. Débitos encontrados vão para [debitos-tecnicos.md](docs/debitos-tecnicos.md), não para o código. Antes de mudar algo que parece errado, veja [decisoes.md](docs/decisoes.md). Os cards fixos USDT/BTC/XRP/ETH, por exemplo, são intencionais.
 2. **Nunca leia, exiba, copie ou commite o `.env`.** Ele tem as chaves reais da conta. O `.gitignore` já o exclui. Use `.env.example` como referência.
 3. **Só leitura na Binance.** O app nunca cria, cancela ou altera ordens, e assim deve continuar. Não adicione chamadas que não sejam GET a endpoints de leitura.
-4. **Respeite os limites das APIs.** Toda chamada à Binance spot passa por `publicGet`/`signedGet` (em `server/binance/client.js`), que controlam o peso. A fapi passa por `fapiGet` e a Coinalyze por `coinalyzeGet`, que usam `server/lib/rateLimit.js`. Nunca chame essas APIs com `fetch` direto. Novas chamadas caras precisam de cache (`cached`). Veja [integracoes-externas.md](docs/referencia/integracoes-externas.md).
+4. **Respeite os limites das APIs.** Toda chamada à Binance spot passa por `publicGet`/`signedGet` (em `server/binance/client.js`), que controlam o peso. A fapi passa por `fapiGet`, a Coinalyze por `coinalyzeGet` e a Alternative.me por `alternativeGet`, que usam `server/lib/rateLimit.js`. Nunca chame essas APIs com `fetch` direto. Novas chamadas caras precisam de cache (`cached`). Veja [integracoes-externas.md](docs/referencia/integracoes-externas.md).
 5. **Mudança que atravessa front e server:** atualize os dois lados *e* os dois docs de referência ([api.md](docs/referencia/api.md) e o doc da funcionalidade).
 6. **PT-BR** em comentários, textos de interface, mensagens de erro e documentação. Os nomes de código seguem em inglês, como já são.
 7. **Rode `npm test`** depois de mexer em regra de negócio (custo médio, timeframe, volatilidade, DCA, indicadores, simulador, formatação, cache, limitador). Funções puras novas ganham testes em `test/` (ver [convencoes.md](docs/arquitetura/convencoes.md#testes)). Não há build, e a interface não tem testes: verifique manualmente com `npm run dev`, abrindo a aba afetada e seguindo a seção "Como verificar" do doc da funcionalidade. Diga explicitamente o que foi e o que não foi verificado.

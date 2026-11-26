@@ -37,6 +37,7 @@ O padrão de nomes é **inconsistente**: há chaves em `camelCase` (`priceChartX
 | `priceChartFuturesFunding` | `"1"`/`"0"` | off | `PriceChartPanel.js` | Painel "Taxa de funding (futuros)" |
 | `priceChartFutures` | (legado) | — | `PriceChartPanel.js` | Antigo checkbox "Dados de futuros"; só lido como padrão dos 3 acima enquanto não têm valor salvo |
 | `priceChartRealLiquidations` | `"1"`/`"0"` | off | `PriceChartPanel.js` | Painel de liquidações reais |
+| `priceChartFearGreed` | `"1"`/`"0"` | off | `PriceChartPanel.js` | Painel "Fear & Greed Index" |
 | `priceChartLiqBubbles` | `"1"`/`"0"` | off | `PriceChartPanel.js` | Liquidações reais sobre o gráfico (perfil, bolhas ou maiores eventos) |
 | `priceChartLiqBubblesStyle` | `"profile"`/`"bubbles"`/`"top"` | `profile` | `PriceChartPanel.js` | Estilo das liquidações reais no gráfico: perfil por preço, bolhas ou maiores eventos |
 | `priceChartLiqBubblesSource` | `"all"`/`"binance"` | `all` | `PriceChartPanel.js` | Corretoras das liquidações reais no gráfico: Binance + Bybit + OKX ou só Binance |

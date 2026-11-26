@@ -2,7 +2,7 @@
 titulo: Referência da API local
 resumo: Todas as rotas HTTP do server, com parâmetros, validação, resposta, erros, serviço responsável e quem consome na página.
 arquivos: [server/routes.js, public/api/binance.js]
-rotas: [GET /settings/api-key, POST /settings/api-key, GET /settings/coinalyze-key, POST /settings/coinalyze-key, GET /raw, GET /balances, GET /positions, GET /avg-buy-prices, GET /orders, GET /orders/:asset, GET /order-history/:asset, GET /trade-history/:asset, GET /liquidation-map/:asset, GET /futures-data/:asset, GET /liquidations/:asset, GET /executed-orders, GET /price-chart/:asset, GET /site, GET /site/:page]
+rotas: [GET /settings/api-key, POST /settings/api-key, GET /settings/coinalyze-key, POST /settings/coinalyze-key, GET /raw, GET /balances, GET /positions, GET /avg-buy-prices, GET /orders, GET /orders/:asset, GET /order-history/:asset, GET /trade-history/:asset, GET /liquidation-map/:asset, GET /futures-data/:asset, GET /liquidations/:asset, GET /fear-greed, GET /executed-orders, GET /price-chart/:asset, GET /site, GET /site/:page]
 eventos: []
 storage: []
 ---
@@ -13,7 +13,7 @@ Todas as rotas estão em `server/routes.js`. Do lado da página, as funções co
 
 **Validação comum de `:asset`:** o middleware `validAsset` (em `routes.js`) faz `String(param).toUpperCase()` + `/^[A-Z0-9]{1,20}$/`, senão responde `400 { error: "Moeda inválida" }`. A moeda normalizada fica em `req.asset`. Vale para todas as rotas com `:asset`.
 
-**Sem chave da Binance:** as rotas que chamam `signedGet` respondem `401 { code: "API_KEY_MISSING" }`. São elas `/raw`, `/balances`, `/positions`, `/avg-buy-prices`, `/orders*`, `/order-history`, `/trade-history` e `/executed-orders`. As rotas de mercado (`/price-chart`, `/liquidation-map`, `/futures-data`) funcionam sem chave.
+**Sem chave da Binance:** as rotas que chamam `signedGet` respondem `401 { code: "API_KEY_MISSING" }`. São elas `/raw`, `/balances`, `/positions`, `/avg-buy-prices`, `/orders*`, `/order-history`, `/trade-history` e `/executed-orders`. As rotas de mercado (`/price-chart`, `/liquidation-map`, `/futures-data`, `/fear-greed`) funcionam sem chave.
 
 ## Resumo
 
@@ -34,6 +34,7 @@ Todas as rotas estão em `server/routes.js`. Do lado da página, as funções co
 | `GET /liquidation-map/:asset` | `buildLiquidationMap` | `fetchLiquidationMap` | PriceChartPanel (camada mapa) | 5 min (+ `/liquidations` 1h, com chave) |
 | `GET /futures-data/:asset` | `buildFuturesData` | `fetchFuturesData` | PriceChartPanel (painéis) | 2 min |
 | `GET /liquidations/:asset` | `buildLiquidations` | `fetchLiquidations` | PriceChartPanel (painel e camada sobre o gráfico; esta com `interval=1h` também) | 5 min |
+| `GET /fear-greed` | `buildFearGreed` | `fetchFearGreed` | PriceChartPanel (painel Fear & Greed) | 10 min |
 | `GET /executed-orders` | `buildExecutedOrders` | `fetchExecutedOrders` | ExecutedOrdersPanel, `chartData.loadMyOrders` | 15 s + trades |
 | `GET /price-chart/:asset` | `buildPriceChart` | `fetchKlines` | `chartData.getKlines` | 60 s |
 | `GET /site`, `/site/:page` | `server.js` | — | navegador | — |
@@ -127,6 +128,13 @@ Sem perpétuo: `{ available: false, reason: "no-perpetual" }`. Veja [paineis-de-
 Resposta: `{ available: true, asset, interval, exchanges: [...], rows: [{ t, long, short, by: { Binance: {long, short}, ... } }], generatedAt }`.
 
 Sem dados: `{ available: false, reason: "no-key" | "invalid-key" | "no-market" | "error", message? }`, **sempre com status 200**. Veja [liquidacoes-reais](../funcionalidades/grafico-de-preco/liquidacoes-reais.md).
+
+### `GET /fear-greed`
+Sem parâmetros: o índice é do mercado, não de uma moeda.
+
+Resposta: `{ available: true, source: "alternative.me", rows: [{ t, v, c }], generatedAt }`. `rows` traz todo o histórico diário em ordem de tempo: `t` é o instante do dia em ms (00:00 UTC), `v` o valor de 0 a 100 e `c` a zona informada pela API (`"extreme-fear" | "fear" | "neutral" | "greed" | "extreme-greed"`, ou `null` se vier uma classificação desconhecida).
+
+Sem dados: `{ available: false, reason: "no-data" | "error", message? }`, **sempre com status 200**. Veja [fear-and-greed](../funcionalidades/grafico-de-preco/fear-and-greed.md).
 
 ## Ao criar ou alterar uma rota
 

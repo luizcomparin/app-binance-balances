@@ -17,7 +17,7 @@ storage: []
 | Dev | `nodemon` (reinicia o server), `livereload` + `connect-livereload` (recarrega a página) | O livereload só liga em `npm run dev` (flag `--livereload` no script). São dependências de dev, importadas dinamicamente. |
 | Página | HTML/CSS/JS puro em ES modules, **sem build e sem framework** | Servida pelo próprio Express. |
 | Gráficos | Chart.js 4.4.1 (aba Distribuição) e TradingView Lightweight Charts 5.0.8 (gráfico de preço) | Vêm de CDN (jsDelivr), carregados em `public/index.html` e usados como globais `Chart` e `window.LightweightCharts`. |
-| Dados | API spot da Binance (assinada), Binance Futures `fapi` (pública), Coinalyze (opcional) | Ver [integracoes-externas](../referencia/integracoes-externas.md). |
+| Dados | API spot da Binance (assinada), Binance Futures `fapi` (pública), Coinalyze (opcional), Alternative.me (pública, Fear & Greed Index) | Ver [integracoes-externas](../referencia/integracoes-externas.md). |
 
 Não há banco de dados, lint nem build. Os testes automatizados (`npm test`) cobrem só as funções puras; a interface é verificada à mão (ver [convencoes](convencoes.md#testes)). Todo o estado do server fica **em memória** (caches) e se perde ao reiniciar. O único arquivo que o server grava é o `.env`, quando a pessoa troca as chaves pelo dashboard.
 
@@ -61,6 +61,6 @@ componente (public/components/...)
 - As rotas registradas com `handle(fn)` respondem com o JSON retornado. Em caso de erro, respondem `500 { error: e.message, code }`. Sem chave da Binance, a resposta é **`401 { code: "API_KEY_MISSING" }`**. Nos erros da Binance, `e.message` é o corpo cru da resposta (JSON com `code` e `msg`).
 - Rotas de validação respondem `400 { error: "Moeda inválida" }` ou `"Intervalo inválido"`, ou outra mensagem do tipo.
 - As rotas `POST /settings/*` respondem `400 { error: <mensagem amigável> }` ou `403` quando a origem ou o content-type não passam.
-- Alguns serviços **não** lançam erro e respondem `200` com `{ available: false, reason }`: `liquidationMap`, `futuresData` e `liquidations`. O front trata o `reason` (ver cada doc).
+- Alguns serviços **não** lançam erro e respondem `200` com `{ available: false, reason }`: `liquidationMap`, `futuresData`, `liquidations` e `fearGreed`. O front trata o `reason` (ver cada doc).
 - Os serviços que percorrem vários pares (`positions`, `executedOrders`, `orderHistory`, `assetTrades`) devolvem `errors: [{ symbol, error }]` com as falhas parciais e só abortam tudo em 429/418.
 - No front, `getJson()` (em `api/binance.js`) lança `Error(json.error)` quando `!res.ok` ou quando há `json.error`. Algumas funções antigas não usam `getJson` (ver débitos).

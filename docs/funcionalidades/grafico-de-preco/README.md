@@ -2,7 +2,7 @@
 titulo: Gráfico de preço — visão geral do módulo
 resumo: Aba principal do app, um gráfico estilo TradingView (Lightweight Charts) da moeda em USDT com camadas de análise, painéis de futuros, desenhos, watchlist e abas de ordens; mapa dos ~25 arquivos.
 arquivos: [public/components/price-chart/PriceChartPanel.js, public/components/price-chart/PriceChartPanel.html, public/components/price-chart/PriceChartPanel.css, public/components/price-chart/chart/createChart.js, public/components/price-chart/chart/chart.css, public/components/price-chart/loadError.js]
-rotas: [GET /price-chart/:asset, GET /orders/:asset, GET /executed-orders, GET /order-history/:asset, GET /trade-history/:asset, GET /liquidation-map/:asset, GET /futures-data/:asset, GET /liquidations/:asset]
+rotas: [GET /price-chart/:asset, GET /orders/:asset, GET /executed-orders, GET /order-history/:asset, GET /trade-history/:asset, GET /liquidation-map/:asset, GET /futures-data/:asset, GET /liquidations/:asset, GET /fear-greed]
 eventos: [BALANCES_UPDATED, POSITIONS_UPDATED, TAB_CHANGED, COINALYZE_KEY_CHANGED]
 storage: [priceChartAsset, priceChartMode, priceChartScale, priceChartRange, priceChartInterval]
 ---
@@ -25,7 +25,7 @@ Qualquer parte do app abre uma moeda aqui com `window.openPriceChart(asset)`.
 │ barra superior: ↑ ordens fora · resumo · legenda      │ moedas (arrastáveis)  │
 │ #priceChartContainer (Lightweight Charts)             │                       │
 │   painel 0: preço + linhas + marcadores + mapa + desenhos + régua            │
-│   painéis 1..5: volume · OI · long/short · funding · liquidações            │
+│   painéis 1..N: volume · CVD · RSI · MACD · liquidações · Fear & Greed · OI · long/short · funding │
 ├ caixas de texto: faixa estatística · DCA · mapa de liquidação ───────────────┤
 └ #price-chart-orders: Ordens abertas | Histórico de trades | Histórico de ordens ┘
 ```
@@ -46,9 +46,10 @@ Qualquer parte do app abre uma moeda aqui com `window.openPriceChart(asset)`.
 | `dca.js` | Comparação com compra mensal fixa | [comparacao-dca](comparacao-dca.md) |
 | `chart/liquidationOverlay.js` | Mapa de liquidação desenhado | [mapa-de-liquidacao](mapa-de-liquidacao.md) |
 | `chart/liquidationBubbles.js` | Liquidações reais sobre o gráfico (perfil por preço, bolhas, maiores eventos), posicionadas pelas velas de 1h | [liquidacoes-reais](liquidacoes-reais.md) |
-| `chart/futuresPanes.js`, `chart/cvd.js`, `paneSettings.js` | Painéis de volume, CVD/Delta, RSI, MACD, OI, L/S, funding e liquidações (engrenagem de configurações no volume, no CVD, no RSI e no MACD; `paneSettings.js` também tem o formulário da engrenagem do mapa de liquidação) | [paineis-de-futuros](paineis-de-futuros.md), [liquidacoes-reais](liquidacoes-reais.md), [rsi](rsi.md), [macd](macd.md), [mapa-de-liquidacao](mapa-de-liquidacao.md) |
+| `chart/futuresPanes.js`, `chart/cvd.js`, `paneSettings.js` | Painéis de volume, CVD/Delta, RSI, MACD, liquidações, Fear & Greed, OI, L/S e funding (engrenagem de configurações no volume, no CVD, no RSI e no MACD; `paneSettings.js` também tem o formulário da engrenagem do mapa de liquidação) | [paineis-de-futuros](paineis-de-futuros.md), [liquidacoes-reais](liquidacoes-reais.md), [rsi](rsi.md), [macd](macd.md), [fear-and-greed](fear-and-greed.md), [mapa-de-liquidacao](mapa-de-liquidacao.md) |
 | `chart/rsi.js` | Cálculo do RSI e limites das configurações | [rsi](rsi.md) |
 | `chart/macd.js` | Cálculo do MACD, tons do histograma e limites das configurações | [macd](macd.md) |
+| `chart/fearGreed.js` | Zonas (nome e cor) do Fear & Greed Index e encaixe do valor diário nas velas | [fear-and-greed](fear-and-greed.md) |
 | `watchlist.js`, `assetPicker.js` | Lista lateral e seletor do título | [watchlist-e-seletor](watchlist-e-seletor.md) |
 | `chartQuote.js` | Cotação do gráfico: USDT em USDT/BRL, demais em USDT (`quoteOf`, `pairLabel`, preço das ordens na cotação do gráfico) | [watchlist-e-seletor](watchlist-e-seletor.md) |
 | `openOrdersTable.js`, `orderHistoryTable.js`, `tradeHistoryTable.js`, `periodFilter.js`, `loadError.js` | Abas abaixo do gráfico | [abas-de-ordens](abas-de-ordens.md) |
@@ -66,9 +67,10 @@ Fica em `PriceChartPanel.js`, no nível do módulo.
 | `points` | Velas carregadas (`[{ time, open, high, low, close, volume }]`) |
 | `loadingOlder`, `reachedStart` | Estado do histórico sob demanda |
 | `openOrders` | `{ buys, sells, all, error? }` da moeda (`null` = carregando) |
-| `showAvg` (médio dinâmico de compra e venda), `showOpenOrders`, `showMyOrders`, `showProjected` (compras e vendas abertas), `showStats`, `statsDays`, `showDca`, `showLiq`, `showFut` (`{ oi, ls, funding }`), `showLiqReal` | Camadas ligadas (persistidas) |
+| `showAvg` (médio dinâmico de compra e venda), `showOpenOrders`, `showMyOrders`, `showProjected` (compras e vendas abertas), `showStats`, `statsDays`, `showDca`, `showLiq`, `showFut` (`{ oi, ls, funding }`), `showLiqReal`, `showFng` | Camadas ligadas (persistidas) |
 | `vol`, `dca`, `liq` | Dados das camadas: `undefined` = carregando, `null` = não carregado ou erro |
 | `fut`, `liqReal` | `{ key, data }` ou `{ key, loading: true }`, com chave `asset\|período` / `asset\|vela` |
+| `fng` | `{ data, at }` ou `{ loading: true, data }` do Fear & Greed Index: um só para todas as moedas e velas |
 
 ## Ciclo de vida
 
@@ -93,12 +95,12 @@ Fica em `PriceChartPanel.js`, no nível do módulo.
 4. **`refreshPriceChart()`**, chamada pelo "Atualizar" do topo (`Topbar.js`):
    - descarta o cache do cliente da moeda aberta (`invalidateAssetCache`);
    - busca de novo as ordens abertas, as executadas e a aba de histórico visível;
-   - `refreshLayers(asset)`: recarrega as camadas ligadas (vol, DCA, mapa, futuros, liquidações) e zera as desligadas;
+   - `refreshLayers(asset)`: recarrega as camadas ligadas (vol, DCA, mapa, futuros, liquidações, Fear & Greed) e zera as desligadas;
    - com a aba na tela, chama `loadChart({ keepWindow: true })`.
 5. **`loadChart({ keepWindow })`**: carrega as velas que cobrem a janela (ver [velas-e-timeframe](velas-e-timeframe.md)) e depois chama `render({ window })` e `renderInfo()`.
 6. **`render(extra)`**: monta **todas** as opções e chama `chart.update(opts)`. É chamado sempre que algo muda (dados, camada, posição, ordens). O `createChart` decide o que redesenhar: só recria a série ao trocar Linha/Velas, e só refaz os dados quando `points` muda.
 
-`chart.update(opts)` recebe: `asset, points, interval, mode, logScale, avg, avgSell, orders, openOrders, projectedAvg, projectedSellAvg, statBand, fixedAvg, dcaAvg, indicators, volume, volumeAverages, cvd, rsi, macd, summary, liquidation, futures, futuresPanes, liquidations` e, opcionalmente, `window` / `prepended`.
+`chart.update(opts)` recebe: `asset, points, interval, mode, logScale, avg, avgSell, orders, openOrders, projectedAvg, projectedSellAvg, statBand, fixedAvg, dcaAvg, indicators, volume, volumeAverages, cvd, rsi, macd, summary, liquidation, futures, futuresPanes, liquidations, fearGreed` e, opcionalmente, `window` / `prepended`.
 
 ## Cabeçalho de informações (`renderInfo`)
 

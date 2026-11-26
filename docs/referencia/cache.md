@@ -33,6 +33,7 @@ O app tem **duas camadas de cache**: memória do server, que se perde ao reinici
 | Mapa de liquidação | `liqmap:<ASSET>:real` (com chave da Coinalyze) / `liqmap:<ASSET>:est` (sem) | 5 min | `services/liquidationMap.js` |
 | Liquidações reais | `liquidations:<ASSET>:<interval>` | 5 min | `services/liquidations.js` |
 | Mercados da Coinalyze | `coinalyze:markets` | 24 h | `services/liquidations.js` |
+| Fear & Greed Index | `fearGreed` | 10 min | `services/fearGreed.js` |
 
 `clearTradesCache()` (trades) só roda quando muda a chave da **Binance**. `dailyRateCache` e os `exchangeInfo` nunca são limpos, porque são dados de mercado.
 
@@ -47,8 +48,9 @@ O app tem **duas camadas de cache**: memória do server, que se perde ao reinici
 | Mapa de liquidação | `Map liqCache` por moeda | 2 min | `PriceChartPanel.js` |
 | Dados de futuros | `Map futCache` `asset\|período` | 2 min (`FUT_CACHE_MS`) | `PriceChartPanel.js` |
 | Liquidações reais | `Map liqRealCache` `asset\|vela` | 5 min (só sucesso ou `no-market`) | `PriceChartPanel.js` |
+| Fear & Greed Index | `view.fng` (um só, vale para todas as moedas) | 10 min (`FNG_CACHE_MS`); na recarga, o dado antigo fica na tela até o novo chegar | `PriceChartPanel.js` |
 | Histórico de ordens | `hist.cache` por moeda | 60 s | `orderHistoryTable.js` |
 | Histórico de trades | `st.cache` por moeda | 30 s | `tradeHistoryTable.js` |
 | Posições | `request` em andamento (dedupe) | — (só evita chamadas paralelas) | `core/positions.js` |
 
-Os botões "Recarregar" das abas e o "Atualizar" do topo refazem o fetch, mas o server ainda pode responder do cache dele (15 s ou mais). Isso é intencional, para poupar o peso da API. O "Atualizar" também descarta o cache do cliente da moeda aberta no gráfico de preço (velas mais recentes, ordens abertas, `myOrders`, `hist.cache`, o cache de trades, `liqCache`, `futCache` e `liqRealCache`); as páginas antigas de velas ficam. As camadas ligadas recarregam na hora; as desligadas carregam frescas quando forem ligadas (`refreshLayers` em `PriceChartPanel.js`).
+Os botões "Recarregar" das abas e o "Atualizar" do topo refazem o fetch, mas o server ainda pode responder do cache dele (15 s ou mais). Isso é intencional, para poupar o peso da API. O "Atualizar" também descarta o cache do cliente da moeda aberta no gráfico de preço (velas mais recentes, ordens abertas, `myOrders`, `hist.cache`, o cache de trades, `liqCache`, `futCache` e `liqRealCache`); as páginas antigas de velas ficam. As camadas ligadas recarregam na hora; as desligadas carregam frescas quando forem ligadas (`refreshLayers` em `PriceChartPanel.js`). O Fear & Greed, que não é da moeda, também recarrega no "Atualizar" se estiver ligado.

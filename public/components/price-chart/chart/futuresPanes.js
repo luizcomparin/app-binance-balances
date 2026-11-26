@@ -2,7 +2,8 @@
 // (na mesma ordem dos checkboxes de "Painéis abaixo do gráfico", nas Camadas)
 //   1. Volume (USDT)   2. CVD / Delta de volume   3. RSI   4. MACD (os quatro com engrenagem de configurações)
 //   5. Liquidações reais (longs e shorts liquidados em US$)
-//   6. Open interest (USDT)   7. Long/Short (% comprados: contas e top traders)   8. Taxa de funding
+//   6. Fear & Greed Index (sentimento do mercado, 0 a 100, um valor por dia)
+//   7. Open interest (USDT)   8. Long/Short (% comprados: contas e top traders)   9. Taxa de funding
 // Os de futuros vêm em períodos próprios (1h/4h/1d e funding a cada 8h) e são encaixados nas velas do gráfico.
 import { formatUsdShort } from "../../../core/format.js";
 import { toChartTime } from "./axis.js";
@@ -10,6 +11,7 @@ import { movingAverage, maColor, maLabel } from "./movingAverage.js";
 import { volumeDelta } from "./cvd.js";
 import { rsi, rsiMovingAverage } from "./rsi.js";
 import { macd, macdHistogramTones } from "./macd.js";
+import { alignFearGreed, fearGreedClass } from "./fearGreed.js";
 
 const LWC = window.LightweightCharts;
 const PANE_HEIGHT = 96;
@@ -124,6 +126,18 @@ export const FUTURES_HELP = {
     "",
     "Em velas de 1h e 4h o histórico é curto (a Coinalyze guarda pouco tempo de dado intradiário).",
   ].join("\n"),
+  fng: [
+    "Crypto Fear & Greed Index (fonte: alternative.me): o sentimento do mercado de 0 a 100.",
+    "• 0 = medo extremo; 100 = ganância extrema. Sai um valor por dia (00:00 UTC).",
+    "• É do mercado como um todo (calculado basicamente sobre o Bitcoin): é o mesmo para qualquer moeda.",
+    "",
+    "Como ler (indicador contrário):",
+    "• Medo extremo: muita gente vendendo com medo. Historicamente, costuma aparecer perto de fundos.",
+    "• Ganância extrema: euforia, mercado esticado. Costuma aparecer perto de topos.",
+    "",
+    "Pode ficar muito tempo num extremo: não é sinal de entrada sozinho.",
+    "Em velas menores que 1 dia o valor do dia se repete; em semanal e mensal vale o do último dia da vela.",
+  ].join("\n"),
 };
 
 // alturas escolhidas na divisória dos painéis, salvas no navegador: { volume: px, oi: px, ... }
@@ -208,6 +222,10 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
     liq: null,
     liqData: null,
     liqAligned: null,
+    fng: null, // série do Fear & Greed (painel depois do de liquidações, antes dos de futuros)
+    fngData: null, // resposta de /fear-greed, PANE_LOADING ou null (desligado)
+    fngVals: null, // { values, classes } por vela
+    fngKey: null, // velas + dados + série já desenhados
     cvd: null, // série do CVD/Delta (painel logo depois do volume)
     cvdType: null, // "CVD" | "DELTA" da série atual
     cvdM: null, // configurações ({ type, color, opacity })
@@ -235,7 +253,7 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
   // a caixa de configurações fica fora dele para não ser redesenhada a cada movimento da mira)
   const titles = {};
   const texts = {};
-  for (const key of ["volume", "cvd", "rsi", "macd", "oi", "ls", "funding", "liq"]) {
+  for (const key of ["volume", "cvd", "rsi", "macd", "oi", "ls", "funding", "liq", "fng"]) {
     const el = document.createElement("div");
     el.className = "fp-title";
     el.hidden = true;
@@ -271,14 +289,14 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
   }
   // spinner centralizado no painel enquanto os dados dele carregam (o volume vem junto com as velas)
   const loaders = {};
-  for (const key of ["oi", "ls", "funding", "liq"]) {
+  for (const key of ["oi", "ls", "funding", "liq", "fng"]) {
     const el = document.createElement("div");
     el.className = "fp-loading mini-spinner";
     el.hidden = true;
     wrap.appendChild(el);
     loaders[key] = el;
   }
-  const isLoading = (key) => (key === "liq" ? st.liqData : st.data) === PANE_LOADING;
+  const isLoading = (key) => (key === "liq" ? st.liqData : key === "fng" ? st.fngData : st.data) === PANE_LOADING;
   const hideTitles = (keys = Object.keys(titles)) =>
     keys.forEach((k) => {
       titles[k].hidden = true;
@@ -332,16 +350,18 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
     ...(st.rsi ? ["rsi"] : []),
     ...(st.macd ? ["macd"] : []),
     ...(st.liq ? ["liq"] : []),
+    ...(st.fng ? ["fng"] : []),
     ...st.shown,
   ];
   // quantos painéis abaixo do preço devem existir
   const subCount = () => subKeys().length;
-  // painéis antes dos de futuros: volume, CVD, RSI, MACD e liquidações, quando ligados (nessa ordem, a partir do painel 1)
+  // painéis antes dos de futuros: volume, CVD, RSI, MACD, liquidações e Fear & Greed, quando ligados (nessa ordem, a partir do painel 1)
   const volCount = () => (st.vol ? 1 : 0);
   const cvdCount = () => (st.cvd ? 1 : 0);
   const rsiCount = () => (st.rsi ? 1 : 0);
   const macdCount = () => (st.macd ? 1 : 0);
   const liqCount = () => (st.liq ? 1 : 0);
+  const fngCount = () => (st.fng ? 1 : 0);
 
   // altura (px) de cada painel de baixo: PANE_HEIGHT até o usuário arrastar a divisória; daí fica a
   // escolhida (vale ao trocar de moeda, ligar/desligar futuros, redimensionar a janela e recarregar a página)
@@ -407,8 +427,8 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
     relayout();
   }
 
-  // painel de liquidações: depois do volume, do CVD, do RSI e do MACD, antes dos de futuros (que saem e voltam depois dele
-  // quando ele entra ou sai: withFuturesMoved)
+  // painel de liquidações: depois do volume, do CVD, do RSI e do MACD, antes do Fear & Greed e dos de futuros (que saem
+  // e voltam depois dele quando ele entra ou sai: withTailMoved)
   function createLiquidationSeries() {
     const pane = 1 + volCount() + cvdCount() + rsiCount() + macdCount();
     // sem etiqueta de último valor no eixo (as duas se sobrepõem; os valores já estão no título)
@@ -439,9 +459,21 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
     if (st.data && st.data !== PANE_LOADING) setData();
   }
 
+  // muda os painéis que vêm antes do Fear & Greed (fn): além dos de futuros, ele também sai e volta depois,
+  // redesenhado com os dados que já tinha
+  function withTailMoved(fn) {
+    withFuturesMoved(() => {
+      const hadFng = !!st.fng;
+      removeFngSeries();
+      fn();
+      if (hadFng) createFngSeries();
+    });
+    drawFng();
+  }
+
   function removeLiquidations() {
     if (!st.liq && !st.liqData) return;
-    withFuturesMoved(() => {
+    withTailMoved(() => {
       removeLiquidationSeries();
       removeEmptyPanes();
     });
@@ -497,7 +529,7 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
     const fundingFmt = { type: "custom", minMove: 0.000001, formatter: (v) => `${v.toFixed(3).replace(".", ",")}%` };
     st.series = {};
     keys.forEach((key, k) => {
-      const pane = 1 + volCount() + cvdCount() + rsiCount() + macdCount() + liqCount() + k;
+      const pane = 1 + volCount() + cvdCount() + rsiCount() + macdCount() + liqCount() + fngCount() + k;
       if (key === "oi") {
         st.series.oi = chart.addSeries(
           LWC.AreaSeries,
@@ -600,6 +632,80 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
     st.vol = null;
   }
 
+  // ---- Fear & Greed Index: linha de 0 a 100 colorida pela zona de cada dia, com linhas em 25, 50 e 75 ----
+
+  // escala fixa de 0 a 100 (as margens pequenas vêm de scaleMarginsOf, como as do RSI)
+  const FNG_MARGINS = { top: 0.06, bottom: 0.06 };
+  const fngLineOptions = {
+    ...base,
+    lineWidth: 2,
+    color: fearGreedClass(null).color,
+    priceFormat: { type: "custom", minMove: 1, formatter: (v) => String(Math.round(v)) },
+    autoscaleInfoProvider: () => ({ priceRange: { minValue: 0, maxValue: 100 } }),
+  };
+
+  function createFngSeries() {
+    const pane = 1 + volCount() + cvdCount() + rsiCount() + macdCount() + liqCount();
+    st.fng = chart.addSeries(LWC.LineSeries, fngLineOptions, pane);
+    // 25 e 75: perto de onde começam as zonas extremas; 50: o meio
+    const line = (price, color, lineStyle) => st.fng.createPriceLine({ price, color, lineWidth: 1, lineStyle, axisLabelVisible: false });
+    line(75, maColor({ color: fearGreedClass("extreme-greed").color, opacity: 0.5 }), LWC.LineStyle.Dashed);
+    line(50, "rgba(155, 176, 214, 0.3)", LWC.LineStyle.Dotted);
+    line(25, maColor({ color: fearGreedClass("extreme-fear").color, opacity: 0.5 }), LWC.LineStyle.Dashed);
+    st.fngKey = null;
+    relayout();
+  }
+
+  function removeFngSeries() {
+    if (!st.fng) return;
+    chart.removeSeries(st.fng);
+    st.fng = null;
+    st.fngKey = null;
+    removeEmptyPanes();
+  }
+
+  // painel do Fear & Greed: resposta de /fear-greed, PANE_LOADING (painel vazio com spinner) ou null (desligado)
+  function setFearGreed(data) {
+    if (!st.points) data = null;
+    if (!data) {
+      if (st.fng) {
+        withFuturesMoved(removeFngSeries);
+        relayout();
+      }
+      st.fngData = null;
+      st.fngVals = null;
+      hideTitles(["fng"]);
+      return;
+    }
+    const changed = data !== st.fngData;
+    st.fngData = data;
+    if (!st.fng) withFuturesMoved(createFngSeries);
+    drawFng();
+    renderTitles();
+    if (changed) relayout(); // mostra ou tira o spinner
+  }
+
+  // desenha o índice nas velas atuais (só refaz quando mudam as velas, os dados ou a série)
+  function drawFng() {
+    if (!st.fng || !st.points || !st.fngData) return;
+    const key = st.fngKey;
+    if (key?.points === st.points && key.data === st.fngData && key.series === st.fng) return;
+    st.fngKey = { points: st.points, data: st.fngData, series: st.fng };
+    if (st.fngData === PANE_LOADING) {
+      st.fngVals = null;
+      st.fng.setData([]);
+      return;
+    }
+    st.fngVals = alignFearGreed(st.points, st.fngData.rows);
+    const { values, classes } = st.fngVals;
+    st.fng.setData(
+      st.points.map((p, i) => {
+        const time = toChartTime(p.time, st.interval);
+        return values[i] === null ? { time } : { time, value: values[i], color: fearGreedClass(classes[i]).color };
+      })
+    );
+  }
+
   // escala do RSI ajustada aos valores visíveis (zoom vertical), mas sempre com as linhas de sobrecompra e
   // sobrevenda dentro dela; margens pequenas (RSI_MARGINS) para a linha usar a altura do painel. As margens
   // são aplicadas por createChart (syncPriceScales), que confere as de todos os painéis a cada update
@@ -656,10 +762,10 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
   });
 
   // liga/desliga o volume (volume: bool), o CVD, o RSI e o MACD (configurações ou null), que ficam nessa ordem
-  // logo abaixo do preço: o de liquidações e os de futuros saem e voltam depois deles, com os dados que já tinham
+  // logo abaixo do preço: o de liquidações, o Fear & Greed e os de futuros saem e voltam depois deles, com os dados que já tinham
   // (as séries recriadas são redesenhadas na hora: o setCvd/setRsi/setMacd desta renderização pode já ter passado)
   function rebuildTop({ volume, cvd, rsi: rsiM, macd: macdM }) {
-    withFuturesMoved(() => {
+    withTailMoved(() => {
       const hadLiq = !!st.liq;
       removeLiquidationSeries();
       removeMacdSeries();
@@ -850,6 +956,9 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
   // de baixo para cima (removeEmptyPanes conta os painéis que ainda existem)
   function remove() {
     removeFutures();
+    removeFngSeries();
+    st.fngData = null;
+    st.fngVals = null;
     removeLiquidations();
     removeMacdSeries();
     st.macdM = null;
@@ -948,6 +1057,22 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
         (m.showHist ? ` <span class="muted">Hist.</span> <b class="${h > 0 ? "pnl-pos" : h < 0 ? "pnl-neg" : ""}">${macdNum(h)}</b>` : "");
     }
     renderLiquidationTitle(idx);
+    if (st.fng) {
+      const name = tip("fng", "Fear &amp; Greed");
+      const vals = st.fngVals;
+      if (!vals) texts.fng.innerHTML = name; // carregando
+      else {
+        const n = vals.values.length;
+        const i = idx !== null && idx >= 0 && idx < n ? idx : n - 1;
+        const v = vals.values[i];
+        const zone = fearGreedClass(vals.classes[i]);
+        texts.fng.innerHTML =
+          v == null
+            ? `${name} <span class="muted">sem dados nesta vela</span>`
+            : `${name} <b style="color:${zone.color}">${v}</b>${zone.label ? ` <span style="color:${zone.color}">${zone.label}</span>` : ""}` +
+              ' <span class="muted">fonte: alternative.me</span>';
+      }
+    }
     const a = st.aligned;
     if (!a) {
       // carregando: só os nomes (sem os valores da moeda/vela anterior)
@@ -1009,9 +1134,11 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
   }
 
   return {
-    /** margens do eixo do painel de índice paneIndex: as do RSI no painel dele; null = padrão da biblioteca */
+    /** margens do eixo do painel de índice paneIndex: as do RSI e as do Fear & Greed no painel de cada um; null = padrão da biblioteca */
     scaleMarginsOf(paneIndex) {
-      return st.rsi && st.rsi.getPane().paneIndex() === paneIndex ? RSI_MARGINS : null;
+      if (st.rsi && st.rsi.getPane().paneIndex() === paneIndex) return RSI_MARGINS;
+      if (st.fng && st.fng.getPane().paneIndex() === paneIndex) return FNG_MARGINS;
+      return null;
     },
     /** points = velas (sem velas, remove tudo); data = resposta de /futures-data (available) ou null para
      *  remover só os painéis de futuros (o de volume fica); liq = resposta de /liquidations (available) ou
@@ -1047,12 +1174,12 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
         if (st.liq) {
           st.liq.long.setData([]);
           st.liq.short.setData([]);
-        } else withFuturesMoved(createLiquidationSeries);
+        } else withTailMoved(createLiquidationSeries);
       } else if (liq) {
         st.liqData = liq;
         alignLiquidations();
         if (st.liq) setLiquidationData();
-        else withFuturesMoved(createLiquidationSeries);
+        else withTailMoved(createLiquidationSeries);
       } else removeLiquidations();
       renderTitles();
       relayout();
@@ -1065,6 +1192,7 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
     setCvd,
     setRsi,
     setMacd,
+    setFearGreed,
     remove,
     active: () => !!st.series,
     /** quantos painéis existem abaixo do preço */

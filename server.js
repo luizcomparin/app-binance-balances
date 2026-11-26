@@ -75,6 +75,7 @@ API (só neste computador):
    • ${base}/futures-data/:asset         open interest, long/short e funding (?period=1h|4h|1d)
    • ${base}/liquidation-map/:asset      mapa de liquidação estimado
    • ${base}/liquidations/:asset         liquidações reais via Coinalyze (?interval=...)
+   • ${base}/fear-greed                  Fear & Greed Index do mercado (Alternative.me)
    • ${base}/settings/api-key            status da chave da Binance (POST troca)
    • ${base}/settings/coinalyze-key      status da chave da Coinalyze (POST troca)
    • ${base}/raw  ·  /avg-buy-prices     dados crus da conta / compatibilidade

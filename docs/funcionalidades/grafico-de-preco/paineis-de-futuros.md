@@ -25,9 +25,10 @@ Os painéis ficam abaixo do preço, na mesma ordem do gráfico. Zoom, arrasto e 
 3. **RSI**, com a camada "RSI" (`#price-chart-rsi-pane`) e engrenagem de configurações (ver [rsi](rsi.md)).
 4. **MACD**, com a camada "MACD" (`#price-chart-macd-pane`) e engrenagem de configurações (ver [macd](macd.md)).
 5. **Liquidações reais** (ver [liquidacoes-reais](liquidacoes-reais.md)).
-6. **Open interest** (USDT), com a camada "Open interest (futuros)" (`#price-chart-fut-oi`).
-7. **Long/Short** (camada "Long/short ratio (futuros)", `#price-chart-fut-ls`): % de contas compradas (amarelo) e de top traders comprados (azul), com uma linha em 50%.
-8. **Funding** (camada "Taxa de funding (futuros)", `#price-chart-fut-funding`): histograma; o título mostra a taxa prevista para a próxima cobrança.
+6. **Fear & Greed Index** (ver [fear-and-greed](fear-and-greed.md)).
+7. **Open interest** (USDT), com a camada "Open interest (futuros)" (`#price-chart-fut-oi`).
+8. **Long/Short** (camada "Long/short ratio (futuros)", `#price-chart-fut-ls`): % de contas compradas (amarelo) e de top traders comprados (azul), com uma linha em 50%.
+9. **Funding** (camada "Taxa de funding (futuros)", `#price-chart-fut-funding`): histograma; o título mostra a taxa prevista para a próxima cobrança.
 
 Todos são **independentes**: só os ligados aparecem, sempre **na mesma ordem dos checkboxes** de "Painéis abaixo do gráfico" (a lista acima). Os três de futuros são os últimos. Os dados vêm de uma única chamada (`/futures-data`), feita quando ao menos um está ligado.
 
@@ -59,17 +60,17 @@ Cache de 2 min. O formato está em [api.md](../../referencia/api.md#get-futures-
 
   O `createPriceChart` recebe isso como `handlers.mountPaneSettings` e o repassa a `createFuturesPanes(chart, wrap, { mountSettings })`.
 - `chart/cvd.js` → `volumeDelta(points)` → `{ delta, cvd }` alinhados às velas. Vela sem `buyVolume` fica com delta `null`, e o CVD repete o anterior.
-- `chart/futuresPanes.js` → `createFuturesPanes(chart, wrap, handlers)` devolve `{ update(points, interval, data, liq, panes, volume), crosshair(idx), setVolumeAverages, setCvd, remove, active, count }`.
-  - Ordem dos painéis (`subKeys`): volume (1, se ligado), CVD, RSI, MACD, liquidações e futuros. Os índices partem de `volCount()`, `cvdCount()`, `rsiCount()`, `macdCount()` e `liqCount()`.
+- `chart/futuresPanes.js` → `createFuturesPanes(chart, wrap, handlers)` devolve `{ update(points, interval, data, liq, panes, volume), crosshair(idx), setVolumeAverages, setCvd, setRsi, setMacd, setFearGreed, scaleMarginsOf, remove, active, count }`.
+  - Ordem dos painéis (`subKeys`): volume (1, se ligado), CVD, RSI, MACD, liquidações, Fear & Greed e futuros. Os índices partem de `volCount()`, `cvdCount()`, `rsiCount()`, `macdCount()`, `liqCount()` e `fngCount()`.
   - Os de futuros são os últimos: quando entram ou saem, só eles são recriados (`createSeries(keys)`). `panes` é o subconjunto de `FUTURES_PANES` (`["oi", "ls", "funding"]`) ligado.
-  - Quando muda um painel antes deles, `withFuturesMoved(fn)` tira os de futuros e os recoloca depois, com os dados que já tinham. Isso vale ao ligar ou desligar as liquidações.
-  - Ligar ou desligar volume, CVD, RSI ou MACD, ou trocar CVD ↔ Delta, passa por `rebuildTop({ volume, cvd, rsi, macd })`. O estado atual vem de `topState()`, e só o que muda é passado. Dentro de `withFuturesMoved`, a função tira liquidações, MACD, RSI e CVD, ajusta volume, CVD, RSI e MACD e recoloca as liquidações.
+  - Quando muda um painel antes deles, `withFuturesMoved(fn)` tira os de futuros e os recoloca depois, com os dados que já tinham. Isso vale ao ligar ou desligar o Fear & Greed. Para os painéis antes dele (liquidações e os de `rebuildTop`), `withTailMoved(fn)` faz o mesmo tirando também o Fear & Greed, que volta redesenhado (`drawFng`).
+  - Ligar ou desligar volume, CVD, RSI ou MACD, ou trocar CVD ↔ Delta, passa por `rebuildTop({ volume, cvd, rsi, macd })`. O estado atual vem de `topState()`, e só o que muda é passado. Dentro de `withTailMoved`, a função tira liquidações, MACD, RSI e CVD, ajusta volume, CVD, RSI e MACD e recoloca as liquidações.
   - No fim, `rebuildTop` redesenha na hora o CVD, o RSI e o MACD recriados (`drawCvd`, `drawRsi`, `drawMacd`): o `set…` desta renderização pode já ter passado.
   - `remove()` tira de baixo para cima.
   - O CVD só é recalculado quando mudam as velas; no Delta, também quando muda a opacidade.
   - `alignToBars(points, rows, get, mode)` encaixa as séries nas velas (`barIndex`, busca binária). Os modos são `last` (OI, L/S), `avg` (funding em D ou maior), `ffill` (funding em 1h/4h, repetindo a taxa vigente) e `sum` (liquidações).
   - Alturas: `PANE_HEIGHT = 96` px (ou a de `PANE_DEFAULT_HEIGHTS`: 150 px no RSI, 130 px no MACD) até a pessoa arrastar; depois vale `priceChartPaneHeights`. `applyHeights()` reaplica com `setStretchFactor` a cada resize.
-  - Os títulos e spinners são HTML sobre o canvas, reposicionados por `ResizeObserver`.
+  - Os títulos e spinners são HTML sobre o canvas, reposicionados por `ResizeObserver`. Têm spinner os painéis que carregam dado próprio: liquidações, Fear & Greed e os de futuros.
 - `createChart.update` define a variável CSS `--sub-panes` (quantidade de painéis), que aumenta a altura do gráfico.
 
 ## Casos de borda
@@ -84,5 +85,5 @@ Cache de 2 min. O formato está em [api.md](../../referencia/api.md#get-futures-
 3. Arraste uma divisória e recarregue: a altura foi mantida.
 4. Ligue "CVD / Delta de volume": o painel aparece logo abaixo do volume, antes dos de futuros. Na engrenagem dele, troque para "Delta por vela", mude a opacidade e a cor e passe a mira: o título acompanha.
 5. Ligue o "RSI" e o "MACD": eles entram nessa ordem, entre o CVD e Liquidações (ver [rsi](rsi.md) e [macd](macd.md)).
-6. Desligue "Volume" com CVD, OI e liquidações ligados: a ordem continua CVD, liquidações, OI. Com OI ligado, ligue e desligue "Liquidações": ela entra logo antes do OI, e o OI mantém os dados. Religue: o volume volta em primeiro, com as médias do volume.
+6. Desligue "Volume" com CVD, OI e liquidações ligados: a ordem continua CVD, liquidações, OI. Com OI ligado, ligue e desligue "Liquidações": ela entra logo antes do OI (ou do Fear & Greed, se ligado), e o OI mantém os dados. Religue: o volume volta em primeiro, com as médias do volume.
 7. Na engrenagem do volume, adicione uma média ("+ Média móvel"), edite e remova: o painel acompanha.

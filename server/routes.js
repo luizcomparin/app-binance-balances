@@ -12,6 +12,7 @@ import { buildFuturesData, FUTURES_PERIODS } from "./services/futuresData.js";
 import { apiKeyStatus, changeApiKey } from "./services/apiKeySettings.js";
 import { buildLiquidations, LIQUIDATION_INTERVALS } from "./services/liquidations.js";
 import { changeCoinalyzeKey, coinalyzeKeyStatus } from "./services/coinalyzeKeySettings.js";
+import { buildFearGreed } from "./services/fearGreed.js";
 import { PORT } from "./config.js";
 import express from "express";
 
@@ -139,6 +140,9 @@ export function registerRoutes(app) {
 		if (!LIQUIDATION_INTERVALS.has(interval)) return res.status(400).json({ error: "Intervalo inválido" });
 		return handle(() => buildLiquidations(req.asset, interval))(req, res, next);
 	});
+
+	// Crypto Fear & Greed Index (Alternative.me): histórico diário do mercado, o mesmo para todas as moedas
+	app.get("/fear-greed", handle(() => buildFearGreed()));
 
 	// Ordens executadas (agrupadas a partir dos trades)
 	app.get("/executed-orders", handle(() => buildExecutedOrders()));

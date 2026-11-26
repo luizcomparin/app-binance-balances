@@ -1,7 +1,7 @@
 ---
 titulo: Integrações externas
-resumo: Endpoints da Binance spot, Binance Futures e Coinalyze usados, limites, tratamento de erros e bibliotecas de CDN.
-arquivos: [server/lib/rateLimit.js, server/binance/client.js, server/binance/account.js, server/binance/market.js, server/binance/futures.js, server/coinalyze/client.js, public/index.html]
+resumo: Endpoints da Binance spot, Binance Futures, Coinalyze e Alternative.me usados, limites, tratamento de erros e bibliotecas de CDN.
+arquivos: [server/lib/rateLimit.js, server/binance/client.js, server/binance/account.js, server/binance/market.js, server/binance/futures.js, server/coinalyze/client.js, server/alternativeme/client.js, public/index.html]
 rotas: []
 eventos: []
 storage: []
@@ -61,6 +61,15 @@ Agregador de derivativos. É **opcional**: só o painel de Liquidações reais u
 - Os erros chegam com `code`: `COINALYZE_KEY_MISSING`, `COINALYZE_KEY_INVALID` (401), `COINALYZE_RATE_LIMIT` (429) e `COINALYZE_ERROR`.
 - **Limite:** `lib/rateLimit.js` usa um limitador por chave, com até 38 requisições por minuto. Em 429, espera o `Retry-After` e tenta de novo uma vez. Esperas acima de 15 s viram `COINALYZE_RATE_LIMIT` na hora.
 - O histórico intradiário (1h/4h) da Coinalyze é curto. O app pede 120 dias em 1h e 2 anos em 4h; o diário vai desde 2019.
+
+## Alternative.me (`https://api.alternative.me`)
+
+Fonte do **Crypto Fear & Greed Index** (painel do gráfico de preço). API **pública e gratuita, sem chave**. O cliente é `alternativeGet` em `server/alternativeme/client.js`.
+
+- `GET /fng/?limit=0`: todo o histórico diário, desde fev/2018. `limit=N` traz os N dias mais recentes; a resposta vem do mais novo para o mais antigo, com `value` e `timestamp` (segundos) como texto e a zona em `value_classification`.
+- **Limite:** eles informam 60 requisições por minuto. `lib/rateLimit.js` segura em 30; em 429, espera o `Retry-After` e tenta de novo uma vez. Na prática o app faz no máximo 1 chamada a cada 10 min (cache do serviço).
+- **Atribuição:** os termos pedem que a fonte seja citada junto do dado. O título do painel mostra "fonte: alternative.me"; mantenha.
+- Erros e respostas sem dados viram `{ available: false, reason }` na rota `/fear-greed` (ver [fear-and-greed](../funcionalidades/grafico-de-preco/fear-and-greed.md)).
 
 ## Bibliotecas por CDN (`public/index.html`)
 

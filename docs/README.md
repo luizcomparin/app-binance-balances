@@ -62,7 +62,7 @@ As seções aparecem sempre nesta ordem; quando uma não se aplica, ela é omiti
 - [referencia/eventos-e-estado.md](referencia/eventos-e-estado.md): o `state` compartilhado e os eventos (quem emite e quem escuta).
 - [referencia/armazenamento-local.md](referencia/armazenamento-local.md): todas as chaves de `localStorage`.
 - [referencia/cache.md](referencia/cache.md): todos os caches e TTLs (server e front).
-- [referencia/integracoes-externas.md](referencia/integracoes-externas.md): Binance spot, Binance Futures, Coinalyze e CDNs.
+- [referencia/integracoes-externas.md](referencia/integracoes-externas.md): Binance spot, Binance Futures, Coinalyze, Alternative.me e CDNs.
 - [referencia/configuracao-e-seguranca.md](referencia/configuracao-e-seguranca.md): `.env`, chaves, CORS e proteções.
 - [referencia/glossario.md](referencia/glossario.md): termos de domínio usados no código e na interface.
 
@@ -90,6 +90,7 @@ As seções aparecem sempre nesta ordem; quando uma não se aplica, ela é omiti
 - [grafico-de-preco/rsi.md](funcionalidades/grafico-de-preco/rsi.md): painel do RSI, fórmula e configurações.
 - [grafico-de-preco/macd.md](funcionalidades/grafico-de-preco/macd.md): painel do MACD, fórmula e configurações.
 - [grafico-de-preco/liquidacoes-reais.md](funcionalidades/grafico-de-preco/liquidacoes-reais.md): `/liquidations` (Coinalyze).
+- [grafico-de-preco/fear-and-greed.md](funcionalidades/grafico-de-preco/fear-and-greed.md): `/fear-greed` (Alternative.me) e painel do Fear & Greed Index.
 - [grafico-de-preco/watchlist-e-seletor.md](funcionalidades/grafico-de-preco/watchlist-e-seletor.md): lista lateral e seletor do título.
 - [grafico-de-preco/abas-de-ordens.md](funcionalidades/grafico-de-preco/abas-de-ordens.md): ordens abertas, histórico de ordens e de trades.
 
@@ -109,6 +110,7 @@ As seções aparecem sempre nesta ordem; quando uma não se aplica, ela é omiti
 | `server/binance/market.js` | [integracoes-externas](referencia/integracoes-externas.md), [carteira-e-cards](funcionalidades/carteira-e-cards.md) |
 | `server/binance/futures.js` | [paineis-de-futuros](funcionalidades/grafico-de-preco/paineis-de-futuros.md), [mapa-de-liquidacao](funcionalidades/grafico-de-preco/mapa-de-liquidacao.md) |
 | `server/coinalyze/client.js` | [liquidacoes-reais](funcionalidades/grafico-de-preco/liquidacoes-reais.md) |
+| `server/alternativeme/client.js` | [fear-and-greed](funcionalidades/grafico-de-preco/fear-and-greed.md), [integracoes-externas](referencia/integracoes-externas.md) |
 | `server/services/wallet.js` | [carteira-e-cards](funcionalidades/carteira-e-cards.md) |
 | `server/services/positions.js`, `positionMath.js`, `tradeHistory.js` | [saldos-e-pnl](funcionalidades/saldos-e-pnl.md) |
 | `server/services/openOrders.js` | [ordens-abertas](funcionalidades/ordens-abertas.md) |
@@ -118,6 +120,7 @@ As seções aparecem sempre nesta ordem; quando uma não se aplica, ela é omiti
 | `server/services/liquidationMap.js` | [mapa-de-liquidacao](funcionalidades/grafico-de-preco/mapa-de-liquidacao.md) |
 | `server/services/futuresData.js` | [paineis-de-futuros](funcionalidades/grafico-de-preco/paineis-de-futuros.md) |
 | `server/services/liquidations.js` | [liquidacoes-reais](funcionalidades/grafico-de-preco/liquidacoes-reais.md) |
+| `server/services/fearGreed.js` | [fear-and-greed](funcionalidades/grafico-de-preco/fear-and-greed.md) |
 | `server/services/apiKeySettings.js`, `coinalyzeKeySettings.js` | [configuracoes](funcionalidades/configuracoes.md) |
 | `public/index.html`, `index.js`, `index.css` | [frontend](arquitetura/frontend.md) |
 | `public/api/binance.js` | [api](referencia/api.md), [frontend](arquitetura/frontend.md) |

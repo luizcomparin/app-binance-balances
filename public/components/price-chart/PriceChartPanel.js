@@ -25,7 +25,7 @@ import {
   mountLiqMapSettings,
   mountPaneSettings,
 } from "./paneSettings.js";
-import { fetchFuturesData, fetchLiquidationMap, fetchLiquidations } from "../../api/binance.js";
+import { fetchFearGreed, fetchFuturesData, fetchLiquidationMap, fetchLiquidations } from "../../api/binance.js";
 import { openSettings } from "../settings/SettingsModal.js";
 import { formatUsdShort } from "../../core/format.js";
 import { FUTURES_HELP, FUTURES_PANES, PANE_LOADING } from "./chart/futuresPanes.js";
@@ -81,6 +81,8 @@ const LIQBUBBLES_SOURCE_STORAGE_KEY = "priceChartLiqBubblesSource"; // "all" (3 
 const LIQBUBBLES_MIN_STORAGE_KEY = "priceChartLiqBubblesMin"; // limite mínimo das bolhas (US$; 0 = todas)
 const LIQBUBBLES_STYLE_STORAGE_KEY = "priceChartLiqBubblesStyle"; // "profile" (padrão) | "bubbles" | "top"
 const LIQBUBBLES_TOP_STORAGE_KEY = "priceChartLiqBubblesTop"; // quantos maiores eventos (3 | 5 | 10)
+const FNG_STORAGE_KEY = "priceChartFearGreed"; // painel do Fear & Greed Index (Alternative.me)
+const FNG_CACHE_MS = 10 * 60 * 1000; // o índice sai uma vez por dia
 const LIQ_HOURLY_PAGES = 3; // páginas de 1000 velas de 1h para cobrir o histórico horário da Coinalyze (~83 dias)
 const VOLUME_PANE_STORAGE_KEY = "priceChartVolumePane"; // painel de volume (ligado por padrão)
 const CVD_PANE_STORAGE_KEY = "priceChartCvdPane"; // painel de CVD/Delta
@@ -142,6 +144,9 @@ const view = {
   showRsi: readStored(RSI_PANE_STORAGE_KEY) === "1",
   showMacd: readStored(MACD_PANE_STORAGE_KEY) === "1",
   liqReal: null, // { key, data } | { key, data: null (erro) } | { key, loading: true }
+  // painel do Fear & Greed Index: ligado? e dados (do mercado: os mesmos para todas as moedas e velas)
+  showFng: readStored(FNG_STORAGE_KEY) === "1",
+  fng: null, // { data, at } | { data: null (erro), at } | { loading: true, data (os anteriores, numa recarga) }
 };
 
 function clampStatsDays(n) {
@@ -338,6 +343,7 @@ function render(extra = {}) {
     futures: futuresForChart(),
     futuresPanes: futPanesOn(),
     liquidations: liquidationsForChart(),
+    fearGreed: fearGreedForChart(),
     ...extra,
   });
 }
@@ -736,6 +742,56 @@ const LIQBUBBLES_TITLE =
   "Liquidações que de fato aconteceram (dados da Coinalyze) desenhadas sobre o gráfico: perfil por preço, bolhas ou maiores eventos (escolha na engrenagem). Longs liquidados em vermelho, shorts em verde. A posição no preço é aproximada: cada hora fica na mínima (longs) ou máxima (shorts) da sua vela de 1h";
 
 // ---------------------------------------------------------------------------
+// Fear & Greed Index (Alternative.me; painel abaixo do gráfico). É do mercado, não da moeda: uma carga
+// serve a todas as moedas e a todos os tamanhos de vela
+// ---------------------------------------------------------------------------
+
+const FNG_NAME = "Fear & Greed Index";
+const fngReady = () => !!view.fng?.data?.available;
+
+// dados prontos, PANE_LOADING (painel fica com spinner) ou null; sem dados, ou com eles vencidos, carrega
+function fearGreedForChart() {
+  if (!view.showFng) return null;
+  const f = view.fng;
+  if (!f || (!f.loading && Date.now() - f.at >= FNG_CACHE_MS)) loadFearGreed();
+  if (fngReady()) return view.fng.data;
+  return view.fng?.loading ? PANE_LOADING : null;
+}
+
+async function loadFearGreed() {
+  if (view.fng?.loading) return;
+  // numa recarga, os dados que já estão na tela continuam até os novos chegarem (sem spinner)
+  const previous = fngReady() ? view.fng.data : null;
+  view.fng = { loading: true, data: previous };
+  updateFearGreedAvailability();
+  let data = null;
+  try {
+    data = await fetchFearGreed();
+  } catch {}
+  // a recarga falhou: fica com o que já tinha (tenta de novo quando o cache do cliente vencer)
+  if (!data?.available && previous) data = previous;
+  view.fng = { data, at: Date.now() };
+  updateFearGreedAvailability();
+  render();
+}
+
+// checkbox do painel: spinner na primeira carga; aviso quando a fonte não respondeu
+function updateFearGreedAvailability() {
+  const label = document.getElementById("price-chart-fng-label");
+  const text = document.getElementById("price-chart-fng-text");
+  if (!label || !text) return;
+  const f = view.fng;
+  const loading = view.showFng && !!f?.loading && !fngReady();
+  const unavailable = view.showFng && !!f && !f.loading && !fngReady();
+  label.classList.toggle("is-loading", loading);
+  label.classList.toggle("disabled", unavailable);
+  text.textContent = loading ? "Carregando Fear & Greed..." : unavailable ? `${FNG_NAME}: indisponível` : FNG_NAME;
+  label.title = unavailable && f.data?.message ? f.data.message : FNG_TITLE;
+}
+const FNG_TITLE =
+  "Painel do Crypto Fear & Greed Index (fonte: alternative.me): sentimento do mercado de 0 (medo extremo) a 100 (ganância extrema), um valor por dia. É do mercado como um todo, o mesmo para qualquer moeda";
+
+// ---------------------------------------------------------------------------
 // mapa de liquidação estimado (futuros: open interest + long/short)
 // ---------------------------------------------------------------------------
 
@@ -1124,6 +1180,17 @@ export function initPriceChartPanel() {
     render();
   });
 
+  // Fear & Greed Index: se a última carga falhou, ligar de novo tenta outra vez
+  const fngInput = document.getElementById("price-chart-fng");
+  if (fngInput) fngInput.checked = view.showFng;
+  fngInput?.addEventListener("change", () => {
+    view.showFng = fngInput.checked;
+    writeStored(FNG_STORAGE_KEY, view.showFng ? "1" : "0");
+    if (view.showFng && view.fng && !view.fng.loading && !fngReady()) view.fng = null;
+    updateFearGreedAvailability();
+    render();
+  });
+
   // bolhas das liquidações reais: mesmos dados (e mesma chave da Coinalyze) do painel
   const bubblesInput = document.getElementById("price-chart-liqbubbles");
   const bubblesSource = document.getElementById("price-chart-liqbubbles-source");
@@ -1415,6 +1482,9 @@ function refreshLayers(asset) {
   else view.fut = null;
   if (liqRealWanted()) tasks.push(loadLiquidations());
   else view.liqReal = null;
+  // Fear & Greed (do mercado, não da moeda): ligado, recarrega mantendo o que está na tela
+  if (view.showFng) tasks.push(loadFearGreed());
+  else view.fng = null;
   return tasks;
 }
 

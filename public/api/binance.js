@@ -104,6 +104,12 @@ export async function fetchLiquidations(asset, interval) {
   return getJson(`/liquidations/${encodeURIComponent(asset)}?interval=${encodeURIComponent(interval)}`);
 }
 
+// Crypto Fear & Greed Index (Alternative.me), histórico diário do mercado:
+// { available, rows: [{ t, v, c }] } ou { available: false, reason }
+export async function fetchFearGreed() {
+  return getJson("/fear-greed");
+}
+
 // Histórico de trades (execuções) de uma moeda: { trades, errors }
 export async function fetchAssetTrades(asset) {
   return getJson(`/trade-history/${encodeURIComponent(asset)}`);
