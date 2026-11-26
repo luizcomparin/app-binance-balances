@@ -1,7 +1,20 @@
 // Fear & Greed Index no gráfico (public/components/price-chart/chart/fearGreed.js).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { alignFearGreed, fearGreedClass, FNG_CLASSES } from "../../public/components/price-chart/chart/fearGreed.js";
+import { alignFearGreed, fearGreedClass, FNG_BANDS, FNG_CLASSES } from "../../public/components/price-chart/chart/fearGreed.js";
+
+test("FNG_BANDS: 5 faixas seguidas de 0 a 100, com os extremos sombreados e os limites do histórico da API", () => {
+  assert.deepEqual(FNG_BANDS.map((b) => b.key), Object.keys(FNG_CLASSES));
+  assert.equal(FNG_BANDS[0].from, 0);
+  assert.equal(FNG_BANDS.at(-1).to, 100);
+  FNG_BANDS.slice(1).forEach((b, i) => assert.equal(b.from, FNG_BANDS[i].to));
+  assert.deepEqual(FNG_BANDS.filter((b) => b.shaded).map((b) => b.key), ["extreme-fear", "extreme-greed"]);
+  // valores inteiros nas bordas de cada zona (como a Alternative.me classifica)
+  const bandOf = (v) => FNG_BANDS.find((b) => v >= b.from && v < b.to || (v === 100 && b.to === 100)).key;
+  assert.deepEqual([0, 25, 26, 46, 47, 54, 55, 75, 76, 100].map(bandOf), [
+    "extreme-fear", "extreme-fear", "fear", "fear", "neutral", "neutral", "greed", "greed", "extreme-greed", "extreme-greed",
+  ]);
+});
 
 const DAY = 24 * 60 * 60 * 1000;
 const HOUR = 60 * 60 * 1000;

@@ -567,7 +567,7 @@ export function createPriceChart(els, handlers = {}) {
       bubbles.setData(opts.liquidationBubbles || null);
       // primeiro a altura final do gráfico, depois os painéis (as alturas deles partem dela)
       // (volume, CVD, RSI e MACD, quando ligados + os de futuros ligados, quando há dados + 1 de liquidações reais + 1 do Fear & Greed;
-      // RSI e MACD contam 1,5 e 1,3: a altura padrão deles é maior, PANE_DEFAULT_HEIGHTS)
+      // RSI, Fear & Greed e MACD contam 1,5, 1,5 e 1,3: a altura padrão deles é maior, PANE_DEFAULT_HEIGHTS)
       const futPanes = opts.futures ? opts.futuresPanes || [] : [];
       const volume = opts.volume !== false;
       const cvd = opts.cvd || null;
@@ -575,7 +575,7 @@ export function createPriceChart(els, handlers = {}) {
       const macd = opts.macd || null;
       wrap.style.setProperty(
         "--sub-panes",
-        s.points?.length ? (volume ? 1 : 0) + (cvd ? 1 : 0) + (rsi ? 1.5 : 0) + (macd ? 1.3 : 0) + futPanes.length + (opts.liquidations ? 1 : 0) + (opts.fearGreed ? 1 : 0) : 0
+        s.points?.length ? (volume ? 1 : 0) + (cvd ? 1 : 0) + (rsi ? 1.5 : 0) + (macd ? 1.3 : 0) + futPanes.length + (opts.liquidations ? 1 : 0) + (opts.fearGreed ? 1.5 : 0) : 0
       );
       futures.update(s.points, s.interval, opts.futures || null, opts.liquidations || null, futPanes, volume);
       futures.setVolumeAverages(volume ? (opts.volumeAverages || []).filter((m) => m.visible) : []);

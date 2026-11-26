@@ -1,6 +1,6 @@
 ---
 titulo: Camada Fear & Greed Index
-resumo: Painel abaixo do gráfico com o Crypto Fear & Greed Index da Alternative.me (sentimento do mercado, 0 a 100, um valor por dia), em linha colorida pela zona de cada dia; é o mesmo para todas as moedas.
+resumo: Painel abaixo do gráfico com o Crypto Fear & Greed Index da Alternative.me (sentimento do mercado, 0 a 100, um valor por dia), em linha colorida pela zona de cada dia sobre um fundo dividido nas 5 zonas; é o mesmo para todas as moedas.
 arquivos: [server/services/fearGreed.js, server/alternativeme/client.js, public/components/price-chart/chart/fearGreed.js]
 rotas: [GET /fear-greed]
 eventos: []
@@ -26,7 +26,8 @@ O checkbox "Fear & Greed Index" (`#price-chart-fng`), em "Painéis abaixo do gr�
   | `extreme-greed` | Ganância extrema | verde | 76 ou mais |
 
   A zona **vem da API** (`value_classification`), não é calculada no app: a última coluna é só o que o histórico mostrava em nov/2026.
-- **Linhas de referência** tracejadas em 25 e 75 (perto de onde começam as zonas extremas) e uma pontilhada em 50.
+- **Fundo dividido nas 5 zonas** (`FNG_BANDS`): as duas extremas com fundo na cor da zona, meio transparente, até a borda do painel; quatro linhas pontilhadas entre as zonas (em 25,5, 46,5, 54,5 e 75,5); e o nome de cada zona à direita. O nome só aparece onde a faixa tem altura para o texto: o "Neutro" (faixa de 47 a 54) some se o painel for encolhido.
+- O painel começa com **150 px** de altura (os outros, 96), para caberem os cinco nomes. Dá para arrastar a divisória, e a altura fica salva.
 - **Título:** "Fear & Greed", o valor e a zona da vela sob a mira (ou da última) e "fonte: alternative.me". A Alternative.me pede que a fonte apareça junto do dado: **não tire esse texto**. A dica do título explica a leitura (`FUTURES_HELP.fng`).
 - O painel não tem engrenagem de configurações.
 
@@ -50,6 +51,8 @@ Cache de 10 min (`fearGreed`). A API não exige chave; o limite informado é de 
 - `chart/fearGreed.js` (puro, testado em `test/public/fearGreed.test.js`):
   - `FNG_CLASSES` e `fearGreedClass(c)`: nome e cor de cada zona. Zona desconhecida fica sem nome e com cor neutra.
   - `alignFearGreed(points, rows)`: encaixa o valor diário nas velas e devolve `{ values, classes }`.
+  - `FNG_BANDS`: as 5 faixas (`{ key, from, to, shaded }`), seguidas de 0 a 100.
+  - `FearGreedZones`: primitive do Lightweight Charts (mesmo padrão de `BandFill`) que desenha o fundo, as pontilhadas e os nomes atrás da linha.
 - `PriceChartPanel.js`:
   - flag `view.showFng` (`priceChartFearGreed`) e dados em `view.fng`;
   - `fearGreedForChart()` devolve os dados, `PANE_LOADING` (painel vazio com spinner) ou `null`, e dispara `loadFearGreed()` quando não há dados ou eles têm mais de 10 min (`FNG_CACHE_MS`);
@@ -59,7 +62,7 @@ Cache de 10 min (`fearGreed`). A API não exige chave; o limite informado é de 
   - o Atualizar do topo (`refreshLayers`) recarrega o painel ligado e zera os dados do desligado.
 - `chart/createChart.js`: soma 1 em `--sub-panes` e chama `futures.setFearGreed(opts.fearGreed || null)`.
 - `chart/futuresPanes.js`:
-  - `createFngSeries` cria uma `LineSeries` com `autoscaleInfoProvider` fixo em 0–100 e as três linhas de referência. As margens da escala (6%, `FNG_MARGINS`) são aplicadas por `syncPriceScales()` via `scaleMarginsOf`, como as do [RSI](rsi.md) (não aplique `scaleMargins` direto no `priceScale()`);
+  - `createFngSeries` cria uma `LineSeries` com `autoscaleInfoProvider` fixo em 0–100 e anexa um `FearGreedZones`. `PANE_DEFAULT_HEIGHTS.fng = 150` é a altura padrão (o painel conta 1,5 em `--sub-panes`). As margens da escala (6%, `FNG_MARGINS`) são aplicadas por `syncPriceScales()` via `scaleMarginsOf`, como as do [RSI](rsi.md) (não aplique `scaleMargins` direto no `priceScale()`);
   - `setFearGreed(data)` liga e desliga o painel por `withFuturesMoved` (os de futuros saem e voltam depois dele);
   - `drawFng` só refaz os dados quando mudam as velas, a resposta ou a série. Cada ponto leva a cor da sua zona (`color` do dado da linha);
   - quando muda um painel **antes** dele (volume, CVD, RSI, MACD ou liquidações), `withTailMoved(fn)` tira o Fear & Greed junto com os de futuros e o recoloca, redesenhado. Ver [paineis-de-futuros](paineis-de-futuros.md).
@@ -86,6 +89,8 @@ Cache de 10 min (`fearGreed`). A API não exige chave; o limite informado é de 
 
 ## Casos de borda e armadilhas
 
+- **As faixas não têm o mesmo tamanho** (25/21/8/21/24 pontos), ao contrário de outros índices de medo e ganância, como o da CoinMarketCap, que usa faixas iguais de 20. São os limites da Alternative.me, para a faixa do fundo bater com a zona que a API informa (cor da linha e título).
+- Os limites de `FNG_BANDS` foram tirados do histórico; a zona de cada dia vem da API. Se a Alternative.me mudar os limites, a cor da linha deixa de bater com o fundo: ajuste `FNG_BANDS`.
 - O painel **não muda ao trocar de moeda**: é o esperado, o índice é do mercado.
 - O índice é um valor por dia: em 1h e 4h não existe leitura intradiária.
 - A Alternative.me é um serviço de terceiros e gratuito, sem garantia de disponibilidade. Fora do ar, o checkbox avisa "indisponível" e o resto do gráfico segue normal.
@@ -99,7 +104,7 @@ Cache de 10 min (`fearGreed`). A API não exige chave; o limite informado é de 
 
 ## Como verificar
 
-1. Em BTC D, ligue "Fear & Greed Index": o painel aparece abaixo do Volume, com a linha colorida e o título "Fear & Greed <valor> <zona> fonte: alternative.me". Compare o valor de hoje com o do site da Alternative.me.
+1. Em BTC D, ligue "Fear & Greed Index": o painel aparece abaixo do Volume, com a linha colorida, o fundo das duas zonas extremas, quatro pontilhadas, os cinco nomes à direita e o título "Fear & Greed <valor> <zona> fonte: alternative.me". Compare o valor de hoje com o do site da Alternative.me.
 2. Passe a mira: o título mostra o valor e a zona de cada dia.
 3. Com "Open interest (futuros)", "RSI" e "Liquidações" ligados, a ordem fica Volume, RSI, Liquidações, Fear & Greed, Open interest. Desligue e religue cada um (inclusive o Volume): a ordem se mantém e nenhum painel fica vazio.
 4. Troque para a vela S e depois para 4h: em 4h a linha vira degraus de um dia.

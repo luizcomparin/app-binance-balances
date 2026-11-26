@@ -69,7 +69,7 @@ Cache de 2 min. O formato está em [api.md](../../referencia/api.md#get-futures-
   - `remove()` tira de baixo para cima.
   - O CVD só é recalculado quando mudam as velas; no Delta, também quando muda a opacidade.
   - `alignToBars(points, rows, get, mode)` encaixa as séries nas velas (`barIndex`, busca binária). Os modos são `last` (OI, L/S), `avg` (funding em D ou maior), `ffill` (funding em 1h/4h, repetindo a taxa vigente) e `sum` (liquidações).
-  - Alturas: `PANE_HEIGHT = 96` px (ou a de `PANE_DEFAULT_HEIGHTS`: 150 px no RSI, 130 px no MACD) até a pessoa arrastar; depois vale `priceChartPaneHeights`. `applyHeights()` reaplica com `setStretchFactor` a cada resize.
+  - Alturas: `PANE_HEIGHT = 96` px (ou a de `PANE_DEFAULT_HEIGHTS`: 150 px no RSI e no Fear & Greed, 130 px no MACD) até a pessoa arrastar; depois vale `priceChartPaneHeights`. `applyHeights()` reaplica com `setStretchFactor` a cada resize.
   - Os títulos e spinners são HTML sobre o canvas, reposicionados por `ResizeObserver`. Têm spinner os painéis que carregam dado próprio: liquidações, Fear & Greed e os de futuros.
 - `createChart.update` define a variável CSS `--sub-panes` (quantidade de painéis), que aumenta a altura do gráfico.
 

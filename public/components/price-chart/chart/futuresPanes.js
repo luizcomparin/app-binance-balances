@@ -11,12 +11,13 @@ import { movingAverage, maColor, maLabel } from "./movingAverage.js";
 import { volumeDelta } from "./cvd.js";
 import { rsi, rsiMovingAverage } from "./rsi.js";
 import { macd, macdHistogramTones } from "./macd.js";
-import { alignFearGreed, fearGreedClass } from "./fearGreed.js";
+import { alignFearGreed, fearGreedClass, FearGreedZones } from "./fearGreed.js";
 
 const LWC = window.LightweightCharts;
 const PANE_HEIGHT = 96;
-// altura padrão de painéis que precisam de mais espaço (o RSI vai de 0 a 100 com linhas de nível)
-export const PANE_DEFAULT_HEIGHTS = { rsi: 150, macd: 130 };
+// altura padrão de painéis que precisam de mais espaço (o RSI vai de 0 a 100 com linhas de nível; o Fear & Greed
+// tem 5 zonas com nome, e a do meio é estreita)
+export const PANE_DEFAULT_HEIGHTS = { rsi: 150, macd: 130, fng: 150 };
 
 const GEAR =
   '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
@@ -632,7 +633,7 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
     st.vol = null;
   }
 
-  // ---- Fear & Greed Index: linha de 0 a 100 colorida pela zona de cada dia, com linhas em 25, 50 e 75 ----
+  // ---- Fear & Greed Index: linha de 0 a 100 colorida pela zona de cada dia, sobre o fundo dividido nas 5 zonas ----
 
   // escala fixa de 0 a 100 (as margens pequenas vêm de scaleMarginsOf, como as do RSI)
   const FNG_MARGINS = { top: 0.06, bottom: 0.06 };
@@ -647,11 +648,8 @@ export function createFuturesPanes(chart, wrap, handlers = {}) {
   function createFngSeries() {
     const pane = 1 + volCount() + cvdCount() + rsiCount() + macdCount() + liqCount();
     st.fng = chart.addSeries(LWC.LineSeries, fngLineOptions, pane);
-    // 25 e 75: perto de onde começam as zonas extremas; 50: o meio
-    const line = (price, color, lineStyle) => st.fng.createPriceLine({ price, color, lineWidth: 1, lineStyle, axisLabelVisible: false });
-    line(75, maColor({ color: fearGreedClass("extreme-greed").color, opacity: 0.5 }), LWC.LineStyle.Dashed);
-    line(50, "rgba(155, 176, 214, 0.3)", LWC.LineStyle.Dotted);
-    line(25, maColor({ color: fearGreedClass("extreme-fear").color, opacity: 0.5 }), LWC.LineStyle.Dashed);
+    // fundo das zonas: extremos sombreados, linhas pontilhadas entre elas e os nomes à direita
+    st.fng.attachPrimitive(new FearGreedZones());
     st.fngKey = null;
     relayout();
   }
