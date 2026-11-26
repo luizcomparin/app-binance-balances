@@ -12,6 +12,7 @@ import { createPriceChart } from "./chart/createChart.js";
 import { avgAfterBuys, avgAfterSells, initBuySimulator, setSimContext, updateSimAvailability } from "./buySimulator.js";
 import { initAssetPicker } from "./assetPicker.js";
 import { initWatchlist } from "./watchlist.js";
+import { initSignalsPanel, loadSignals } from "./signals/signalsPanel.js";
 import { buysOf, dcaComparison } from "./dca.js";
 import { chartAssetOf, executedTotalOnChart, pairLabel, quoteOf } from "./chartQuote.js";
 import { initOpenOrdersTable, renderOpenOrdersTable } from "./openOrdersTable.js";
@@ -1078,6 +1079,7 @@ export function initPriceChartPanel() {
   });
   initOpenOrdersTable(document.getElementById("pco-open"), { onRetry: () => view.asset && reloadOpenOrders(view.asset) });
   initOrdersTabs();
+  initSignalsPanel();
 
   // título "XRP / USDT ▾": troca de moeda direto na aba
   picker = initAssetPicker({ getCurrent: () => view.asset, onSelect: openPriceChart });
@@ -1432,6 +1434,7 @@ export function openPriceChart(asset) {
   setTradesAsset(asset, ordersTab === "trades");
   highlightRange();
   loadChart();
+  loadSignals(asset); // sinais: velas diárias e semanais próprias, em paralelo ao gráfico
 
   // ordens chegam em paralelo ao gráfico; se vierem depois, redesenha com os pontos/linhas
   reloadMyOrders(asset);
@@ -1450,6 +1453,7 @@ export function refreshPriceChart() {
     reloadMyOrders(asset),
     reloadHistory(ordersTab === "history"),
     reloadTrades(ordersTab === "trades"),
+    loadSignals(asset),
     ...refreshLayers(asset),
   ];
   if (isOpen()) tasks.push(loadChart({ keepWindow: true }));

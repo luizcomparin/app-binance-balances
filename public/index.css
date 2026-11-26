@@ -12,3 +12,4 @@
 @import "./components/executed/ExecutedOrdersPanel.css";
 @import "./components/price-chart/PriceChartPanel.css";
 @import "./components/price-chart/chart/chart.css";
+@import "./components/price-chart/signals/signals.css";

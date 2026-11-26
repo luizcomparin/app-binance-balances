@@ -17,7 +17,7 @@ Qualquer parte do app abre uma moeda aqui com `window.openPriceChart(asset)`.
 
 ```
 ┌ cabeçalho ───────────────────────────────────────────────────────────────┐
-│ [XRP / USDT ▾] (seletor)   #price-chart-info: preço atual · médio · vs. médio │
+│ [XRP / USDT ▾] (seletor)   #price-chart-info: preço atual · médio · vs. médio   [Sinais ▾] │
 │ #price-chart-mas: indicadores (+ Adicionar)                               │
 │ Linha|Velas · Linear|Log · 1h 4h D S M · 7d 30d 90d 6m 1a 2a Tudo Personalizado · ⚙ camadas │
 │                                                  [Ajustar zoom] [☰ lista]   │
@@ -50,7 +50,7 @@ Qualquer parte do app abre uma moeda aqui com `window.openPriceChart(asset)`.
 | `chart/rsi.js` | Cálculo do RSI e limites das configurações | [rsi](rsi.md) |
 | `chart/macd.js` | Cálculo do MACD, tons do histograma e limites das configurações | [macd](macd.md) |
 | `chart/fearGreed.js` | Zonas (nome e cor) do Fear & Greed Index e encaixe do valor diário nas velas | [fear-and-greed](fear-and-greed.md) |
-| `signals/signals.js` | Sinais de compra e venda: núcleo de cálculo puro (tendência, RSI, esticagem, placar). Ainda sem interface | [sinais](../../sinais/README.md) |
+| `signals/signals.js`, `signals/signalsPanel.js`, `signals/signals.css` | Sinais de compra e venda no diário e no semanal: núcleo de cálculo puro, e o campo "Sinais" do cabeçalho com a janela de detalhes | [sinais](../../sinais/README.md) |
 | `watchlist.js`, `assetPicker.js` | Lista lateral e seletor do título | [watchlist-e-seletor](watchlist-e-seletor.md) |
 | `chartQuote.js` | Cotação do gráfico: USDT em USDT/BRL, demais em USDT (`quoteOf`, `pairLabel`, preço das ordens na cotação do gráfico) | [watchlist-e-seletor](watchlist-e-seletor.md) |
 | `openOrdersTable.js`, `orderHistoryTable.js`, `tradeHistoryTable.js`, `periodFilter.js`, `loadError.js` | Abas abaixo do gráfico | [abas-de-ordens](abas-de-ordens.md) |
@@ -92,10 +92,11 @@ Fica em `PriceChartPanel.js`, no nível do módulo.
    - `chart.clear()`;
    - atualiza o título, a watchlist e as abas de ordens;
    - `loadChart()`;
-   - em paralelo, `loadMyOrders()` e `reloadOpenOrders(asset)`.
+   - em paralelo, `loadSignals(asset)` (ver [sinais](../../sinais/README.md)), `loadMyOrders()` e `reloadOpenOrders(asset)`.
 4. **`refreshPriceChart()`**, chamada pelo "Atualizar" do topo (`Topbar.js`):
    - descarta o cache do cliente da moeda aberta (`invalidateAssetCache`);
    - busca de novo as ordens abertas, as executadas e a aba de histórico visível;
+   - `loadSignals(asset)`: recalcula os sinais;
    - `refreshLayers(asset)`: recarrega as camadas ligadas (vol, DCA, mapa, futuros, liquidações, Fear & Greed) e zera as desligadas;
    - com a aba na tela, chama `loadChart({ keepWindow: true })`.
 5. **`loadChart({ keepWindow })`**: carrega as velas que cobrem a janela (ver [velas-e-timeframe](velas-e-timeframe.md)) e depois chama `render({ window })` e `renderInfo()`.

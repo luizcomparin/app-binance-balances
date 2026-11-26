@@ -11,7 +11,7 @@ storage: []
 
 Como usar este doc: ao concluir uma etapa, marque os itens (`[x]`), anote a data e o que mudou em relação ao plano, e atualize o [README](README.md) e o [catálogo](catalogo-de-sinais.md) no mesmo commit do código.
 
-**Situação em 25/11/2026:** etapas 0 e 1 concluídas. Existe o núcleo de cálculo com testes; ainda não há nada na tela.
+**Situação em 25/11/2026:** etapas 0, 1 e 2 concluídas. O campo "Sinais" está no cabeçalho do gráfico com tendência, RSI e esticagem; faltam as fontes das etapas 3 a 5.
 
 ## V1: sinais no gráfico de preço
 
@@ -32,15 +32,19 @@ Cada etapa termina com algo utilizável, `npm test` passando e docs atualizados.
 - [x] Placar de região (`regionOf`).
 - [x] Testes em `test/public/signals.test.js`.
 
-Mudanças em relação ao plano: a esticagem só vira sinal de fundo com o preço abaixo da média (e de topo, acima); o texto de cada sinal (`text`) já sai pronto do núcleo, em PT-BR. **Não verificado ainda:** os sinais com velas reais da Binance; isso acontece na etapa 2, quando houver a carga dos dados.
+Mudanças em relação ao plano: a esticagem só vira sinal de fundo com o preço abaixo da média (e de topo, acima); o texto de cada sinal (`text`) já sai pronto do núcleo, em PT-BR. A conferência com velas reais da Binance foi feita na etapa 2.
 
-### Etapa 2 — Dados D/S e interface
+### Etapa 2 — Dados D/S e interface ✅ (25/11/2026)
 
-- [ ] Carga das velas `1d` (até 3 páginas) e `1w` por moeda, independente da vela na tela, com proteção contra troca de moeda no meio.
-- [ ] Campo resumido no cabeçalho (ao lado de `#price-chart-info`) com estado de carregando e de erro.
-- [ ] Janela flutuante com os detalhes; fecha com clique fora e Esc.
-- [ ] Recarregar no "Atualizar" do topo e ao trocar de moeda.
-- [ ] Verificação manual na aba do gráfico; seção "Como verificar" no README.
+- [x] Carga das velas `1d` (até 3 páginas) e `1w` por moeda, independente da vela na tela, com proteção contra troca de moeda no meio (`signals/signalsPanel.js`).
+- [x] Campo resumido no cabeçalho (ao lado de `#price-chart-info`) com estado de carregando e de erro.
+- [x] Janela flutuante com os detalhes; fecha com clique fora e Esc.
+- [x] Recarregar no "Atualizar" do topo e ao trocar de moeda.
+- [x] Verificação na aba do gráfico; seção "Como verificar" no README.
+
+Verificado com o server local e o Edge sem interface: sinais de BTC, ETH, XRP, SUI e USDT com velas reais; campo e janela em BTC e USDT; troca de moeda; fechar com Esc e com clique fora. **Não verificado:** o estado de erro de carga (não foi simulada uma falha) e o Atualizar do topo com a janela aberta.
+
+Ajuste feito ao ver dados reais: o percentil da esticagem é arredondado para baixo no texto (um valor perto do máximo aparecia como "acima de 100% do histórico" sem ser o máximo).
 
 ### Etapa 3 — Fear & Greed e MACD
 
@@ -129,4 +133,5 @@ Intenção registrada em 25/11/2026: avaliar os sinais no histórico para saber 
 | Data | O que foi feito |
 |---|---|
 | 25/11/2026 | Levantamento dos indicadores e camadas, decisões iniciais e criação da documentação (etapa 0) |
+| 25/11/2026 | Etapa 2: carga das velas D e S, campo "Sinais" no cabeçalho do gráfico e janela flutuante com os detalhes |
 | 25/11/2026 | Etapa 1: núcleo puro (`signals/signals.js`) com tendência por médias, RSI, esticagem com percentil e placar de região, com testes |

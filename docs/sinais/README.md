@@ -1,15 +1,15 @@
 ---
 titulo: Sinais de compra e venda — visão geral
-resumo: Mecanismo (em desenvolvimento; o núcleo de cálculo existe, a interface ainda não) que lê os indicadores e camadas já existentes nos tempos Diário e Semanal e informa, por paridade, a tendência atual e se o preço está em região provável de fundo ou de topo, listando os sinais presentes.
-arquivos: [public/components/price-chart/signals/signals.js]
-rotas: []
+resumo: Mecanismo (em desenvolvimento) que lê os indicadores e camadas já existentes nos tempos Diário e Semanal e informa, por paridade, a tendência atual e se o preço está em região provável de fundo ou de topo, listando os sinais presentes.
+arquivos: [public/components/price-chart/signals/signals.js, public/components/price-chart/signals/signalsPanel.js, public/components/price-chart/signals/signals.css, public/components/price-chart/PriceChartPanel.html, public/components/price-chart/PriceChartPanel.js]
+rotas: [GET /price-chart/:asset]
 eventos: []
 storage: []
 ---
 
 # Sinais de compra e venda
 
-> **Estado: em desenvolvimento.** A etapa 1 está pronta: o núcleo de cálculo (`signals/signals.js`) com tendência por médias, RSI, esticagem e o placar de região, com testes. **Ainda não há nada na tela**: a carga dos dados e a interface são a etapa 2. O andamento fica em [planejamento.md](planejamento.md), e este doc é atualizado a cada etapa concluída.
+> **Estado: em desenvolvimento.** Etapas 1 e 2 prontas: o campo "Sinais" já aparece no cabeçalho do gráfico de preço, com tendência por médias, RSI e esticagem da média. Faltam Fear & Greed, MACD, funding, liquidações e divergência de RSI (etapas 3 a 5). O andamento fica em [planejamento.md](planejamento.md), e este doc é atualizado a cada etapa concluída.
 
 Documentação exclusiva dos sinais:
 
@@ -31,11 +31,17 @@ Um campo informativo **por paridade** no gráfico de preço. Ele não prevê nem
 
 ## Como aparece na tela
 
-Definido em 25/11/2026, a partir de um esboço sobre a tela:
-
-- **Campo resumido** no cabeçalho do gráfico, à direita das informações de preço (`#price-chart-info`: preço atual, médios, vs. preço médio), no espaço livre da mesma linha. Mostra só o essencial: tendência D e S e a região com o placar.
-- **Clicar no campo abre uma janelinha flutuante** logo abaixo dele, por cima do gráfico e da watchlist, com os detalhes: os sinais agrupados (tendência, fundo/topo, contexto), cada um com valor, duração e percentil, e os indisponíveis com o motivo.
-- Fecha com clique fora ou Esc, como as caixas de engrenagem dos painéis (`.fp-settings`).
+- **Campo resumido "Sinais"** (`#price-chart-signals`) no cabeçalho do gráfico, na ponta direita da linha das informações de preço (`#price-chart-info`). Três pílulas:
+  - **D** e **S**: tendência diária e semanal. ▲ verde = alta, ▼ vermelha = baixa, ▬ cinza = lateral, "–" = histórico insuficiente.
+  - **Região:** "Fundo provável 3/4" (verde), "Topo provável 3/4" (vermelha) ou "Região neutra" (cinza). Os números são sinais ativos do lado ÷ sinais disponíveis. O `title` de cada pílula traz o detalhe.
+- **Clicar no campo abre a janelinha flutuante** (`#price-chart-signals-pop`) logo abaixo dele, alinhada à direita, por cima do gráfico e da watchlist:
+  - **Tendência:** uma linha por sinal de tendência.
+  - **Fundo ou topo:** o placar ("fundo 1 · topo 0 · de 4 disponíveis") e uma linha por sinal.
+  - Bolinha de cada linha: verde = fundo ou alta; vermelha = topo ou baixa; apagada = sinal não ativo; vazada = indisponível.
+  - Rodapé: a hora do cálculo e o aviso de que não é previsão.
+- Fecha com clique fora ou Esc.
+- **Carregando:** "analisando..." com spinner. No Atualizar do topo, o resultado anterior continua na tela com um spinner ao lado até o novo chegar.
+- **Erro de carga:** a pílula vira "indisponíveis" (motivo no `title`), e a janela mostra a mensagem e o botão "Tentar de novo".
 
 ## De onde vêm os dados
 
@@ -70,8 +76,15 @@ Pontos estruturais:
   - `regionOf(signals, cfg?)`: o placar de confluência.
   - `lastClosedIndex`, `streak`, `percentileRank`: auxiliares.
   - `SIGNAL_DEFAULTS`: os limiares fixos da v1. As funções aceitam outra configuração no último parâmetro (os testes usam médias curtas).
-- **Carga dos dados (planejada, etapa 2)** no front, por moeda, independente das camadas ligadas: velas `1d` (até 3 páginas, cerca de 8 anos, para os percentis) e `1w` (1 página cobre todo o histórico), mais Fear & Greed, funding e liquidações quando disponíveis. Usa os caches que já existem (`getKlines`, `futCache`, `liqRealCache`, `view.fng`).
-- **Componente (planejado, etapa 2)** do campo resumido e da janela flutuante, em módulo próprio (o `PriceChartPanel.js` já é grande; ver [debitos-tecnicos](../debitos-tecnicos.md)).
+- **Painel (implementado):** `public/components/price-chart/signals/signalsPanel.js`, com o estado próprio (`view`: moeda, resultado, erro, carregando) e o desenho. Estilos em `signals/signals.css` (importado em `public/index.css`); o HTML do campo fica em `PriceChartPanel.html`.
+  - `initSignalsPanel()`: liga o clique do campo, o clique fora, o Esc e o "Tentar de novo". Chamada em `initPriceChartPanel()`.
+  - `loadSignals(asset)`: carrega as velas e chama `analyzeSignals`. Chamada em `openPriceChart()` (troca de moeda) e em `refreshPriceChart()` (Atualizar do topo, depois de `invalidateAssetCache`). Um `requestId` descarta a resposta de uma moeda que já foi trocada.
+  - Fica fora do `PriceChartPanel.js`, que já é grande (ver [debitos-tecnicos](../debitos-tecnicos.md)): lá só existem o import e as três chamadas.
+- **Carga dos dados:** independente das camadas ligadas e da vela na tela.
+  - Velas `1d`: até 3 páginas de 1000 (`DAILY_PAGES`, cerca de 8 anos), das mais recentes para trás, para o percentil da esticagem. Para na primeira página incompleta (início do histórico).
+  - Velas `1w`: 1 página, que cobre todo o histórico da Binance.
+  - Tudo por `chartData.getKlines`, com o cache que já existe: a página recente vale 60 s e as antigas, 10 min. Com o gráfico em D ou S, a página recente é a mesma do gráfico (sem chamada extra).
+  - Fear & Greed, funding e liquidações entram nas etapas 3 e 4.
 
 Formato do resultado de `analyzeSignals`:
 
@@ -109,6 +122,24 @@ Formato do resultado de `analyzeSignals`:
 - **Confluência, não alerta único.** Um sinal isolado erra muito; a leitura é o conjunto.
 - **Não é previsão.** A janela traz esse aviso, como a faixa estatística e o mapa de liquidação.
 - **Só leitura e limites de API:** nenhuma chamada nova fora de `publicGet`/`fapiGet`/`coinalyzeGet`/`alternativeGet`; tudo passa pelas rotas existentes e seus caches.
+
+## Casos de borda e armadilhas
+
+- **Moeda recém-listada:** com menos de 200 velas diárias (ou 50 semanais) a tendência fica "–"; com menos de 365 + 200 diárias (ou 52 + 50 semanais) a esticagem fica indisponível. Esses sinais saem do placar.
+- **USDT** abre no par USDT/BRL: os sinais são do dólar em reais.
+- **Página aberta por muito tempo:** os sinais só são recalculados ao trocar de moeda ou no Atualizar do topo. A hora do cálculo aparece no rodapé da janela.
+- **Clique no título da moeda** (seletor) não fecha a janela dos sinais: o botão do seletor interrompe a propagação do clique (`assetPicker.js`). O mesmo já acontece com os menus de Personalizado e Camadas.
+- A janela usa a classe `.pc-pop` (de `PriceChartPanel.css`) e sobrescreve a posição e a largura em `signals.css`.
+
+## Como verificar
+
+1. Abra `/site/grafico-de-preco` em BTC: à direita do cabeçalho aparece "Sinais" com "analisando..." e, em seguida, as pílulas D, S e a região.
+2. Clique no campo: a janela abre abaixo dele, por cima do gráfico, com Tendência e Fundo ou topo. Compare o RSI 14 diário com o painel do RSI em vela D, e a distância da SMA 200 com uma SMA 200 adicionada nos Indicadores.
+3. Feche com Esc e com um clique fora.
+4. Troque a vela do gráfico para 1h: os sinais não mudam (são sempre D e S).
+5. Troque de moeda: o campo volta a "analisando..." e mostra os sinais da nova moeda.
+6. Abra uma moeda listada há pouco tempo: a esticagem aparece como "histórico insuficiente", com a bolinha vazada.
+7. Clique em Atualizar no topo: as pílulas continuam na tela, com um spinner, e a hora do rodapé muda.
 
 ## Decisões tomadas
 

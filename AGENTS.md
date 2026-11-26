@@ -96,7 +96,7 @@ docs/                      documentação oficial (índice em docs/README.md)
 | Camada: Fear & Greed Index (sentimento do mercado, Alternative.me) | [grafico-de-preco/fear-and-greed.md](docs/funcionalidades/grafico-de-preco/fear-and-greed.md) | `services/fearGreed.js`, `chart/fearGreed.js`, `chart/futuresPanes.js` |
 | Watchlist e seletor de moeda | [grafico-de-preco/watchlist-e-seletor.md](docs/funcionalidades/grafico-de-preco/watchlist-e-seletor.md) | `watchlist.js`, `assetPicker.js` |
 | Abas abaixo do gráfico (ordens abertas, históricos) | [grafico-de-preco/abas-de-ordens.md](docs/funcionalidades/grafico-de-preco/abas-de-ordens.md) | `*Table.js`, `periodFilter.js` |
-| **Sinais de compra e venda** (em desenvolvimento: visão, catálogo e etapas) | [sinais/README.md](docs/sinais/README.md) | `components/price-chart/signals/signals.js` |
+| **Sinais de compra e venda** (em desenvolvimento: visão, catálogo e etapas) | [sinais/README.md](docs/sinais/README.md) | `components/price-chart/signals/*` |
 | Decisões intencionais (não "corrigir") | [decisoes.md](docs/decisoes.md) | — |
 | Débitos técnicos, código duplicado, bugs suspeitos | [debitos-tecnicos.md](docs/debitos-tecnicos.md) | — |
 | Ideias ainda não implementadas | [backlog/ideias-futuras.md](docs/backlog/ideias-futuras.md) | — |

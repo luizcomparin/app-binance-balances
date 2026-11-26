@@ -16,6 +16,14 @@
         </div>
       </div>
       <div id="price-chart-info" class="pc-stats"></div>
+      <!-- sinais de compra e venda: resumo (tendência D/S e região) que abre a janela com os detalhes -->
+      <div class="pc-signals" id="price-chart-signals" hidden>
+        <button type="button" class="pc-signals-btn" id="price-chart-signals-btn" aria-haspopup="true" aria-expanded="false" aria-controls="price-chart-signals-pop" title="Sinais de compra e venda no diário e no semanal: clique para ver os detalhes">
+          <span class="pc-label">Sinais <span class="pc-caret" aria-hidden="true">▾</span></span>
+          <span class="pc-signals-summary" id="price-chart-signals-summary"></span>
+        </button>
+        <div class="pc-pop pc-signals-pop" id="price-chart-signals-pop" hidden></div>
+      </div>
     </div>
 
     <div class="pc-section">

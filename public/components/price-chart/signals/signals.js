@@ -157,7 +157,8 @@ export function stretchSignal(points, tf, now, cfg = SIGNAL_DEFAULTS) {
   const min = sorted[0];
   const max = sorted[sorted.length - 1];
   const where = `Preço ${signedPct(value)} da SMA ${stretchMa} ${TF_LABEL_FEM[tf]}`;
-  const history = `acima de ${num(percentile, 0)}% do histórico (extremos: ${signedPct(min)} e ${signedPct(max)})`;
+  // arredonda para baixo: "acima de 100%" só quando passa mesmo de todo o histórico
+  const history = `acima de ${Math.floor(percentile)}% do histórico (extremos: ${signedPct(min)} e ${signedPct(max)})`;
 
   return {
     id, group: "extreme", timeframe: tf, available: true,

@@ -9,7 +9,7 @@ storage: []
 
 # Catálogo de sinais
 
-> As regras e os limiares são os **padrões fixos da v1** (`SIGNAL_DEFAULTS` em `signals/signals.js`). A coluna "Estado" diz o que já existe no núcleo de cálculo; os "planejados" são revisados quando forem implementados. Nenhum sinal aparece na tela ainda (etapa 2).
+> As regras e os limiares são os **padrões fixos da v1** (`SIGNAL_DEFAULTS` em `signals/signals.js`). A coluna "Estado" diz o que já existe no núcleo de cálculo; os "planejados" são revisados quando forem implementados. Os implementados já aparecem no campo "Sinais" do gráfico de preço.
 
 Convenções:
 
